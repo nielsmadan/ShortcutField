@@ -1,0 +1,41 @@
+disabled_rules:
+  - trailing_whitespace
+  - line_length
+  - type_body_length
+  - file_length
+
+opt_in_rules:
+  - empty_count
+  - explicit_init
+  - first_where
+  - toggle_bool
+  - unavailable_function
+
+excluded:
+  - .build
+
+identifier_name:
+  min_length: 1
+  max_length: 50
+
+type_name:
+  min_length: 2
+  max_length: 50
+
+cyclomatic_complexity:
+  warning: 15
+  error: 30
+
+function_body_length:
+  warning: 80
+  error: 150
+
+function_parameter_count:
+  warning: 8
+  error: 10
+
+nesting:
+  type_level: 2
+
+large_tuple:
+  warning: 3
