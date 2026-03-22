@@ -3,6 +3,9 @@ import Carbon.HIToolbox
 import ShortcutField
 import Testing
 
+// NSSearchField instantiation can crash when run in parallel in headless CI
+@Suite(.serialized) struct ShortcutRecorderFieldTests {
+
 @MainActor
 @Test func recorderField_defaultState() {
     let field = ShortcutRecorderField()
@@ -45,4 +48,6 @@ import Testing
 @Test func recorderField_intrinsicContentSize_hasMinimumWidth() {
     let field = ShortcutRecorderField()
     #expect(field.intrinsicContentSize.width >= 130)
+}
+
 }

@@ -9,7 +9,8 @@ private func makeKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = []
     return NSEvent(cgEvent: event)!
 }
 
-// MARK: - NSEvent Matching
+// CGEvent is not thread-safe — run these serially to avoid crashes in CI
+@Suite(.serialized) struct ShortcutMatchingTests {
 
 @Test func matchesEvent_sameKeyAndModifiers_returnsTrue() {
     let shortcut = Shortcut(keyCode: UInt16(kVK_Tab), modifiers: [.command, .shift])
@@ -39,4 +40,6 @@ private func makeKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = []
     let shortcut = Shortcut(keyCode: UInt16(kVK_Tab), modifiers: [])
     let event = makeKeyEvent(keyCode: UInt16(kVK_Tab), modifiers: [])
     #expect(shortcut.matches(event))
+}
+
 }

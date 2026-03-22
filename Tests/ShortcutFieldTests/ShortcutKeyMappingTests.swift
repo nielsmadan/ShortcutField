@@ -69,7 +69,9 @@ import Testing
     #expect(flags.symbolicRepresentation == "")
 }
 
-// MARK: - Display String
+// MARK: - Display String (serialized — UCKeyTranslate is not thread-safe)
+
+@Suite(.serialized) struct DisplayStringTests {
 
 @Test func displayString_specialKeyOnly() {
     let shortcut = Shortcut(keyCode: UInt16(kVK_Return), modifiers: [])
@@ -93,9 +95,9 @@ import Testing
     #expect(display.contains("⌘"))
 }
 
-// MARK: - keyToCharacter
-
 @Test func keyToCharacter_knownKeys() {
     #expect(Shortcut.keyToCharacter(keyCode: 0)?.lowercased() == "a")
     #expect(Shortcut.keyToCharacter(keyCode: 1)?.lowercased() == "s")
+}
+
 }
