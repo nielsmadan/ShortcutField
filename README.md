@@ -2,9 +2,7 @@
 
 A keyboard shortcut recorder for macOS apps. Record, display, and match **in-app** keyboard shortcuts — including special keys like Tab that SwiftUI's focus system normally intercepts.
 
-## How is this different from KeyboardShortcuts?
-
-[KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) handles **global** system-wide hotkeys and explicitly refuses to record Tab. ShortcutField handles **local/in-app** shortcuts where Tab, arrow keys, and other special keys are valid shortcut targets, with matching support for both `NSEvent` and SwiftUI `KeyPress`.
+![Screenshot](screenshot.png)
 
 ## Requirements
 
@@ -94,7 +92,7 @@ ShortcutRecorderView($shortcut)
     .fieldBackgroundColor(NSColor.systemBlue.withAlphaComponent(0.1))
 ```
 
-Setting a background color replaces the default bezel with a custom layer-backed rounded rectangle.
+Setting a background color uses a layer-backed background because `NSSearchFieldCell` does not render `NSTextField.backgroundColor`.
 
 ## API
 
@@ -120,7 +118,7 @@ SwiftUI recorder component.
 | `.recordingPlaceholder(_:)` | Text during recording (default: "Press shortcut...") |
 | `.style(_:)` | `.rounded`, `.plain`, or `.borderless` |
 | `.textColor(_:)` | Text color (`NSColor`) |
-| `.fieldBackgroundColor(_:)` | Background color (`NSColor`); replaces bezel with custom layer |
+| `.fieldBackgroundColor(_:)` | Background color (`NSColor`); uses a layer because `NSSearchFieldCell` ignores `backgroundColor` |
 
 ### `ShortcutRecorderField`
 
@@ -129,6 +127,10 @@ AppKit recorder (`NSSearchField` subclass). Also public for direct use.
 ### `.onShortcut(_:perform:)`
 
 View modifier that fires an action when a shortcut is pressed. Requires macOS 14+.
+
+## Acknowledgments
+
+ShortcutField's key mapping and display logic is adapted from [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) by Sindre Sorhus (MIT license).
 
 ## License
 
