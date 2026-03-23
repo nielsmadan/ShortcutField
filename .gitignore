@@ -4,3 +4,4 @@
 xcuserdata/
 DerivedData/
 .swiftpm/xcode/package.xcworkspacedata
+.claude/settings.local.json
