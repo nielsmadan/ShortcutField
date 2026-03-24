@@ -36,7 +36,7 @@ New AppKit control in `ShortcutSequenceRecorderField.swift`. Subclasses `NSSearc
 - Click to start recording
 - Each key press appends a step to the sequence and updates the display (e.g. `"⌘K ..."`)
 - 1 second timeout after the last key press finalizes the recording
-- If the timeout fires with fewer than 2 steps, the recording is discarded (callback receives nil)
+- If the timeout fires with fewer than 2 steps, the recording is discarded (existing sequence preserved, no callback)
 - Escape cancels recording, Delete clears the recorded sequence
 - Calls `onShortcutSequenceChange: ((ShortcutSequence?) -> Void)?` on completion
 
