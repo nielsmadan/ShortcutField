@@ -1,6 +1,6 @@
 # ShortcutField
 
-A keyboard shortcut recorder for macOS apps. Record, display, and match **in-app** keyboard shortcuts — including special keys like Tab that SwiftUI's focus system normally intercepts.
+A keyboard shortcut recorder for macOS apps. Record, display, and match in-app keyboard shortcuts, either single or sequence, including special keys like Tab that SwiftUI's focus system normally intercepts.
 
 ![Screenshot](screenshot.png)
 
@@ -15,7 +15,7 @@ Add ShortcutField to your project via Swift Package Manager:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/nielsmadan/ShortcutField", from: "1.0.0")
+    .package(url: "https://github.com/nielsmadan/ShortcutField", from: "1.1.0")
 ]
 ```
 
