@@ -1,8 +1,21 @@
 # ShortcutField
 
-A keyboard shortcut recorder for macOS apps. Record, display, and match in-app keyboard shortcuts, either single or sequence, including special keys like Tab that SwiftUI's focus system normally intercepts.
+[![Swift 6.2](https://img.shields.io/badge/Swift-6.2-orange.svg)](https://swift.org)
+[![Platform](https://img.shields.io/badge/platform-macOS%2013%2B-blue.svg)](https://developer.apple.com/macos/)
+[![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
+
+A keyboard shortcut recorder for macOS apps. Record, display, and match **in-app** keyboard shortcuts (single or sequential), including special keys like Tab that SwiftUI's focus system normally intercepts.
 
 ![Screenshot](screenshot.png)
+
+### Features
+
+- Record single shortcuts (e.g. `⌘K`) or sequential shortcuts (e.g. `⌘K ⌘C`)
+- Match shortcuts against key events, including special keys like Tab and Escape
+- SwiftUI views and AppKit controls
+- Codable, Equatable, Sendable models
+- Three visual styles: rounded, plain, borderless
+- Custom text and background colors
 
 ## Requirements
 
@@ -20,6 +33,8 @@ dependencies: [
 ```
 
 ## Usage
+
+See the [Example app](Example/) for a workbench and gallery of all recorder styles.
 
 ### Recording Shortcuts (SwiftUI)
 
@@ -159,7 +174,7 @@ ShortcutSequenceRecorderView($sequence)
     .style(.rounded)
 ```
 
-Press keys in order — the recording finalizes after a 1-second pause.
+Press keys in order. The recording finalizes after a 1-second pause.
 
 | Modifier | Description |
 |---|---|
@@ -186,7 +201,9 @@ MyView()
 
 Each modifier tracks independently, while an internal shared dispatcher delivers each key event to all active sequence matchers. That lets sequences with a common prefix (e.g. `⌘K ⌘C` and `⌘K ⌘T`) work correctly.
 
-When a step uses Tab or Escape, the intermediate event is consumed to prevent focus changes. Other intermediate keys propagate normally through the responder chain (see [Suppressing the system alert sound](#suppressing-the-system-alert-sound) below). Matching is automatically disabled while any recorder field is active.
+When an intermediate step uses Tab or Escape, the event is consumed to prevent focus changes. The final matching step is always consumed. Other intermediate keys propagate normally through the responder chain (see [Suppressing the system alert sound](#suppressing-the-system-alert-sound) below). Matching is automatically disabled while any recorder field is active.
+
+## Notes
 
 ### Recorder behavior
 
@@ -196,7 +213,7 @@ Both `ShortcutRecorderField` and `ShortcutSequenceRecorderField` share these beh
 - **Escape** cancels recording without saving
 - **Delete** clears the current shortcut or sequence (sequence recorder: only when no steps have been recorded yet)
 - **Click outside** the field finalizes the recording
-- Only one recorder can be active at a time — focusing a new recorder ends the previous one
+- Only one recorder can be active at a time. Focusing a new recorder ends the previous one.
 
 The sequence recorder finalizes after a **1-second pause** between key presses. Each key press resets the timer.
 
@@ -221,6 +238,14 @@ class MainWindow: NSWindow {
 ```
 
 `ShortcutSequenceTracking.isActive` is `true` whenever at least one `.onShortcutSequence()` modifier has matched one or more intermediate steps and is waiting for the next key press. It resets automatically on completion, timeout, or mismatch.
+
+### How does this differ from KeyboardShortcuts?
+
+[KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) registers **global** (system-wide) hotkeys. ShortcutField records **in-app** shortcuts that you match yourself via `.onShortcut()` or `.onShortcutSequence()` view modifiers. ShortcutField also supports sequential shortcuts (chord sequences like `⌘K ⌘C`), which KeyboardShortcuts does not.
+
+## Contributing
+
+Issues and pull requests are welcome.
 
 ## Acknowledgments
 
