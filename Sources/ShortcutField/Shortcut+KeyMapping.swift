@@ -49,7 +49,7 @@ extension Shortcut {
         kVK_F9: "F9",
         kVK_F10: "F10",
         kVK_F11: "F11",
-        kVK_F12: "F12"
+        kVK_F12: "F12",
     ]
 
     /// Returns a display string for special keys, or nil for regular keys.
@@ -72,24 +72,25 @@ public extension Shortcut {
 
         let layoutData = unsafeBitCast(layoutDataPointer, to: CFData.self)
         guard let bytePtr = CFDataGetBytePtr(layoutData) else { return nil }
-        let keyLayout = unsafeBitCast(bytePtr, to: UnsafePointer<UCKeyboardLayout>.self)
         var deadKeyState: UInt32 = 0
         let maxLength = 4
         var length = 0
         var characters = [UniChar](repeating: 0, count: maxLength)
 
-        let error = UCKeyTranslate(
-            keyLayout,
-            keyCode,
-            UInt16(kUCKeyActionDisplay),
-            0,
-            UInt32(LMGetKbdType()),
-            OptionBits(kUCKeyTranslateNoDeadKeysBit),
-            &deadKeyState,
-            maxLength,
-            &length,
-            &characters
-        )
+        let error = bytePtr.withMemoryRebound(to: UCKeyboardLayout.self, capacity: 1) { keyLayout in
+            UCKeyTranslate(
+                keyLayout,
+                keyCode,
+                UInt16(kUCKeyActionDisplay),
+                0,
+                UInt32(LMGetKbdType()),
+                OptionBits(kUCKeyTranslateNoDeadKeysBit),
+                &deadKeyState,
+                maxLength,
+                &length,
+                &characters
+            )
+        }
 
         guard error == noErr, length > 0 else {
             return nil

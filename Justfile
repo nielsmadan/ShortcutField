@@ -3,13 +3,13 @@ default:
     @just --list
 
 build:
-    @swift build
+    @swift build -Xswiftc -warnings-as-errors
 
 test:
     @swift test
 
 lint *files:
-    @swiftlint {{ if files == "" { "." } else { files } }}
+    @swiftlint --strict {{ if files == "" { "." } else { files } }}
 
 lint-fix *files:
     @swiftlint --fix {{ if files == "" { "." } else { files } }}

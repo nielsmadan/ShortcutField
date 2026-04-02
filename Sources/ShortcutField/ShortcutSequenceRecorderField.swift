@@ -8,7 +8,9 @@ import Carbon.HIToolbox
 /// after a 1-second timeout), press Escape to cancel, or Delete to clear.
 ///
 /// For SwiftUI, use ``ShortcutSequenceRecorderView`` instead.
-public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDelegate, NSTextViewDelegate, ActiveShortcutRecorder {
+public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDelegate, NSTextViewDelegate,
+    ActiveShortcutRecorder
+{
     override public class var cellClass: AnyClass? {
         get { CenteredSearchFieldCell.self }
         set { super.cellClass = newValue }
@@ -157,7 +159,7 @@ public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDe
         }
     }
 
-    private func startRecording() {
+    func startRecording() {
         guard !isRecording else { return }
 
         isStartingRecording = true
@@ -170,7 +172,7 @@ public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDe
         eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [
             .keyDown,
             .leftMouseUp,
-            .rightMouseUp
+            .rightMouseUp,
         ]) { [weak self] event in
             guard let self, isRecording else { return event }
             return handleEvent(event)
@@ -178,7 +180,7 @@ public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDe
         isStartingRecording = false
     }
 
-    private func endRecording() {
+    func endRecording() {
         guard isRecording else { return }
         isRecording = false
         ShortcutRecordingState.end(for: self)
@@ -192,7 +194,7 @@ public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDe
         updateDisplay()
     }
 
-    private func finalizeRecording() {
+    func finalizeRecording() {
         if !recordedSteps.isEmpty {
             let seq = ShortcutSequence(steps: recordedSteps)
             shortcutSequence = seq
@@ -213,8 +215,8 @@ public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDe
         timeoutTask = Task { @MainActor [weak self] in
             do {
                 guard let self else { return }
-                try await Task.sleep(for: .seconds(self.recordingTimeout))
-                self.finalizeRecording()
+                try await Task.sleep(for: .seconds(recordingTimeout))
+                finalizeRecording()
             } catch {
                 // Task was cancelled — do nothing
             }
@@ -246,7 +248,8 @@ public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDe
     }
 
     public func control(_: NSControl, textView _: NSTextView, shouldChangeTextIn _: NSRange,
-                        replacementString _: String?) -> Bool {
+                        replacementString _: String?) -> Bool
+    {
         false
     }
 
@@ -302,7 +305,7 @@ public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDe
 
     // MARK: - Event Handling
 
-    private func handleCommand(_ commandSelector: Selector, event: NSEvent?) -> Bool {
+    func handleCommand(_ commandSelector: Selector, event: NSEvent?) -> Bool {
         guard isRecording else { return false }
         guard shouldHandleCommand(commandSelector) else { return false }
         guard let event, event.type == .keyDown else { return true }
@@ -318,7 +321,7 @@ public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDe
             commandSelector == #selector(NSResponder.deleteForward(_:))
     }
 
-    private func handleEvent(_ event: NSEvent) -> NSEvent? {
+    func handleEvent(_ event: NSEvent) -> NSEvent? {
         guard isRecording else { return event }
 
         if event.type == .leftMouseUp || event.type == .rightMouseUp {
@@ -347,7 +350,8 @@ public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDe
 
         // Delete clears the current sequence (only when no steps recorded yet)
         if modifiers.isEmpty, recordedSteps.isEmpty,
-           event.keyCode == UInt16(kVK_Delete) || event.keyCode == UInt16(kVK_ForwardDelete) {
+           event.keyCode == UInt16(kVK_Delete) || event.keyCode == UInt16(kVK_ForwardDelete)
+        {
             shortcutSequence = nil
             onShortcutSequenceChange?(nil)
             endRecording()
@@ -363,39 +367,7 @@ public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDe
         return nil
     }
 
-    func _startRecordingForTesting() {
-        startRecording()
-    }
-
-    func _endRecordingForTesting() {
-        endRecording()
-    }
-
-    func _handleEventForTesting(_ event: NSEvent) -> NSEvent? {
-        handleEvent(event)
-    }
-
-    func _finalizeRecordingForTesting() {
-        finalizeRecording()
-    }
-
-    func _handleCommandForTesting(_ commandSelector: Selector, event: NSEvent?) -> Bool {
-        handleCommand(commandSelector, event: event)
-    }
-
     func forceEndRecordingSession() {
         forceEndRecording()
-    }
-
-    func _resignFirstResponderForTesting() {
-        if !recordedSteps.isEmpty {
-            finalizeRecording()
-        } else {
-            endRecording()
-        }
-    }
-
-    func _controlTextDidEndEditingForTesting() {
-        controlTextDidEndEditing(Notification(name: NSControl.textDidEndEditingNotification))
     }
 }

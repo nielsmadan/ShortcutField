@@ -7,8 +7,8 @@ protocol ActiveShortcutRecorder: AnyObject {
 }
 
 enum ShortcutRecordingState {
-    nonisolated(unsafe) private static var activeRecorders: Set<ObjectIdentifier> = []
-    nonisolated(unsafe) private static weak var activeRecorder: (any ActiveShortcutRecorder)?
+    private nonisolated(unsafe) static var activeRecorders: Set<ObjectIdentifier> = []
+    private nonisolated(unsafe) weak static var activeRecorder: (any ActiveShortcutRecorder)?
 
     static var isAnyRecording: Bool {
         !activeRecorders.isEmpty
@@ -54,14 +54,16 @@ class CenteredSearchFieldCell: NSSearchFieldCell {
     }
 
     override func edit(withFrame rect: NSRect, in controlView: NSView,
-                       editor textObj: NSText, delegate: Any?, event: NSEvent?) {
+                       editor textObj: NSText, delegate: Any?, event: NSEvent?)
+    {
         super.edit(withFrame: centeredFrame(rect), in: controlView, editor: textObj,
                    delegate: delegate, event: event)
     }
 
     override func select(withFrame rect: NSRect, in controlView: NSView,
                          editor textObj: NSText, delegate: Any?,
-                         start selStart: Int, length selLength: Int) {
+                         start selStart: Int, length selLength: Int)
+    {
         super.select(withFrame: centeredFrame(rect), in: controlView, editor: textObj,
                      delegate: delegate, start: selStart, length: selLength)
     }
@@ -83,11 +85,14 @@ class CenteredSearchFieldCell: NSSearchFieldCell {
 /// shortcut, press Escape to cancel, or Delete to clear.
 ///
 /// For SwiftUI, use ``ShortcutRecorderView`` instead.
-public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, NSTextViewDelegate, ActiveShortcutRecorder {
+public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, NSTextViewDelegate,
+    ActiveShortcutRecorder
+{
     override public class var cellClass: AnyClass? {
         get { CenteredSearchFieldCell.self }
         set { super.cellClass = newValue }
     }
+
     /// Whether any recorder instance is currently in recording mode.
     public static var isAnyRecording: Bool { ShortcutRecordingState.isAnyRecording }
 
@@ -227,7 +232,7 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
         }
     }
 
-    private func startRecording() {
+    func startRecording() {
         guard !isRecording else { return }
         isStartingRecording = true
         isRecording = true
@@ -238,7 +243,7 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
         eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [
             .keyDown,
             .leftMouseUp,
-            .rightMouseUp
+            .rightMouseUp,
         ]) { [weak self] event in
             guard let self, isRecording else { return event }
             return handleEvent(event)
@@ -246,7 +251,7 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
         isStartingRecording = false
     }
 
-    private func endRecording() {
+    func endRecording() {
         guard isRecording else { return }
         isRecording = false
         ShortcutRecordingState.end(for: self)
@@ -277,7 +282,8 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
     }
 
     public func control(_: NSControl, textView _: NSTextView, shouldChangeTextIn _: NSRange,
-                        replacementString _: String?) -> Bool {
+                        replacementString _: String?) -> Bool
+    {
         false
     }
 
@@ -346,7 +352,8 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
         }
 
         if modifiers.isEmpty,
-           event.keyCode == UInt16(kVK_Delete) || event.keyCode == UInt16(kVK_ForwardDelete) {
+           event.keyCode == UInt16(kVK_Delete) || event.keyCode == UInt16(kVK_ForwardDelete)
+        {
             shortcut = nil
             onShortcutChange?(nil)
             endRecording()
@@ -360,25 +367,5 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
         endRecording()
         blur()
         return nil
-    }
-
-    static func _beginRecordingForTesting(_ recorder: AnyObject) {
-        ShortcutRecordingState.beginTestRecording(for: recorder)
-    }
-
-    static func _endRecordingForTesting(_ recorder: AnyObject) {
-        ShortcutRecordingState.endTestRecording(for: recorder)
-    }
-
-    func _startRecordingForTesting() {
-        startRecording()
-    }
-
-    func _endRecordingForTesting() {
-        endRecording()
-    }
-
-    func _resignFirstResponderForTesting() {
-        endRecording()
     }
 }

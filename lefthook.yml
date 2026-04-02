@@ -1,0 +1,16 @@
+pre-commit:
+  commands:
+    format:
+      glob: "*.swift"
+      run: swiftformat {staged_files} && git add {staged_files}
+      stage_fixed: true
+    lint:
+      glob: "*.swift"
+      run: swiftlint --strict {staged_files}
+
+pre-push:
+  commands:
+    build:
+      run: swift build -Xswiftc -warnings-as-errors
+    test:
+      run: swift test

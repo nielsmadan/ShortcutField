@@ -20,12 +20,12 @@ private func makeKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = []
         let sequenceT = ShortcutSequence(steps: [
             Shortcut(keyCode: UInt16(kVK_Tab), modifiers: []),
             Shortcut(keyCode: UInt16(kVK_Tab), modifiers: []),
-            Shortcut(keyCode: 17, modifiers: [])
+            Shortcut(keyCode: 17, modifiers: []),
         ])
         let sequenceQ = ShortcutSequence(steps: [
             Shortcut(keyCode: UInt16(kVK_Tab), modifiers: []),
             Shortcut(keyCode: UInt16(kVK_Tab), modifiers: []),
-            Shortcut(keyCode: 12, modifiers: [])
+            Shortcut(keyCode: 12, modifiers: []),
         ])
 
         var tCount = 0
@@ -54,12 +54,12 @@ private func makeKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = []
         let sequenceT = ShortcutSequence(steps: [
             Shortcut(keyCode: UInt16(kVK_Tab), modifiers: []),
             Shortcut(keyCode: UInt16(kVK_Tab), modifiers: []),
-            Shortcut(keyCode: 17, modifiers: [])
+            Shortcut(keyCode: 17, modifiers: []),
         ])
         let sequenceQ = ShortcutSequence(steps: [
             Shortcut(keyCode: UInt16(kVK_Tab), modifiers: []),
             Shortcut(keyCode: UInt16(kVK_Tab), modifiers: []),
-            Shortcut(keyCode: 12, modifiers: [])
+            Shortcut(keyCode: 12, modifiers: []),
         ])
 
         var tCount = 0
@@ -88,15 +88,15 @@ private func makeKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = []
         let sequence = ShortcutSequence(steps: [
             Shortcut(keyCode: UInt16(kVK_Tab), modifiers: []),
             Shortcut(keyCode: UInt16(kVK_Tab), modifiers: []),
-            Shortcut(keyCode: 17, modifiers: [])
+            Shortcut(keyCode: 17, modifiers: []),
         ])
 
         var fireCount = 0
         matcher.configure(sequence: sequence) { fireCount += 1 }
         dispatcher.register(id: UUID()) { matcher.handle($0) }
 
-        ShortcutRecorderField._beginRecordingForTesting(token)
-        defer { ShortcutRecorderField._endRecordingForTesting(token) }
+        ShortcutRecordingState.beginTestRecording(for: token)
+        defer { ShortcutRecordingState.endTestRecording(for: token) }
 
         #expect(dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_Tab))) != nil)
         #expect(dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_Tab))) != nil)
@@ -109,14 +109,14 @@ private func makeKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = []
         let single = ShortcutRecorderField()
         let sequence = ShortcutSequenceRecorderField()
 
-        single._startRecordingForTesting()
-        sequence._startRecordingForTesting()
+        single.startRecording()
+        sequence.startRecording()
         #expect(ShortcutRecorderField.isAnyRecording)
 
-        single._endRecordingForTesting()
+        single.endRecording()
         #expect(ShortcutRecorderField.isAnyRecording)
 
-        sequence._endRecordingForTesting()
+        sequence.endRecording()
         #expect(!ShortcutRecorderField.isAnyRecording)
     }
 
@@ -125,10 +125,10 @@ private func makeKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = []
         let single = ShortcutRecorderField()
         let sequence = ShortcutSequenceRecorderField()
 
-        single._startRecordingForTesting()
+        single.startRecording()
         #expect(single.isRecording)
 
-        sequence._startRecordingForTesting()
+        sequence.startRecording()
 
         #expect(!single.isRecording)
         #expect(sequence.isRecording)
@@ -137,15 +137,15 @@ private func makeKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = []
     @MainActor
     @Test func sequenceRecorderField_resigningFirstResponderFinalizesRecordedSteps() {
         let field = ShortcutSequenceRecorderField()
-        field._startRecordingForTesting()
-        _ = field._handleEventForTesting(makeKeyEvent(keyCode: UInt16(kVK_Tab)))
-        _ = field._handleEventForTesting(makeKeyEvent(keyCode: 17))
+        field.startRecording()
+        _ = field.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_Tab)))
+        _ = field.handleEvent(makeKeyEvent(keyCode: 17))
 
-        field._resignFirstResponderForTesting()
+        field.finalizeRecording()
 
         let expected = ShortcutSequence(steps: [
             Shortcut(keyCode: UInt16(kVK_Tab), modifiers: []),
-            Shortcut(keyCode: 17, modifiers: [])
+            Shortcut(keyCode: 17, modifiers: []),
         ])
         #expect(field.shortcutSequence == expected)
         #expect(!field.isRecording)
@@ -154,7 +154,7 @@ private func makeKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = []
     @MainActor
     @Test func recordingState_clearsWhenRecorderLeavesWindow() {
         let field = ShortcutRecorderField()
-        field._startRecordingForTesting()
+        field.startRecording()
         #expect(ShortcutRecorderField.isAnyRecording)
 
         field.viewWillMove(toWindow: nil)
@@ -166,10 +166,10 @@ private func makeKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = []
         let first = ShortcutSequenceRecorderField()
         let second = ShortcutSequenceRecorderField()
 
-        first._startRecordingForTesting()
+        first.startRecording()
         #expect(first.isRecording)
 
-        second._startRecordingForTesting()
+        second.startRecording()
 
         #expect(!first.isRecording)
         #expect(second.isRecording)
@@ -180,20 +180,20 @@ private func makeKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = []
         let first = ShortcutSequenceRecorderField()
         let second = ShortcutSequenceRecorderField()
 
-        first._startRecordingForTesting()
-        second._startRecordingForTesting()
+        first.startRecording()
+        second.startRecording()
 
-        #expect(first._handleEventForTesting(makeKeyEvent(keyCode: UInt16(kVK_Tab))) != nil)
+        #expect(first.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_Tab))) != nil)
 
-        _ = second._handleEventForTesting(makeKeyEvent(keyCode: UInt16(kVK_Tab)))
-        _ = second._handleEventForTesting(makeKeyEvent(keyCode: UInt16(kVK_Tab)))
-        _ = second._handleEventForTesting(makeKeyEvent(keyCode: 17))
-        second._finalizeRecordingForTesting()
+        _ = second.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_Tab)))
+        _ = second.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_Tab)))
+        _ = second.handleEvent(makeKeyEvent(keyCode: 17))
+        second.finalizeRecording()
 
         let expected = ShortcutSequence(steps: [
             Shortcut(keyCode: UInt16(kVK_Tab), modifiers: []),
             Shortcut(keyCode: UInt16(kVK_Tab), modifiers: []),
-            Shortcut(keyCode: 17, modifiers: [])
+            Shortcut(keyCode: 17, modifiers: []),
         ])
 
         #expect(first.shortcutSequence == nil)
@@ -203,22 +203,22 @@ private func makeKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = []
     @MainActor
     @Test func sequenceRecorderField_insertTabCommand_recordsTabSteps() {
         let field = ShortcutSequenceRecorderField()
-        field._startRecordingForTesting()
+        field.startRecording()
 
-        #expect(field._handleCommandForTesting(#selector(NSResponder.insertTab(_:)),
-                                              event: makeKeyEvent(keyCode: UInt16(kVK_Tab))))
-        #expect(field._handleCommandForTesting(#selector(NSResponder.insertTab(_:)),
-                                              event: makeKeyEvent(keyCode: UInt16(kVK_Tab))))
-        #expect(field._handleCommandForTesting(#selector(NSResponder.insertText(_:)),
-                                              event: makeKeyEvent(keyCode: 17)) == false)
+        #expect(field.handleCommand(#selector(NSResponder.insertTab(_:)),
+                                    event: makeKeyEvent(keyCode: UInt16(kVK_Tab))))
+        #expect(field.handleCommand(#selector(NSResponder.insertTab(_:)),
+                                    event: makeKeyEvent(keyCode: UInt16(kVK_Tab))))
+        #expect(field.handleCommand(#selector(NSResponder.insertText(_:)),
+                                    event: makeKeyEvent(keyCode: 17)) == false)
 
-        _ = field._handleEventForTesting(makeKeyEvent(keyCode: 17))
-        field._finalizeRecordingForTesting()
+        _ = field.handleEvent(makeKeyEvent(keyCode: 17))
+        field.finalizeRecording()
 
         let expected = ShortcutSequence(steps: [
             Shortcut(keyCode: UInt16(kVK_Tab), modifiers: []),
             Shortcut(keyCode: UInt16(kVK_Tab), modifiers: []),
-            Shortcut(keyCode: 17, modifiers: [])
+            Shortcut(keyCode: 17, modifiers: []),
         ])
 
         #expect(field.shortcutSequence == expected)

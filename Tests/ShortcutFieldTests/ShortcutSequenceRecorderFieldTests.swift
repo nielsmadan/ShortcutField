@@ -18,7 +18,7 @@ import Testing
         let field = ShortcutSequenceRecorderField()
         let seq = ShortcutSequence(steps: [
             Shortcut(keyCode: 40, modifiers: .command),
-            Shortcut(keyCode: 8, modifiers: .command)
+            Shortcut(keyCode: 8, modifiers: .command),
         ])
         field.shortcutSequence = seq
         #expect(field.shortcutSequence == seq)
@@ -30,7 +30,7 @@ import Testing
         let field = ShortcutSequenceRecorderField()
         field.shortcutSequence = ShortcutSequence(steps: [
             Shortcut(keyCode: 40, modifiers: .command),
-            Shortcut(keyCode: 8, modifiers: .command)
+            Shortcut(keyCode: 8, modifiers: .command),
         ])
         field.shortcutSequence = nil
         #expect(field.shortcutSequence == nil)
@@ -46,7 +46,7 @@ import Testing
         }
         field.shortcutSequence = ShortcutSequence(steps: [
             Shortcut(keyCode: 40, modifiers: .command),
-            Shortcut(keyCode: 8, modifiers: .command)
+            Shortcut(keyCode: 8, modifiers: .command),
         ])
         #expect(callCount == 0)
     }
@@ -54,7 +54,7 @@ import Testing
     @MainActor
     @Test func sequenceRecorderField_controlTextDidEndEditing_submitsRecordedSteps() {
         let field = ShortcutSequenceRecorderField()
-        field._startRecordingForTesting()
+        field.startRecording()
 
         let event = NSEvent.keyEvent(
             with: .keyDown, location: .zero, modifierFlags: .command,
@@ -62,12 +62,12 @@ import Testing
             characters: "k", charactersIgnoringModifiers: "k",
             isARepeat: false, keyCode: 40 // K
         )!
-        _ = field._handleEventForTesting(event)
+        _ = field.handleEvent(event)
 
         var receivedSequence: ShortcutSequence?
         field.onShortcutSequenceChange = { receivedSequence = $0 }
 
-        field._controlTextDidEndEditingForTesting()
+        field.controlTextDidEndEditing(Notification(name: NSControl.textDidEndEditingNotification))
 
         #expect(!field.isRecording)
         #expect(field.shortcutSequence != nil)
@@ -79,12 +79,12 @@ import Testing
     @MainActor
     @Test func sequenceRecorderField_controlTextDidEndEditing_noSteps_doesNotSetSequence() {
         let field = ShortcutSequenceRecorderField()
-        field._startRecordingForTesting()
+        field.startRecording()
 
         var callbackCalled = false
         field.onShortcutSequenceChange = { _ in callbackCalled = true }
 
-        field._controlTextDidEndEditingForTesting()
+        field.controlTextDidEndEditing(Notification(name: NSControl.textDidEndEditingNotification))
 
         #expect(!field.isRecording)
         #expect(field.shortcutSequence == nil)
@@ -102,7 +102,7 @@ import Testing
         let field = ShortcutSequenceRecorderField()
         let seq = ShortcutSequence(steps: [
             Shortcut(keyCode: 40, modifiers: .command),
-            Shortcut(keyCode: 8, modifiers: .command)
+            Shortcut(keyCode: 8, modifiers: .command),
         ])
         field.shortcutSequence = seq
         field.shortcutSequence = nil

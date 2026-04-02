@@ -143,7 +143,7 @@ AppKit recorder (`NSSearchField` subclass). Also public for direct use.
 
 View modifier that fires an action when a shortcut is pressed. Requires macOS 14+.
 
-Regular keys are matched via SwiftUI's `onKeyPress`; special keys like Tab and Escape use an NSEvent local monitor so they work even though the focus system would normally intercept them. Matching is automatically disabled while any recorder field is active.
+Uses an NSEvent local monitor to match key events, including special keys like Tab that SwiftUI's focus system would normally intercept. The view does not need focus. Matching is automatically disabled while any recorder field is active.
 
 ### `ShortcutSequence`
 

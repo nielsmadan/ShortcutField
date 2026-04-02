@@ -1,11 +1,11 @@
 import AppKit
-import Carbon.HIToolbox
 import SwiftUI
 
 /// View modifier that fires an action when a shortcut is pressed.
 ///
-/// Uses SwiftUI's `onKeyPress` for regular keys and an NSEvent local
-/// monitor for special keys that the focus system intercepts first.
+/// Uses an NSEvent local monitor to match key events globally within the app,
+/// so the view does not need focus. Matching is disabled while any recorder
+/// field is active.
 @available(macOS 14.0, *)
 struct OnShortcutModifier: ViewModifier {
     let shortcut: Shortcut?
@@ -15,17 +15,6 @@ struct OnShortcutModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .focusable()
-            .onKeyPress(phases: .down) { press in
-                guard !ShortcutRecorderField.isAnyRecording,
-                      let shortcut,
-                      !Self.needsEventMonitor(keyCode: shortcut.keyCode),
-                      shortcut.matches(press) else {
-                    return .ignored
-                }
-                action()
-                return .handled
-            }
             .onAppear {
                 installMonitor()
             }
@@ -40,7 +29,6 @@ struct OnShortcutModifier: ViewModifier {
 
     private func installMonitor() {
         guard let shortcut, eventMonitor == nil else { return }
-        guard Self.needsEventMonitor(keyCode: shortcut.keyCode) else { return }
 
         eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             if ShortcutRecorderField.isAnyRecording {
@@ -60,16 +48,6 @@ struct OnShortcutModifier: ViewModifier {
             self.eventMonitor = nil
         }
     }
-
-    /// Keys that SwiftUI's focus system may intercept before onKeyPress fires.
-    private static func needsEventMonitor(keyCode: UInt16) -> Bool {
-        switch Int(keyCode) {
-        case kVK_Tab, kVK_Escape:
-            true
-        default:
-            false
-        }
-    }
 }
 
 // MARK: - View Extension
@@ -77,8 +55,10 @@ struct OnShortcutModifier: ViewModifier {
 public extension View {
     /// Perform an action when the given shortcut is pressed.
     ///
-    /// Handles regular keys via SwiftUI's `onKeyPress`, plus special keys
-    /// like Tab via an NSEvent local monitor.
+    /// Uses an NSEvent local monitor to match key events, including special
+    /// keys like Tab that SwiftUI's focus system would normally intercept.
+    /// The view does not need focus. Matching is automatically disabled
+    /// while any recorder field is active.
     ///
     /// ```swift
     /// MyView()
