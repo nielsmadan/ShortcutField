@@ -28,7 +28,7 @@ public struct ShortcutRecorderView: NSViewRepresentable {
         field.shortcut = shortcut
         field.defaultPlaceholder = placeholderText
         field.recordingPlaceholder = recordingPlaceholderText
-        field.applyStyle(style)
+        field.applyRecorderStyle(style)
         field.fieldTextColor = textColorValue
         field.fieldBackgroundColor = backgroundColorValue
         field.onShortcutChange = { newShortcut in
@@ -47,7 +47,7 @@ public struct ShortcutRecorderView: NSViewRepresentable {
         nsView.shortcut = shortcut
         nsView.defaultPlaceholder = placeholderText
         nsView.recordingPlaceholder = recordingPlaceholderText
-        nsView.applyStyle(style)
+        nsView.applyRecorderStyle(style)
         nsView.fieldTextColor = textColorValue
         nsView.fieldBackgroundColor = backgroundColorValue
     }

@@ -3,6 +3,9 @@ import Carbon.HIToolbox
 import SwiftUI
 
 /// View modifier that fires an action when a shortcut is pressed.
+///
+/// Uses SwiftUI's `onKeyPress` for regular keys and an NSEvent local
+/// monitor for special keys that the focus system intercepts first.
 @available(macOS 14.0, *)
 struct OnShortcutModifier: ViewModifier {
     let shortcut: Shortcut?
@@ -14,7 +17,10 @@ struct OnShortcutModifier: ViewModifier {
         content
             .focusable()
             .onKeyPress(phases: .down) { press in
-                guard let shortcut, shortcut.matches(press) else {
+                guard !ShortcutRecorderField.isAnyRecording,
+                      let shortcut,
+                      !Self.needsEventMonitor(keyCode: shortcut.keyCode),
+                      shortcut.matches(press) else {
                     return .ignored
                 }
                 action()
@@ -34,13 +40,12 @@ struct OnShortcutModifier: ViewModifier {
 
     private func installMonitor() {
         guard let shortcut, eventMonitor == nil else { return }
-
-        // Only install for special keys that SwiftUI's focus system intercepts
-        // before onKeyPress fires (e.g. Tab, Escape). Regular keys are handled
-        // solely by onKeyPress to avoid double-firing.
         guard Self.needsEventMonitor(keyCode: shortcut.keyCode) else { return }
 
         eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            if ShortcutRecorderField.isAnyRecording {
+                return event
+            }
             if shortcut.matches(event) {
                 action()
                 return nil
@@ -55,6 +60,7 @@ struct OnShortcutModifier: ViewModifier {
             self.eventMonitor = nil
         }
     }
+
     /// Keys that SwiftUI's focus system may intercept before onKeyPress fires.
     private static func needsEventMonitor(keyCode: UInt16) -> Bool {
         switch Int(keyCode) {
@@ -71,8 +77,8 @@ struct OnShortcutModifier: ViewModifier {
 public extension View {
     /// Perform an action when the given shortcut is pressed.
     ///
-    /// Handles both regular keys (via SwiftUI's `onKeyPress`) and special keys
-    /// like Tab (via an NSEvent local monitor).
+    /// Handles regular keys via SwiftUI's `onKeyPress`, plus special keys
+    /// like Tab via an NSEvent local monitor.
     ///
     /// ```swift
     /// MyView()

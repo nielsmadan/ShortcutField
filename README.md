@@ -128,6 +128,100 @@ AppKit recorder (`NSSearchField` subclass). Also public for direct use.
 
 View modifier that fires an action when a shortcut is pressed. Requires macOS 14+.
 
+Regular keys are matched via SwiftUI's `onKeyPress`; special keys like Tab and Escape use an NSEvent local monitor so they work even though the focus system would normally intercept them. Matching is automatically disabled while any recorder field is active.
+
+### `ShortcutSequence`
+
+A sequential shortcut composed of multiple steps. `Codable`, `Equatable`, `Sendable`.
+
+```swift
+let sequence = ShortcutSequence(steps: [
+    Shortcut(keyCode: 40, modifiers: .command),  // ⌘K
+    Shortcut(keyCode: 8, modifiers: .command),   // ⌘C
+])
+print(sequence.displayString) // "⌘K ⌘C"
+```
+
+| Property | Description |
+|---|---|
+| `steps: [Shortcut]` | Ordered steps (at least 1 required) |
+| `displayString: String` | Human-readable, e.g. "⌘K ⌘C" |
+
+### `ShortcutSequenceRecorderView`
+
+SwiftUI recorder for sequential shortcuts.
+
+```swift
+@State private var sequence: ShortcutSequence?
+
+ShortcutSequenceRecorderView($sequence)
+    .placeholder("Record Sequence")
+    .style(.rounded)
+```
+
+Press keys in order — the recording finalizes after a 1-second pause.
+
+| Modifier | Description |
+|---|---|
+| `.placeholder(_:)` | Text when empty (default: "Record Sequence") |
+| `.recordingPlaceholder(_:)` | Text during recording (default: "Press keys...") |
+| `.style(_:)` | `.rounded`, `.plain`, or `.borderless` |
+| `.textColor(_:)` | Text color (`NSColor`) |
+| `.fieldBackgroundColor(_:)` | Background color (`NSColor`); uses a layer because `NSSearchFieldCell` ignores `backgroundColor` |
+
+### `ShortcutSequenceRecorderField`
+
+AppKit sequential recorder (`NSSearchField` subclass). Also public for direct use.
+
+### `.onShortcutSequence(_:perform:)`
+
+View modifier that fires an action when a shortcut sequence is pressed. Requires macOS 14+.
+
+```swift
+MyView()
+    .onShortcutSequence(sequence) {
+        print("Sequence matched!")
+    }
+```
+
+Each modifier tracks independently, while an internal shared dispatcher delivers each key event to all active sequence matchers. That lets sequences with a common prefix (e.g. `⌘K ⌘C` and `⌘K ⌘T`) work correctly.
+
+When a step uses Tab or Escape, the intermediate event is consumed to prevent focus changes. Other intermediate keys propagate normally through the responder chain (see [Suppressing the system alert sound](#suppressing-the-system-alert-sound) below). Matching is automatically disabled while any recorder field is active.
+
+### Recorder behavior
+
+Both `ShortcutRecorderField` and `ShortcutSequenceRecorderField` share these behaviors:
+
+- **Click** the field to start recording
+- **Escape** cancels recording without saving
+- **Delete** clears the current shortcut or sequence (sequence recorder: only when no steps have been recorded yet)
+- **Click outside** the field finalizes the recording
+- Only one recorder can be active at a time — focusing a new recorder ends the previous one
+
+The sequence recorder finalizes after a **1-second pause** between key presses. Each key press resets the timer.
+
+### Suppressing the system alert sound
+
+When using `.onShortcutSequence()`, intermediate key events propagate through the responder chain. If nothing else handles them, macOS plays the system alert sound. This does not affect `.onShortcut()`, which consumes its key event immediately.
+
+To suppress the beep only during active sequence input (while still allowing it for random unhandled keys), check `ShortcutSequenceTracking.isActive` in a `noResponder(for:)` override on your window:
+
+```swift
+import ShortcutField
+
+class MainWindow: NSWindow {
+    override func noResponder(for eventSelector: Selector) {
+        if eventSelector == #selector(keyDown(with:)),
+           ShortcutSequenceTracking.isActive {
+            return // suppress beep only during sequence tracking
+        }
+        super.noResponder(for: eventSelector)
+    }
+}
+```
+
+`ShortcutSequenceTracking.isActive` is `true` whenever at least one `.onShortcutSequence()` modifier has matched one or more intermediate steps and is waiting for the next key press. It resets automatically on completion, timeout, or mismatch.
+
 ## Acknowledgments
 
 ShortcutField's key mapping and display logic is adapted from [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) by Sindre Sorhus (MIT license).

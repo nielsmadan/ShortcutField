@@ -10,9 +10,8 @@ public enum ShortcutRecorderStyle: Sendable, Hashable {
     case borderless
 }
 
-extension ShortcutRecorderField {
-    /// Apply a visual style to the recorder field.
-    func applyStyle(_ style: ShortcutRecorderStyle) {
+extension NSSearchField {
+    func applyRecorderStyle(_ style: ShortcutRecorderStyle) {
         switch style {
         case .rounded:
             isBezeled = true

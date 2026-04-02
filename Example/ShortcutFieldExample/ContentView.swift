@@ -12,7 +12,7 @@ struct ContentView: View {
                 GalleryTab()
             }
         }
-        .frame(minWidth: 600, minHeight: 500)
+        .frame(minWidth: 800, minHeight: 650)
     }
 }
 
@@ -20,6 +20,8 @@ struct ContentView: View {
 
 struct WorkbenchTab: View {
     @State private var shortcut: Shortcut?
+    @State private var sequenceA: ShortcutSequence?
+    @State private var sequenceB: ShortcutSequence?
     @State private var selectedStyle: ShortcutRecorderStyle = .rounded
     @State private var selectedSize: ControlSize = .regular
     @State private var selectedTextColor: NamedColor = .default
@@ -27,11 +29,18 @@ struct WorkbenchTab: View {
     @State private var placeholderText: String = "Record Shortcut"
     @State private var matchCount = 0
     @State private var lastMatched = false
+    @State private var seqAMatchCount = 0
+    @State private var seqALastMatched = false
+    @State private var seqBMatchCount = 0
+    @State private var seqBLastMatched = false
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
                 VStack(spacing: 16) {
+                    Text("Single Shortcut")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                     configuredRecorder
 
                     if let shortcut {
@@ -40,6 +49,42 @@ struct WorkbenchTab: View {
                             .foregroundStyle(.secondary)
                     } else {
                         Text("No shortcut")
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    Divider().padding(.horizontal, 20)
+
+                    Text("Sequence A")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    makeSequenceRecorder($sequenceA, style: selectedStyle, size: selectedSize,
+                                         textColor: selectedTextColor.nsColor, bgColor: selectedBgColor.nsColor)
+                        .frame(width: 180)
+
+                    if let sequenceA {
+                        Text(sequenceA.displayString)
+                            .font(.title.monospaced())
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("No sequence")
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    Divider().padding(.horizontal, 20)
+
+                    Text("Sequence B")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    makeSequenceRecorder($sequenceB, style: selectedStyle, size: selectedSize,
+                                         textColor: selectedTextColor.nsColor, bgColor: selectedBgColor.nsColor)
+                        .frame(width: 180)
+
+                    if let sequenceB {
+                        Text(sequenceB.displayString)
+                            .font(.title.monospaced())
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("No sequence")
                             .foregroundStyle(.tertiary)
                     }
                 }
@@ -75,6 +120,16 @@ struct WorkbenchTab: View {
                               placeholder: String) -> some View {
         var view = ShortcutRecorderView(shortcut)
             .placeholder(placeholder)
+            .style(style)
+        if let textColor { view = view.textColor(textColor) }
+        if let bgColor { view = view.fieldBackgroundColor(bgColor) }
+        return view.controlSize(size)
+    }
+
+    private func makeSequenceRecorder(_ sequence: Binding<ShortcutSequence?>, style: ShortcutRecorderStyle,
+                                      size: ControlSize, textColor: NSColor?, bgColor: NSColor?) -> some View {
+        var view = ShortcutSequenceRecorderView(sequence)
+            .placeholder("Record Sequence")
             .style(style)
         if let textColor { view = view.textColor(textColor) }
         if let bgColor { view = view.fieldBackgroundColor(bgColor) }
@@ -152,27 +207,77 @@ struct WorkbenchTab: View {
     @ViewBuilder
     private var fireCounterSection: some View {
         if #available(macOS 14.0, *) {
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(lastMatched ? .green : .gray.opacity(0.3))
-                    .frame(width: 12, height: 12)
+            VStack(spacing: 8) {
+                HStack(spacing: 12) {
+                    Circle()
+                        .fill(lastMatched ? .green : .gray.opacity(0.3))
+                        .frame(width: 12, height: 12)
 
-                Text("Fired \(matchCount) time\(matchCount == 1 ? "" : "s")")
-                    .font(.body.monospaced())
+                    Text("Shortcut fired \(matchCount) time\(matchCount == 1 ? "" : "s")")
+                        .font(.body.monospaced())
 
-                Spacer()
+                    Spacer()
 
-                if shortcut != nil {
-                    Button("Reset") { matchCount = 0 }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
+                    if shortcut != nil {
+                        Button("Reset") { matchCount = 0 }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-            }
-            .onShortcut(shortcut) {
-                matchCount += 1
-                lastMatched = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    lastMatched = false
+                .onShortcut(shortcut) {
+                    matchCount += 1
+                    lastMatched = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        lastMatched = false
+                    }
+                }
+
+                HStack(spacing: 12) {
+                    Circle()
+                        .fill(seqALastMatched ? .green : .gray.opacity(0.3))
+                        .frame(width: 12, height: 12)
+
+                    Text("Sequence A fired \(seqAMatchCount) time\(seqAMatchCount == 1 ? "" : "s")")
+                        .font(.body.monospaced())
+
+                    Spacer()
+
+                    if sequenceA != nil {
+                        Button("Reset") { seqAMatchCount = 0 }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .onShortcutSequence(sequenceA) {
+                    seqAMatchCount += 1
+                    seqALastMatched = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        seqALastMatched = false
+                    }
+                }
+
+                HStack(spacing: 12) {
+                    Circle()
+                        .fill(seqBLastMatched ? .green : .gray.opacity(0.3))
+                        .frame(width: 12, height: 12)
+
+                    Text("Sequence B fired \(seqBMatchCount) time\(seqBMatchCount == 1 ? "" : "s")")
+                        .font(.body.monospaced())
+
+                    Spacer()
+
+                    if sequenceB != nil {
+                        Button("Reset") { seqBMatchCount = 0 }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .onShortcutSequence(sequenceB) {
+                    seqBMatchCount += 1
+                    seqBLastMatched = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        seqBLastMatched = false
+                    }
                 }
             }
         } else {
@@ -243,12 +348,31 @@ struct GalleryTab: View {
 
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: columns, spacing: 16) {
-                ForEach(GalleryItem.allItems) { item in
-                    GalleryCard(item: item)
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Single Shortcuts")
+                    .font(.headline)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 24)
+
+                LazyVGrid(columns: columns, spacing: 16) {
+                    ForEach(GalleryItem.allItems) { item in
+                        GalleryCard(item: item)
+                    }
                 }
+                .padding(.horizontal, 24)
+
+                Text("Shortcut Sequences")
+                    .font(.headline)
+                    .padding(.horizontal, 24)
+
+                LazyVGrid(columns: columns, spacing: 16) {
+                    ForEach(SequenceGalleryItem.allItems) { item in
+                        SequenceGalleryCard(item: item)
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
             }
-            .padding(24)
         }
     }
 }
@@ -309,16 +433,70 @@ struct GalleryItem: Identifiable {
         GalleryItem(".mini", size: .mini),
         GalleryItem(".large", size: .large),
         GalleryItem("Teal text", textColor: .systemTeal),
-        GalleryItem("Orange text", textColor: .systemOrange),
         GalleryItem("Blue tint bg", bgColor: NSColor.systemBlue.withAlphaComponent(0.1)),
-        GalleryItem("Dark bg + white text", textColor: .white, bgColor: .darkGray),
-        GalleryItem(
-            "Indigo tint + text",
-            textColor: .systemIndigo,
-            bgColor: NSColor.systemIndigo.withAlphaComponent(0.1)
-        ),
-        GalleryItem("Borderless + teal", style: .borderless, textColor: .systemTeal),
-        GalleryItem("Plain + large", style: .plain, size: .large),
-        GalleryItem("Mini + orange", size: .mini, textColor: .systemOrange)
+        GalleryItem("Dark bg + white text", textColor: .white, bgColor: .darkGray)
+    ]
+}
+
+// MARK: - Sequence Gallery
+
+struct SequenceGalleryCard: View {
+    let item: SequenceGalleryItem
+    @State private var sequence: ShortcutSequence?
+
+    var body: some View {
+        VStack(spacing: 8) {
+            cardRecorder
+                .frame(maxWidth: .infinity)
+
+            Text(item.label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+        }
+        .padding(12)
+        .background(Color.gray.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var cardRecorder: some View {
+        var view = ShortcutSequenceRecorderView($sequence).style(item.style)
+        if let textColor = item.textColor { view = view.textColor(textColor) }
+        if let bgColor = item.bgColor { view = view.fieldBackgroundColor(bgColor) }
+        return view.controlSize(item.size)
+    }
+}
+
+struct SequenceGalleryItem: Identifiable {
+    let id = UUID()
+    let label: String
+    let style: ShortcutRecorderStyle
+    let size: ControlSize
+    let textColor: NSColor?
+    let bgColor: NSColor?
+
+    init(
+        _ label: String,
+        style: ShortcutRecorderStyle = .rounded,
+        size: ControlSize = .regular,
+        textColor: NSColor? = nil,
+        bgColor: NSColor? = nil
+    ) {
+        self.label = label
+        self.style = style
+        self.size = size
+        self.textColor = textColor
+        self.bgColor = bgColor
+    }
+
+    static let allItems: [SequenceGalleryItem] = [
+        SequenceGalleryItem("Default"),
+        SequenceGalleryItem(".plain", style: .plain),
+        SequenceGalleryItem(".borderless", style: .borderless),
+        SequenceGalleryItem(".mini", size: .mini),
+        SequenceGalleryItem(".large", size: .large),
+        SequenceGalleryItem("Teal text", textColor: .systemTeal),
+        SequenceGalleryItem("Blue tint bg", bgColor: NSColor.systemBlue.withAlphaComponent(0.1)),
+        SequenceGalleryItem("Dark bg + white text", textColor: .white, bgColor: .darkGray)
     ]
 }
