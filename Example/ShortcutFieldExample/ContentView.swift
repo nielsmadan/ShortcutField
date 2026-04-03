@@ -22,17 +22,22 @@ struct WorkbenchTab: View {
     @State private var shortcut: Shortcut?
     @State private var sequenceA: ShortcutSequence?
     @State private var sequenceB: ShortcutSequence?
+    @State private var mouseInput: MouseInput?
     @State private var selectedStyle: ShortcutRecorderStyle = .rounded
     @State private var selectedSize: ControlSize = .regular
     @State private var selectedTextColor: NamedColor = .default
     @State private var selectedBgColor: NamedBgColor = .default
     @State private var placeholderText: String = "Record Shortcut"
+    @State private var selectedSensitivityMode: ScrollSensitivityMode = .discrete
+    @State private var selectedSensitivityPosition: ScrollSensitivityPosition = .below
     @State private var matchCount = 0
     @State private var lastMatched = false
     @State private var seqAMatchCount = 0
     @State private var seqALastMatched = false
     @State private var seqBMatchCount = 0
     @State private var seqBLastMatched = false
+    @State private var mouseMatchCount = 0
+    @State private var mouseLastMatched = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -87,6 +92,26 @@ struct WorkbenchTab: View {
                         Text("No sequence")
                             .foregroundStyle(.tertiary)
                     }
+
+                    Divider().padding(.horizontal, 20)
+
+                    Text("Mouse Input")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    makeMouseInputRecorder($mouseInput, style: selectedStyle, size: selectedSize,
+                                           textColor: selectedTextColor.nsColor, bgColor: selectedBgColor.nsColor,
+                                           sensitivityMode: selectedSensitivityMode,
+                                           sensitivityPosition: selectedSensitivityPosition)
+                        .frame(width: selectedSensitivityPosition == .below ? 220 : 320)
+
+                    if let mouseInput {
+                        Text(mouseInput.displayString)
+                            .font(.title.monospaced())
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("No mouse input")
+                            .foregroundStyle(.tertiary)
+                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .frame(minWidth: 150)
@@ -117,7 +142,8 @@ struct WorkbenchTab: View {
 
     private func makeRecorder(_ shortcut: Binding<Shortcut?>, style: ShortcutRecorderStyle,
                               size: ControlSize, textColor: NSColor?, bgColor: NSColor?,
-                              placeholder: String) -> some View {
+                              placeholder: String) -> some View
+    {
         var view = ShortcutRecorderView(shortcut)
             .placeholder(placeholder)
             .style(style)
@@ -127,10 +153,26 @@ struct WorkbenchTab: View {
     }
 
     private func makeSequenceRecorder(_ sequence: Binding<ShortcutSequence?>, style: ShortcutRecorderStyle,
-                                      size: ControlSize, textColor: NSColor?, bgColor: NSColor?) -> some View {
+                                      size: ControlSize, textColor: NSColor?, bgColor: NSColor?) -> some View
+    {
         var view = ShortcutSequenceRecorderView(sequence)
             .placeholder("Record Sequence")
             .style(style)
+        if let textColor { view = view.textColor(textColor) }
+        if let bgColor { view = view.fieldBackgroundColor(bgColor) }
+        return view.controlSize(size)
+    }
+
+    private func makeMouseInputRecorder(_ mouseInput: Binding<MouseInput?>, style: ShortcutRecorderStyle,
+                                        size: ControlSize, textColor: NSColor?, bgColor: NSColor?,
+                                        sensitivityMode: ScrollSensitivityMode,
+                                        sensitivityPosition: ScrollSensitivityPosition) -> some View
+    {
+        var view = MouseInputRecorderView(mouseInput)
+            .placeholder("Record Mouse")
+            .style(style)
+            .sensitivityMode(sensitivityMode)
+            .sensitivityPosition(sensitivityPosition)
         if let textColor { view = view.textColor(textColor) }
         if let bgColor { view = view.fieldBackgroundColor(bgColor) }
         return view.controlSize(size)
@@ -197,6 +239,32 @@ struct WorkbenchTab: View {
                         .frame(width: 100, alignment: .trailing)
                     TextField("Placeholder text", text: $placeholderText)
                         .frame(width: 200)
+                }
+
+                GridRow {
+                    Text("Sensitivity:")
+                        .frame(width: 100, alignment: .trailing)
+                    Picker("", selection: $selectedSensitivityMode) {
+                        Text(".discrete").tag(ScrollSensitivityMode.discrete)
+                        Text(".continuous").tag(ScrollSensitivityMode.continuous)
+                        Text(".hidden").tag(ScrollSensitivityMode.hidden)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(width: 280)
+                }
+
+                GridRow {
+                    Text("Position:")
+                        .frame(width: 100, alignment: .trailing)
+                    Picker("", selection: $selectedSensitivityPosition) {
+                        Text(".below").tag(ScrollSensitivityPosition.below)
+                        Text(".left").tag(ScrollSensitivityPosition.left)
+                        Text(".right").tag(ScrollSensitivityPosition.right)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(width: 280)
                 }
             }
         }
@@ -279,6 +347,30 @@ struct WorkbenchTab: View {
                         seqBLastMatched = false
                     }
                 }
+
+                HStack(spacing: 12) {
+                    Circle()
+                        .fill(mouseLastMatched ? .green : .gray.opacity(0.3))
+                        .frame(width: 12, height: 12)
+
+                    Text("Mouse input fired \(mouseMatchCount) time\(mouseMatchCount == 1 ? "" : "s")")
+                        .font(.body.monospaced())
+
+                    Spacer()
+
+                    if mouseInput != nil {
+                        Button("Reset") { mouseMatchCount = 0 }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .onMouseInput(mouseInput) {
+                    mouseMatchCount += 1
+                    mouseLastMatched = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        mouseLastMatched = false
+                    }
+                }
             }
         } else {
             Text("Live matching requires macOS 14+")
@@ -343,7 +435,7 @@ enum NamedBgColor: String, CaseIterable, Identifiable {
 
 struct GalleryTab: View {
     private let columns = [
-        GridItem(.adaptive(minimum: 170, maximum: 200), spacing: 16)
+        GridItem(.adaptive(minimum: 170, maximum: 200), spacing: 16),
     ]
 
     var body: some View {
@@ -368,6 +460,17 @@ struct GalleryTab: View {
                 LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(SequenceGalleryItem.allItems) { item in
                         SequenceGalleryCard(item: item)
+                    }
+                }
+                .padding(.horizontal, 24)
+
+                Text("Mouse Inputs")
+                    .font(.headline)
+                    .padding(.horizontal, 24)
+
+                LazyVGrid(columns: columns, spacing: 16) {
+                    ForEach(MouseInputGalleryItem.allItems) { item in
+                        MouseInputGalleryCard(item: item)
                     }
                 }
                 .padding(.horizontal, 24)
@@ -434,7 +537,7 @@ struct GalleryItem: Identifiable {
         GalleryItem(".large", size: .large),
         GalleryItem("Teal text", textColor: .systemTeal),
         GalleryItem("Blue tint bg", bgColor: NSColor.systemBlue.withAlphaComponent(0.1)),
-        GalleryItem("Dark bg + white text", textColor: .white, bgColor: .darkGray)
+        GalleryItem("Dark bg + white text", textColor: .white, bgColor: .darkGray),
     ]
 }
 
@@ -497,6 +600,69 @@ struct SequenceGalleryItem: Identifiable {
         SequenceGalleryItem(".large", size: .large),
         SequenceGalleryItem("Teal text", textColor: .systemTeal),
         SequenceGalleryItem("Blue tint bg", bgColor: NSColor.systemBlue.withAlphaComponent(0.1)),
-        SequenceGalleryItem("Dark bg + white text", textColor: .white, bgColor: .darkGray)
+        SequenceGalleryItem("Dark bg + white text", textColor: .white, bgColor: .darkGray),
+    ]
+}
+
+// MARK: - Mouse Input Gallery
+
+struct MouseInputGalleryCard: View {
+    let item: MouseInputGalleryItem
+    @State private var mouseInput: MouseInput?
+
+    var body: some View {
+        VStack(spacing: 8) {
+            cardRecorder
+                .frame(maxWidth: .infinity)
+
+            Text(item.label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+        }
+        .padding(12)
+        .background(Color.gray.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var cardRecorder: some View {
+        var view = MouseInputRecorderView($mouseInput).style(item.style)
+        if let textColor = item.textColor { view = view.textColor(textColor) }
+        if let bgColor = item.bgColor { view = view.fieldBackgroundColor(bgColor) }
+        return view.controlSize(item.size)
+    }
+}
+
+struct MouseInputGalleryItem: Identifiable {
+    let id = UUID()
+    let label: String
+    let style: ShortcutRecorderStyle
+    let size: ControlSize
+    let textColor: NSColor?
+    let bgColor: NSColor?
+
+    init(
+        _ label: String,
+        style: ShortcutRecorderStyle = .rounded,
+        size: ControlSize = .regular,
+        textColor: NSColor? = nil,
+        bgColor: NSColor? = nil
+    ) {
+        self.label = label
+        self.style = style
+        self.size = size
+        self.textColor = textColor
+        self.bgColor = bgColor
+    }
+
+    static let allItems: [MouseInputGalleryItem] = [
+        MouseInputGalleryItem("Default"),
+        MouseInputGalleryItem(".plain", style: .plain),
+        MouseInputGalleryItem(".borderless", style: .borderless),
+        MouseInputGalleryItem(".mini", size: .mini),
+        MouseInputGalleryItem(".large", size: .large),
+        MouseInputGalleryItem("Teal text", textColor: .systemTeal),
+        MouseInputGalleryItem("Blue tint bg", bgColor: NSColor.systemBlue.withAlphaComponent(0.1)),
+        MouseInputGalleryItem("Dark bg + white text", textColor: .white, bgColor: .darkGray),
     ]
 }
