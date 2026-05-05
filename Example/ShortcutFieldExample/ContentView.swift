@@ -12,59 +12,179 @@ struct ContentView: View {
                 GalleryTab()
             }
         }
-        .frame(minWidth: 800, minHeight: 650)
+        .frame(minWidth: 1200, minHeight: 650)
     }
 }
 
 // MARK: - Workbench
 
 struct WorkbenchTab: View {
-    @State private var shortcut: Shortcut?
+    // Inputs
+    @State private var shortcutA: Shortcut?
+    @State private var shortcutB: Shortcut?
     @State private var sequenceA: ShortcutSequence?
     @State private var sequenceB: ShortcutSequence?
-    @State private var mouseInput: MouseInput?
-    @State private var selectedStyle: ShortcutRecorderStyle = .rounded
-    @State private var selectedSize: ControlSize = .regular
-    @State private var selectedTextColor: NamedColor = .default
-    @State private var selectedBgColor: NamedBgColor = .default
-    @State private var placeholderText: String = "Record Shortcut"
-    @State private var selectedSensitivityMode: ScrollSensitivityMode = .discrete
-    @State private var selectedSensitivityPosition: ScrollSensitivityPosition = .below
-    @State private var matchCount = 0
-    @State private var lastMatched = false
+
+    // Controls A
+    @State private var selectedStyleA: ShortcutRecorderStyle = .rounded
+    @State private var selectedSizeA: ControlSize = .regular
+    @State private var selectedTextColorA: NamedColor = .default
+    @State private var selectedBgColorA: NamedBgColor = .default
+    @State private var placeholderTextA: String = "Record Shortcut"
+    @State private var selectedSensitivityModeA: SensitivityMode = .discrete
+    @State private var selectedSensitivityPositionA: SensitivityPosition = .below
+
+    // Controls B
+    @State private var selectedStyleB: ShortcutRecorderStyle = .rounded
+    @State private var selectedSizeB: ControlSize = .regular
+    @State private var selectedTextColorB: NamedColor = .default
+    @State private var selectedBgColorB: NamedBgColor = .default
+    @State private var placeholderTextB: String = "Record Shortcut"
+    @State private var selectedSensitivityModeB: SensitivityMode = .discrete
+    @State private var selectedSensitivityPositionB: SensitivityPosition = .below
+
+    // Counters: single shortcut
+    @State private var matchCountA = 0
+    @State private var lastMatchedA = false
+    @State private var matchCountB = 0
+    @State private var lastMatchedB = false
+
+    // Counters: sequence
     @State private var seqAMatchCount = 0
     @State private var seqALastMatched = false
     @State private var seqBMatchCount = 0
     @State private var seqBLastMatched = false
-    @State private var mouseMatchCount = 0
-    @State private var mouseLastMatched = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                VStack(spacing: 16) {
-                    Text("Single Shortcut")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                    configuredRecorder
+        HStack(spacing: 0) {
+            ScrollView {
+                controlsPanel(
+                    style: $selectedStyleA,
+                    size: $selectedSizeA,
+                    textColor: $selectedTextColorA,
+                    bgColor: $selectedBgColorA,
+                    placeholder: $placeholderTextA,
+                    sensitivityMode: $selectedSensitivityModeA,
+                    sensitivityPosition: $selectedSensitivityPositionA
+                )
+                .padding(.horizontal, 28)
+                .padding(.vertical, 20)
+            }
+            .frame(width: 260)
+            .background(Color.gray.opacity(0.04))
 
-                    if let shortcut {
-                        Text(shortcut.displayString)
+            Divider()
+
+            ScrollView {
+                VStack(spacing: 24) {
+                    shortcutSection()
+                    Divider()
+                    sequenceSection()
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity)
+            }
+            .frame(maxWidth: .infinity)
+            .background(Color.gray.opacity(0.08))
+
+            Divider()
+
+            ScrollView {
+                controlsPanel(
+                    style: $selectedStyleB,
+                    size: $selectedSizeB,
+                    textColor: $selectedTextColorB,
+                    bgColor: $selectedBgColorB,
+                    placeholder: $placeholderTextB,
+                    sensitivityMode: $selectedSensitivityModeB,
+                    sensitivityPosition: $selectedSensitivityPositionB
+                )
+                .padding(.horizontal, 28)
+                .padding(.vertical, 20)
+            }
+            .frame(width: 260)
+            .background(Color.gray.opacity(0.04))
+        }
+    }
+
+    // MARK: Section Helpers
+
+    @ViewBuilder
+    private func shortcutSection() -> some View {
+        let content = VStack(spacing: 12) {
+            sectionHeading(
+                "Shortcut",
+                counterA: counterChip(count: matchCountA, lit: lastMatchedA) { matchCountA = 0 },
+                counterB: counterChip(count: matchCountB, lit: lastMatchedB) { matchCountB = 0 }
+            )
+
+            HStack(alignment: .top, spacing: 16) {
+                fieldColumn {
+                    makeRecorder($shortcutA, style: selectedStyleA, size: selectedSizeA,
+                                 textColor: selectedTextColorA.nsColor, bgColor: selectedBgColorA.nsColor,
+                                 placeholder: placeholderTextA,
+                                 sensitivityMode: selectedSensitivityModeA,
+                                 sensitivityPosition: selectedSensitivityPositionA)
+                        .frame(width: shortcutFrameWidth(
+                            shortcut: shortcutA, position: selectedSensitivityPositionA
+                        ))
+
+                    if let shortcutA {
+                        Text(shortcutA.displayString)
                             .font(.title.monospaced())
                             .foregroundStyle(.secondary)
                     } else {
                         Text("No shortcut")
                             .foregroundStyle(.tertiary)
                     }
+                }
 
-                    Divider().padding(.horizontal, 20)
+                fieldColumn {
+                    makeRecorder($shortcutB, style: selectedStyleB, size: selectedSizeB,
+                                 textColor: selectedTextColorB.nsColor, bgColor: selectedBgColorB.nsColor,
+                                 placeholder: placeholderTextB,
+                                 sensitivityMode: selectedSensitivityModeB,
+                                 sensitivityPosition: selectedSensitivityPositionB)
+                        .frame(width: shortcutFrameWidth(
+                            shortcut: shortcutB, position: selectedSensitivityPositionB
+                        ))
 
-                    Text("Sequence A")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                    makeSequenceRecorder($sequenceA, style: selectedStyle, size: selectedSize,
-                                         textColor: selectedTextColor.nsColor, bgColor: selectedBgColor.nsColor)
-                        .frame(width: 180)
+                    if let shortcutB {
+                        Text(shortcutB.displayString)
+                            .font(.title.monospaced())
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("No shortcut")
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+        }
+
+        if #available(macOS 14.0, *) {
+            content
+                .onShortcut(shortcutA) { fire($matchCountA, $lastMatchedA) }
+                .onShortcut(shortcutB) { fire($matchCountB, $lastMatchedB) }
+        } else {
+            content
+        }
+    }
+
+    @ViewBuilder
+    private func sequenceSection() -> some View {
+        let content = VStack(spacing: 12) {
+            sectionHeading(
+                "Sequence",
+                counterA: counterChip(count: seqAMatchCount, lit: seqALastMatched) { seqAMatchCount = 0 },
+                counterB: counterChip(count: seqBMatchCount, lit: seqBLastMatched) { seqBMatchCount = 0 }
+            )
+
+            HStack(alignment: .top, spacing: 16) {
+                fieldColumn {
+                    makeSequenceRecorder($sequenceA, style: selectedStyleA, size: selectedSizeA,
+                                         textColor: selectedTextColorA.nsColor,
+                                         bgColor: selectedBgColorA.nsColor)
+                        .frame(width: 220)
 
                     if let sequenceA {
                         Text(sequenceA.displayString)
@@ -74,15 +194,13 @@ struct WorkbenchTab: View {
                         Text("No sequence")
                             .foregroundStyle(.tertiary)
                     }
+                }
 
-                    Divider().padding(.horizontal, 20)
-
-                    Text("Sequence B")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                    makeSequenceRecorder($sequenceB, style: selectedStyle, size: selectedSize,
-                                         textColor: selectedTextColor.nsColor, bgColor: selectedBgColor.nsColor)
-                        .frame(width: 180)
+                fieldColumn {
+                    makeSequenceRecorder($sequenceB, style: selectedStyleB, size: selectedSizeB,
+                                         textColor: selectedTextColorB.nsColor,
+                                         bgColor: selectedBgColorB.nsColor)
+                        .frame(width: 220)
 
                     if let sequenceB {
                         Text(sequenceB.displayString)
@@ -92,61 +210,88 @@ struct WorkbenchTab: View {
                         Text("No sequence")
                             .foregroundStyle(.tertiary)
                     }
-
-                    Divider().padding(.horizontal, 20)
-
-                    Text("Mouse Input")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                    makeMouseInputRecorder($mouseInput, style: selectedStyle, size: selectedSize,
-                                           textColor: selectedTextColor.nsColor, bgColor: selectedBgColor.nsColor,
-                                           sensitivityMode: selectedSensitivityMode,
-                                           sensitivityPosition: selectedSensitivityPosition)
-                        .frame(width: selectedSensitivityPosition == .below ? 220 : 320)
-
-                    if let mouseInput {
-                        Text(mouseInput.displayString)
-                            .font(.title.monospaced())
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text("No mouse input")
-                            .foregroundStyle(.tertiary)
-                    }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .frame(minWidth: 150)
-                .background(Color.gray.opacity(0.08))
-
-                Divider()
-
-                ScrollView {
-                    controlsSection
-                        .padding(20)
-                }
-                .frame(maxWidth: .infinity)
-                .background(Color.gray.opacity(0.04))
             }
+        }
 
-            Divider()
-            fireCounterSection
-                .padding(16)
+        if #available(macOS 14.0, *) {
+            content
+                .onShortcutSequence(sequenceA) { fire($seqAMatchCount, $seqALastMatched) }
+                .onShortcutSequence(sequenceB) { fire($seqBMatchCount, $seqBLastMatched) }
+        } else {
+            content
         }
     }
 
-    private var configuredRecorder: some View {
-        makeRecorder($shortcut, style: selectedStyle, size: selectedSize,
-                     textColor: selectedTextColor.nsColor, bgColor: selectedBgColor.nsColor,
-                     placeholder: placeholderText)
-            .frame(width: 180)
+    private func shortcutFrameWidth(shortcut: Shortcut?, position: SensitivityPosition) -> CGFloat {
+        guard let shortcut, Shortcut.isContinuous(shortcut.kind), position != .below else {
+            return 220
+        }
+        return 320
+    }
+
+    private func fieldColumn(@ViewBuilder _ content: () -> some View) -> some View {
+        VStack(spacing: 8) {
+            content()
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: Heading + Counter Chip
+
+    private func sectionHeading(
+        _ title: String,
+        counterA: some View,
+        counterB: some View
+    ) -> some View {
+        HStack(spacing: 12) {
+            counterA
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(title)
+                .font(.title3)
+                .foregroundColor(.white)
+            counterB
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+    }
+
+    private func counterChip(count value: Int, lit: Bool, onReset: @escaping () -> Void) -> some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(lit ? Color.green : Color.gray.opacity(0.3))
+                .frame(width: 8, height: 8)
+            Text("\(value)")
+                .font(.caption.monospaced())
+                .foregroundStyle(.secondary)
+            if value > 0 {
+                Button(action: onReset) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func fire(_ count: Binding<Int>, _ lit: Binding<Bool>) {
+        count.wrappedValue += 1
+        lit.wrappedValue = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            lit.wrappedValue = false
+        }
     }
 
     private func makeRecorder(_ shortcut: Binding<Shortcut?>, style: ShortcutRecorderStyle,
                               size: ControlSize, textColor: NSColor?, bgColor: NSColor?,
-                              placeholder: String) -> some View
+                              placeholder: String, sensitivityMode: SensitivityMode,
+                              sensitivityPosition: SensitivityPosition) -> some View
     {
         var view = ShortcutRecorderView(shortcut)
             .placeholder(placeholder)
             .style(style)
+            .sensitivityMode(sensitivityMode)
+            .sensitivityPosition(sensitivityPosition)
         if let textColor { view = view.textColor(textColor) }
         if let bgColor { view = view.fieldBackgroundColor(bgColor) }
         return view.controlSize(size)
@@ -163,218 +308,110 @@ struct WorkbenchTab: View {
         return view.controlSize(size)
     }
 
-    private func makeMouseInputRecorder(_ mouseInput: Binding<MouseInput?>, style: ShortcutRecorderStyle,
-                                        size: ControlSize, textColor: NSColor?, bgColor: NSColor?,
-                                        sensitivityMode: ScrollSensitivityMode,
-                                        sensitivityPosition: ScrollSensitivityPosition) -> some View
-    {
-        var view = MouseInputRecorderView(mouseInput)
-            .placeholder("Record Mouse")
-            .style(style)
-            .sensitivityMode(sensitivityMode)
-            .sensitivityPosition(sensitivityPosition)
-        if let textColor { view = view.textColor(textColor) }
-        if let bgColor { view = view.fieldBackgroundColor(bgColor) }
-        return view.controlSize(size)
-    }
+    // MARK: Controls Panel
 
-    // MARK: Controls
-
-    private var controlsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 12) {
-                GridRow {
-                    Text("Style:")
-                        .frame(width: 100, alignment: .trailing)
-                    Picker("", selection: $selectedStyle) {
-                        Text(".rounded").tag(ShortcutRecorderStyle.rounded)
-                        Text(".plain").tag(ShortcutRecorderStyle.plain)
-                        Text(".borderless").tag(ShortcutRecorderStyle.borderless)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .frame(width: 280)
+    private func controlsPanel(
+        style: Binding<ShortcutRecorderStyle>,
+        size: Binding<ControlSize>,
+        textColor: Binding<NamedColor>,
+        bgColor: Binding<NamedBgColor>,
+        placeholder: Binding<String>,
+        sensitivityMode: Binding<SensitivityMode>,
+        sensitivityPosition: Binding<SensitivityPosition>
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Group {
+                Text("Style")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Picker("", selection: style) {
+                    Text(".rounded").tag(ShortcutRecorderStyle.rounded)
+                    Text(".plain").tag(ShortcutRecorderStyle.plain)
+                    Text(".borderless").tag(ShortcutRecorderStyle.borderless)
                 }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+            }
 
-                GridRow {
-                    Text("Size:")
-                        .frame(width: 100, alignment: .trailing)
-                    Picker("", selection: $selectedSize) {
-                        Text(".mini").tag(ControlSize.mini)
-                        Text(".small").tag(ControlSize.small)
-                        Text(".regular").tag(ControlSize.regular)
-                        Text(".large").tag(ControlSize.large)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .frame(width: 280)
+            Group {
+                Text("Size")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Picker("", selection: size) {
+                    Text(".mini").tag(ControlSize.mini)
+                    Text(".small").tag(ControlSize.small)
+                    Text(".regular").tag(ControlSize.regular)
+                    Text(".large").tag(ControlSize.large)
                 }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+            }
 
-                GridRow {
-                    Text("Text color:")
-                        .frame(width: 100, alignment: .trailing)
-                    Picker("", selection: $selectedTextColor) {
-                        ForEach(NamedColor.allCases) { color in
-                            Text(color.label).tag(color)
-                        }
-                    }
-                    .labelsHidden()
-                    .frame(width: 160)
-                }
+            colorRow(textColor: textColor, bgColor: bgColor)
 
-                GridRow {
-                    Text("Background:")
-                        .frame(width: 100, alignment: .trailing)
-                    Picker("", selection: $selectedBgColor) {
-                        ForEach(NamedBgColor.allCases) { color in
-                            Text(color.label).tag(color)
-                        }
-                    }
-                    .labelsHidden()
-                    .frame(width: 160)
-                }
+            Group {
+                Text("Placeholder")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                TextField("Placeholder text", text: placeholder)
+            }
 
-                GridRow {
-                    Text("Placeholder:")
-                        .frame(width: 100, alignment: .trailing)
-                    TextField("Placeholder text", text: $placeholderText)
-                        .frame(width: 200)
+            Group {
+                Text("Sensitivity mode")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Picker("", selection: sensitivityMode) {
+                    Text(".discrete").tag(SensitivityMode.discrete)
+                    Text(".continuous").tag(SensitivityMode.continuous)
+                    Text(".hidden").tag(SensitivityMode.hidden)
                 }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+            }
 
-                GridRow {
-                    Text("Sensitivity:")
-                        .frame(width: 100, alignment: .trailing)
-                    Picker("", selection: $selectedSensitivityMode) {
-                        Text(".discrete").tag(ScrollSensitivityMode.discrete)
-                        Text(".continuous").tag(ScrollSensitivityMode.continuous)
-                        Text(".hidden").tag(ScrollSensitivityMode.hidden)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .frame(width: 280)
+            Group {
+                Text("Sensitivity position")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Picker("", selection: sensitivityPosition) {
+                    Text(".below").tag(SensitivityPosition.below)
+                    Text(".left").tag(SensitivityPosition.left)
+                    Text(".right").tag(SensitivityPosition.right)
                 }
-
-                GridRow {
-                    Text("Position:")
-                        .frame(width: 100, alignment: .trailing)
-                    Picker("", selection: $selectedSensitivityPosition) {
-                        Text(".below").tag(ScrollSensitivityPosition.below)
-                        Text(".left").tag(ScrollSensitivityPosition.left)
-                        Text(".right").tag(ScrollSensitivityPosition.right)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .frame(width: 280)
-                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: Fire Counter
-
-    @ViewBuilder
-    private var fireCounterSection: some View {
-        if #available(macOS 14.0, *) {
-            VStack(spacing: 8) {
-                HStack(spacing: 12) {
-                    Circle()
-                        .fill(lastMatched ? .green : .gray.opacity(0.3))
-                        .frame(width: 12, height: 12)
-
-                    Text("Shortcut fired \(matchCount) time\(matchCount == 1 ? "" : "s")")
-                        .font(.body.monospaced())
-
-                    Spacer()
-
-                    if shortcut != nil {
-                        Button("Reset") { matchCount = 0 }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(.secondary)
+    private func colorRow(
+        textColor: Binding<NamedColor>,
+        bgColor: Binding<NamedBgColor>
+    ) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Text color")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Picker("", selection: textColor) {
+                    ForEach(NamedColor.allCases) { color in
+                        Text(color.label).tag(color)
                     }
                 }
-                .onShortcut(shortcut) {
-                    matchCount += 1
-                    lastMatched = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        lastMatched = false
-                    }
-                }
-
-                HStack(spacing: 12) {
-                    Circle()
-                        .fill(seqALastMatched ? .green : .gray.opacity(0.3))
-                        .frame(width: 12, height: 12)
-
-                    Text("Sequence A fired \(seqAMatchCount) time\(seqAMatchCount == 1 ? "" : "s")")
-                        .font(.body.monospaced())
-
-                    Spacer()
-
-                    if sequenceA != nil {
-                        Button("Reset") { seqAMatchCount = 0 }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .onShortcutSequence(sequenceA) {
-                    seqAMatchCount += 1
-                    seqALastMatched = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        seqALastMatched = false
-                    }
-                }
-
-                HStack(spacing: 12) {
-                    Circle()
-                        .fill(seqBLastMatched ? .green : .gray.opacity(0.3))
-                        .frame(width: 12, height: 12)
-
-                    Text("Sequence B fired \(seqBMatchCount) time\(seqBMatchCount == 1 ? "" : "s")")
-                        .font(.body.monospaced())
-
-                    Spacer()
-
-                    if sequenceB != nil {
-                        Button("Reset") { seqBMatchCount = 0 }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .onShortcutSequence(sequenceB) {
-                    seqBMatchCount += 1
-                    seqBLastMatched = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        seqBLastMatched = false
-                    }
-                }
-
-                HStack(spacing: 12) {
-                    Circle()
-                        .fill(mouseLastMatched ? .green : .gray.opacity(0.3))
-                        .frame(width: 12, height: 12)
-
-                    Text("Mouse input fired \(mouseMatchCount) time\(mouseMatchCount == 1 ? "" : "s")")
-                        .font(.body.monospaced())
-
-                    Spacer()
-
-                    if mouseInput != nil {
-                        Button("Reset") { mouseMatchCount = 0 }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .onMouseInput(mouseInput) {
-                    mouseMatchCount += 1
-                    mouseLastMatched = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        mouseLastMatched = false
-                    }
-                }
+                .labelsHidden()
             }
-        } else {
-            Text("Live matching requires macOS 14+")
-                .foregroundStyle(.tertiary)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Background")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Picker("", selection: bgColor) {
+                    ForEach(NamedBgColor.allCases) { color in
+                        Text(color.label).tag(color)
+                    }
+                }
+                .labelsHidden()
+            }
         }
     }
 }
@@ -440,43 +477,41 @@ struct GalleryTab: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Single Shortcuts")
-                    .font(.headline)
-                    .padding(.horizontal, 24)
-                    .padding(.top, 24)
-
-                LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(GalleryItem.allItems) { item in
-                        GalleryCard(item: item)
+            HStack(alignment: .top, spacing: 0) {
+                column("Shortcuts") {
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        ForEach(GalleryItem.allItems) { item in
+                            GalleryCard(item: item)
+                        }
                     }
                 }
-                .padding(.horizontal, 24)
 
-                Text("Shortcut Sequences")
-                    .font(.headline)
-                    .padding(.horizontal, 24)
+                Divider()
 
-                LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(SequenceGalleryItem.allItems) { item in
-                        SequenceGalleryCard(item: item)
+                column("Shortcut Sequences") {
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        ForEach(SequenceGalleryItem.allItems) { item in
+                            SequenceGalleryCard(item: item)
+                        }
                     }
                 }
-                .padding(.horizontal, 24)
-
-                Text("Mouse Inputs")
-                    .font(.headline)
-                    .padding(.horizontal, 24)
-
-                LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(MouseInputGalleryItem.allItems) { item in
-                        MouseInputGalleryCard(item: item)
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 24)
             }
+            .padding(.vertical, 24)
         }
+    }
+
+    @ViewBuilder
+    private func column(
+        _ title: String,
+        @ViewBuilder content: () -> some View
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(title)
+                .font(.headline)
+            content()
+        }
+        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 }
 
@@ -601,68 +636,5 @@ struct SequenceGalleryItem: Identifiable {
         SequenceGalleryItem("Teal text", textColor: .systemTeal),
         SequenceGalleryItem("Blue tint bg", bgColor: NSColor.systemBlue.withAlphaComponent(0.1)),
         SequenceGalleryItem("Dark bg + white text", textColor: .white, bgColor: .darkGray),
-    ]
-}
-
-// MARK: - Mouse Input Gallery
-
-struct MouseInputGalleryCard: View {
-    let item: MouseInputGalleryItem
-    @State private var mouseInput: MouseInput?
-
-    var body: some View {
-        VStack(spacing: 8) {
-            cardRecorder
-                .frame(maxWidth: .infinity)
-
-            Text(item.label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-        }
-        .padding(12)
-        .background(Color.gray.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
-    }
-
-    private var cardRecorder: some View {
-        var view = MouseInputRecorderView($mouseInput).style(item.style)
-        if let textColor = item.textColor { view = view.textColor(textColor) }
-        if let bgColor = item.bgColor { view = view.fieldBackgroundColor(bgColor) }
-        return view.controlSize(item.size)
-    }
-}
-
-struct MouseInputGalleryItem: Identifiable {
-    let id = UUID()
-    let label: String
-    let style: ShortcutRecorderStyle
-    let size: ControlSize
-    let textColor: NSColor?
-    let bgColor: NSColor?
-
-    init(
-        _ label: String,
-        style: ShortcutRecorderStyle = .rounded,
-        size: ControlSize = .regular,
-        textColor: NSColor? = nil,
-        bgColor: NSColor? = nil
-    ) {
-        self.label = label
-        self.style = style
-        self.size = size
-        self.textColor = textColor
-        self.bgColor = bgColor
-    }
-
-    static let allItems: [MouseInputGalleryItem] = [
-        MouseInputGalleryItem("Default"),
-        MouseInputGalleryItem(".plain", style: .plain),
-        MouseInputGalleryItem(".borderless", style: .borderless),
-        MouseInputGalleryItem(".mini", size: .mini),
-        MouseInputGalleryItem(".large", size: .large),
-        MouseInputGalleryItem("Teal text", textColor: .systemTeal),
-        MouseInputGalleryItem("Blue tint bg", bgColor: NSColor.systemBlue.withAlphaComponent(0.1)),
-        MouseInputGalleryItem("Dark bg + white text", textColor: .white, bgColor: .darkGray),
     ]
 }

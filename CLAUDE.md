@@ -16,16 +16,23 @@ just tag-release-minor  # Tag and push a minor release
 
 ## Architecture
 
-ShortcutField is a Swift package providing a keyboard shortcut recorder for macOS apps. It handles recording, displaying, and matching in-app keyboard shortcuts — including special keys like Tab.
+ShortcutField is a Swift package providing a unified in-app shortcut recorder for macOS apps. A single `Shortcut` type covers keyboard keys, mouse buttons, scroll directions, and trackpad gestures. The package handles recording, displaying, and matching them — including special keys like Tab that SwiftUI's focus system intercepts.
 
 **Source structure:**
-- `Shortcut.swift` — Model: keyCode + modifiers, Codable, Equatable, Sendable
-- `Shortcut+Matching.swift` — matches(NSEvent) and matches(KeyPress)
-- `Shortcut+KeyMapping.swift` — UCKeyTranslate, special keys, display strings
+- `Shortcut.swift` — Model: kind + modifiers + sensitivity. Kind covers `.key`, `.mouseButton`, `.scroll`, `.pinchIn/Out`, `.rotateClockwise/CounterClockwise`, `.smartMagnify`. Codable, Equatable, Hashable, Sendable.
+- `Shortcut+Matching.swift` — matches(NSEvent), matches(KeyPress), GestureEventShape test seam
+- `Shortcut+DisplayString.swift` — Human-readable display strings per kind (`⌘K`, `Tab`, `Left Click`, `Scroll Up`, `⌘Pinch In`, …)
+- `Shortcut+KeyMapping.swift` — UCKeyTranslate, special-key names, NSEvent.ModifierFlags.symbolicRepresentation extension
 - `ShortcutRecorderView.swift` — SwiftUI recorder (NSViewRepresentable)
-- `ShortcutRecorderField.swift` — AppKit NSSearchField subclass
+- `ShortcutRecorderField.swift` — AppKit NSSearchField subclass that records all kinds
+- `ShortcutRecorderField+Menu.swift` — chevron menu picker (lists non-keyboard kinds)
 - `ShortcutRecorderStyle.swift` — .rounded, .plain, .borderless styles
-- `OnShortcutModifier.swift` — .onShortcut() view modifier
+- `OnShortcutModifier.swift` — .onShortcut() view modifier (covers all kinds, throttles continuous ones)
+- `ShortcutSequence.swift` — Sequential shortcut composed of `[Shortcut]` (still keyboard-only at the recorder level)
+- `ShortcutSequenceRecorderField.swift`, `ShortcutSequenceRecorderView.swift`, `OnShortcutSequenceModifier.swift` — sequence pipeline
+- `ThrottleState.swift` — Internal: shared throttle state for OnShortcutModifier
+- `SensitivitySliderRepresentable.swift` — internal slider helper used by ShortcutRecorderView for continuous kinds
+- `SensitivityMode.swift` — sensitivity mode + position enums
 - `Example/` — Standalone Xcode project with workbench and gallery tabs for manual testing
 
 ## Code Style

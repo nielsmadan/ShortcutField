@@ -69,33 +69,5 @@ import Testing
     #expect(flags.symbolicRepresentation == "")
 }
 
-// MARK: - Display String (serialized — UCKeyTranslate is not thread-safe)
-
-@Suite(.serialized) struct DisplayStringTests {
-    @Test func displayString_specialKeyOnly() {
-        let shortcut = Shortcut(keyCode: UInt16(kVK_Return), modifiers: [])
-        #expect(shortcut.displayString == "↩")
-    }
-
-    @Test func displayString_modifierWithSpecialKey() {
-        let shortcut = Shortcut(keyCode: UInt16(kVK_Return), modifiers: .command)
-        #expect(shortcut.displayString == "⌘↩")
-    }
-
-    @Test func displayString_letterOnly() {
-        let shortcut = Shortcut(keyCode: 1, modifiers: [])
-        #expect(shortcut.displayString == "s")
-    }
-
-    @Test func displayString_modifierWithLetter() {
-        let shortcut = Shortcut(keyCode: 38, modifiers: [.command, .shift])
-        let display = shortcut.displayString
-        #expect(display.contains("⇧"))
-        #expect(display.contains("⌘"))
-    }
-
-    @Test func keyToCharacter_knownKeys() {
-        #expect(Shortcut.keyToCharacter(keyCode: 0)?.lowercased() == "a")
-        #expect(Shortcut.keyToCharacter(keyCode: 1)?.lowercased() == "s")
-    }
-}
+// keyToCharacter tests live in `ShortcutDisplayStringTests` (its serialized suite
+// also covers display-string round-trips that internally call UCKeyTranslate).

@@ -71,8 +71,8 @@ final class ShortcutSequenceMatcher {
         timeoutTask = Task { @MainActor [weak self] in
             do {
                 guard let self else { return }
-                try await Task.sleep(for: .seconds(self.stepTimeout))
-                self.reset()
+                try await Task.sleep(for: .seconds(stepTimeout))
+                reset()
             } catch {
                 // Task was cancelled — do nothing
             }

@@ -54,7 +54,8 @@ private struct BeepSuppressor: NSViewRepresentable {
 
         let block: @convention(block) (AnyObject, Selector) -> Void = { obj, eventSelector in
             if eventSelector == #selector(NSResponder.keyDown(with:)),
-               ShortcutSequenceTracking.isActive {
+               ShortcutSequenceTracking.isActive
+            {
                 return // suppress beep during sequence tracking
             }
             original(obj, selector, eventSelector)

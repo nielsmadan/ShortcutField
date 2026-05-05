@@ -4,13 +4,13 @@ import PackageDescription
 let package = Package(
     name: "ShortcutField",
     platforms: [
-        .macOS(.v13)
+        .macOS(.v13),
     ],
     products: [
-        .library(name: "ShortcutField", targets: ["ShortcutField"])
+        .library(name: "ShortcutField", targets: ["ShortcutField"]),
     ],
     targets: [
         .target(name: "ShortcutField"),
-        .testTarget(name: "ShortcutFieldTests", dependencies: ["ShortcutField"])
+        .testTarget(name: "ShortcutFieldTests", dependencies: ["ShortcutField"]),
     ]
 )

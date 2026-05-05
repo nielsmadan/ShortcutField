@@ -55,6 +55,17 @@ import Testing
     }
 }
 
+// Construction with a non-`.key` step (e.g. `.mouseButton`) traps via `precondition`;
+// Swift Testing has no clean way to assert preconditions, so the construction-time
+// constraint is documented rather than tested. The Codable-side rejection is
+// covered below.
+@Test func sequence_decodeNonKeyStep_throwsDecodingError() {
+    let data = Data(#"{"steps":[{"type":"mouseButton","buttonNumber":0,"modifiers":0,"sensitivity":0}]}"#.utf8)
+    #expect(throws: DecodingError.self) {
+        try JSONDecoder().decode(ShortcutSequence.self, from: data)
+    }
+}
+
 @Test func sequence_displayString_joinedWithSpace() {
     let seq = ShortcutSequence(steps: [
         Shortcut(keyCode: 40, modifiers: .command),

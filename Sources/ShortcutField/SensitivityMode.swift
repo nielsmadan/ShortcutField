@@ -1,14 +1,16 @@
 import Foundation
 
-/// Controls how scroll sensitivity is presented in the recorder UI.
-public enum ScrollSensitivityMode: Sendable, Hashable {
+/// Controls how the sensitivity slider/stepper is presented in a recorder UI
+/// (used by both `MouseInputRecorderView` for scroll inputs and
+/// `TrackpadGestureRecorderView` for continuous gestures).
+public enum SensitivityMode: Sendable, Hashable {
     /// User adjusts sensitivity via a slider that snaps to 5 discrete tick marks (default).
     /// Maps to values: 0.0, 0.25, 0.5, 0.75, 1.0.
     case discrete
     /// User adjusts sensitivity via a continuous 0.0-1.0 slider.
     case continuous
     /// Sensitivity UI is hidden. The developer sets sensitivity programmatically
-    /// via the MouseInput value in the binding.
+    /// via the binding's value.
     case hidden
 
     /// The five discrete tick-mark values.
@@ -30,8 +32,8 @@ public enum ScrollSensitivityMode: Sendable, Hashable {
     }
 }
 
-/// Where the scroll sensitivity control appears relative to the recorder field.
-public enum ScrollSensitivityPosition: Sendable, Hashable {
+/// Where the sensitivity control appears relative to the recorder field.
+public enum SensitivityPosition: Sendable, Hashable {
     /// Control appears below the field (default).
     case below
     /// Control appears to the left of the field.

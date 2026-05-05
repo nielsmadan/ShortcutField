@@ -1,25 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
 
-// MARK: - Display String
-
-public extension Shortcut {
-    /// Human-readable representation, e.g. "⌘⇧K" or "⌃Tab".
-    var displayString: String {
-        let modifierString = modifiers.symbolicRepresentation
-
-        if let specialKeyString = Self.specialKeyString(keyCode: keyCode) {
-            return modifierString + specialKeyString
-        }
-
-        if let char = Self.keyToCharacter(keyCode: keyCode) {
-            return modifierString + char
-        }
-
-        return modifierString + "?"
-    }
-}
-
 // MARK: - Special Key Names
 
 extension Shortcut {
