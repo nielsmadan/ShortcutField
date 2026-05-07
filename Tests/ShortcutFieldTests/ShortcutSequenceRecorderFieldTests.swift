@@ -111,4 +111,48 @@ import Testing
         field.shortcutSequence = seq
         #expect(field.stringValue == seq.displayString)
     }
+
+    @MainActor
+    @Test func sequenceRecorderField_setSequence_mixedKinds_displaysCorrectly() {
+        let field = ShortcutSequenceRecorderField()
+        let seq = ShortcutSequence(steps: [
+            Shortcut(keyCode: UInt16(kVK_ANSI_K), modifiers: .command),
+            Shortcut(kind: .mouseButton(number: 1), modifiers: []),
+            Shortcut(kind: .pinchIn, modifiers: []),
+            Shortcut(kind: .smartMagnify, modifiers: []),
+        ])
+        field.shortcutSequence = seq
+
+        #expect(field.shortcutSequence == seq)
+        // Letter glyph from `UCKeyTranslate` is layout-dependent and lowercase
+        // by default; assert the structural prefix/suffix instead of pinning it.
+        #expect(field.stringValue.hasPrefix("⌘"))
+        #expect(field.stringValue.hasSuffix(" Right Click Pinch In Smart Magnify"))
+    }
+
+    @MainActor
+    @Test func sequenceRecorderField_setSequence_mixedKinds_setsStringValue() {
+        let field = ShortcutSequenceRecorderField()
+        let seq = ShortcutSequence(steps: [
+            Shortcut(keyCode: UInt16(kVK_ANSI_K), modifiers: .command),
+            Shortcut(kind: .rotateClockwise, modifiers: .command),
+        ])
+        field.shortcutSequence = seq
+        #expect(field.stringValue.hasSuffix(" ⌘Rotate CW"))
+        #expect(field.stringValue.hasPrefix("⌘"))
+    }
+
+    @MainActor
+    @Test func sequenceRecorderField_clearMixedKindsSequence_resetsStringValue() {
+        let field = ShortcutSequenceRecorderField()
+        field.shortcutSequence = ShortcutSequence(steps: [
+            Shortcut(keyCode: UInt16(kVK_ANSI_K), modifiers: .command),
+            Shortcut(kind: .rotateClockwise, modifiers: .command),
+        ])
+
+        field.shortcutSequence = nil
+
+        #expect(field.shortcutSequence == nil)
+        #expect(field.stringValue == "")
+    }
 }

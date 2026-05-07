@@ -9,6 +9,25 @@ private func makeKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = []
     return NSEvent(cgEvent: event)!
 }
 
+/// Synthesize a scroll-wheel `NSEvent` with no phase information (mouse-wheel-style).
+///
+/// `CGEvent` doesn't expose `phase`, `magnification`, or `rotation`, so trackpad-burst
+/// scroll suppression and gesture-step sequences (`.magnify` / `.rotate`) cannot be
+/// driven through the matcher in tests. Those paths remain visually verified only.
+private func makeScrollEvent(deltaY: Int32 = 0, deltaX: Int32 = 0) -> NSEvent {
+    let cg = CGEvent(scrollWheelEvent2Source: nil,
+                     units: .pixel,
+                     wheelCount: 2,
+                     wheel1: deltaY,
+                     wheel2: deltaX,
+                     wheel3: 0)!
+    return NSEvent(cgEvent: cg)!
+}
+
+/// Above the recording threshold (`Shortcut.scrollRecordingThreshold = 5.0`) so the
+/// matcher's per-event `scrollDirection(from:)` returns a non-nil direction.
+private let scrollDeltaAboveThreshold: Int32 = 10
+
 // CGEvent-backed key events and NSSearchField instances are not thread-safe in CI.
 @Suite(.serialized) struct ShortcutSequenceTabHandlingTests {
     @MainActor
@@ -198,6 +217,140 @@ private func makeKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = []
 
         #expect(first.shortcutSequence == nil)
         #expect(second.shortcutSequence == expected)
+    }
+
+    @MainActor
+    @Test func recorderField_rightMouseDown_capturesAsMouseButton1Step() {
+        let field = ShortcutSequenceRecorderField()
+        field.startRecording()
+
+        _ = field.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_A)))
+
+        let cg = CGEvent(mouseEventSource: nil,
+                         mouseType: .rightMouseDown,
+                         mouseCursorPosition: .zero,
+                         mouseButton: .right)!
+        let rmDown = NSEvent(cgEvent: cg)!
+        _ = field.handleEvent(rmDown)
+        field.finalizeRecording()
+
+        let expected = ShortcutSequence(steps: [
+            Shortcut(keyCode: UInt16(kVK_ANSI_A), modifiers: []),
+            Shortcut(kind: .mouseButton(number: 1), modifiers: []),
+        ])
+        #expect(field.shortcutSequence == expected, "recorder should produce [A, RightClick]")
+    }
+
+    @MainActor
+    @Test func dispatcher_keyThenRightClick_fires() {
+        let dispatcher = ShortcutSequenceEventDispatcher()
+        let listenerID = UUID()
+        let matcher = ShortcutSequenceMatcher()
+        let sequence = ShortcutSequence(steps: [
+            Shortcut(keyCode: UInt16(kVK_ANSI_A), modifiers: []),
+            Shortcut(kind: .mouseButton(number: 1), modifiers: []),
+        ])
+        var fireCount = 0
+        matcher.configure(sequence: sequence) { fireCount += 1 }
+        dispatcher.register(id: listenerID) { matcher.handle($0) }
+        defer { dispatcher.unregister(id: listenerID) }
+
+        let aDown = makeKeyEvent(keyCode: UInt16(kVK_ANSI_A))
+        _ = dispatcher.handleEvent(aDown)
+
+        let cg = CGEvent(mouseEventSource: nil,
+                         mouseType: .rightMouseDown,
+                         mouseCursorPosition: .zero,
+                         mouseButton: .right)!
+        let rmDown = NSEvent(cgEvent: cg)!
+        _ = dispatcher.handleEvent(rmDown)
+
+        #expect(fireCount == 1, "expected sequence [A, RightClick] to fire once")
+    }
+
+    @MainActor
+    @Test func dispatcher_singleScroll_firesOnce_forMouseWheel() {
+        // Mouse-wheel events have empty phase; each notch is a discrete user action.
+        // Two notches against a single-step `[Scroll Up]` sequence should fire twice.
+        let dispatcher = ShortcutSequenceEventDispatcher()
+        let listenerID = UUID()
+        let matcher = ShortcutSequenceMatcher()
+        let sequence = ShortcutSequence(steps: [
+            Shortcut(kind: .scroll(direction: .up), modifiers: []),
+        ])
+        var fireCount = 0
+        matcher.configure(sequence: sequence) { fireCount += 1 }
+        dispatcher.register(id: listenerID) { matcher.handle($0) }
+        defer { dispatcher.unregister(id: listenerID) }
+
+        _ = dispatcher.handleEvent(makeScrollEvent(deltaY: scrollDeltaAboveThreshold))
+        _ = dispatcher.handleEvent(makeScrollEvent(deltaY: scrollDeltaAboveThreshold))
+
+        #expect(fireCount == 2, "expected each mouse-wheel notch to fire the matcher")
+    }
+
+    @MainActor
+    @Test func dispatcher_keyThenScroll_fires() {
+        let dispatcher = ShortcutSequenceEventDispatcher()
+        let listenerID = UUID()
+        let matcher = ShortcutSequenceMatcher()
+        let sequence = ShortcutSequence(steps: [
+            Shortcut(keyCode: UInt16(kVK_ANSI_A), modifiers: []),
+            Shortcut(kind: .scroll(direction: .up), modifiers: []),
+        ])
+        var fireCount = 0
+        matcher.configure(sequence: sequence) { fireCount += 1 }
+        dispatcher.register(id: listenerID) { matcher.handle($0) }
+        defer { dispatcher.unregister(id: listenerID) }
+
+        _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_A)))
+        _ = dispatcher.handleEvent(makeScrollEvent(deltaY: scrollDeltaAboveThreshold))
+
+        #expect(fireCount == 1, "expected sequence [A, Scroll Up] to fire once")
+    }
+
+    @MainActor
+    @Test func dispatcher_scrollThenKey_survivesScrollBurst() {
+        // Sequence `[Scroll Up, A]`: the first scroll advances to step 1, a second
+        // scroll within the same burst was previously resetting progress (Fix 1).
+        // After the fix it should be ignored, so the subsequent A still matches.
+        let dispatcher = ShortcutSequenceEventDispatcher()
+        let listenerID = UUID()
+        let matcher = ShortcutSequenceMatcher()
+        let sequence = ShortcutSequence(steps: [
+            Shortcut(kind: .scroll(direction: .up), modifiers: []),
+            Shortcut(keyCode: UInt16(kVK_ANSI_A), modifiers: []),
+        ])
+        var fireCount = 0
+        matcher.configure(sequence: sequence) { fireCount += 1 }
+        dispatcher.register(id: listenerID) { matcher.handle($0) }
+        defer { dispatcher.unregister(id: listenerID) }
+
+        _ = dispatcher.handleEvent(makeScrollEvent(deltaY: scrollDeltaAboveThreshold))
+        _ = dispatcher.handleEvent(makeScrollEvent(deltaY: scrollDeltaAboveThreshold))
+        _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_A)))
+
+        #expect(fireCount == 1, "expected [Scroll Up, A] to survive an extra scroll event")
+    }
+
+    @MainActor
+    @Test func dispatcher_scrollThenKey_wrongDirectionDoesNotAdvance() {
+        let dispatcher = ShortcutSequenceEventDispatcher()
+        let listenerID = UUID()
+        let matcher = ShortcutSequenceMatcher()
+        let sequence = ShortcutSequence(steps: [
+            Shortcut(kind: .scroll(direction: .up), modifiers: []),
+            Shortcut(keyCode: UInt16(kVK_ANSI_A), modifiers: []),
+        ])
+        var fireCount = 0
+        matcher.configure(sequence: sequence) { fireCount += 1 }
+        dispatcher.register(id: listenerID) { matcher.handle($0) }
+        defer { dispatcher.unregister(id: listenerID) }
+
+        _ = dispatcher.handleEvent(makeScrollEvent(deltaY: -scrollDeltaAboveThreshold))
+        _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_A)))
+
+        #expect(fireCount == 0, "wrong-direction scroll must not advance the matcher")
     }
 
     @MainActor

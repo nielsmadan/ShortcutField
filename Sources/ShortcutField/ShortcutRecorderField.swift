@@ -411,9 +411,7 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
     }
 
     private func handleKeyEvent(_ event: NSEvent) -> NSEvent? {
-        let modifiers = event.modifierFlags
-            .intersection(.deviceIndependentFlagsMask)
-            .subtracting([.capsLock, .numericPad, .function])
+        let modifiers = Shortcut.canonicalModifiers(event.modifierFlags)
 
         if modifiers.isEmpty, event.keyCode == UInt16(kVK_Escape) {
             endRecording()
@@ -460,9 +458,7 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
 
         scrollCaptured = true
 
-        let modifiers = event.modifierFlags
-            .intersection(.deviceIndependentFlagsMask)
-            .intersection([.shift, .control, .option, .command])
+        let modifiers = Shortcut.canonicalModifiers(event.modifierFlags)
 
         applyKind(.scroll(direction: direction), modifiers: modifiers)
         endRecording()
@@ -475,9 +471,7 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
         let clickMargin: CGFloat = 3.0
         let isInsideField = bounds.insetBy(dx: -clickMargin, dy: -clickMargin).contains(clickPoint)
 
-        let modifiers = event.modifierFlags
-            .intersection(.deviceIndependentFlagsMask)
-            .intersection([.shift, .control, .option, .command])
+        let modifiers = Shortcut.canonicalModifiers(event.modifierFlags)
 
         // Left mouse button
         if event.type == .leftMouseDown {
@@ -508,9 +502,7 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
     }
 
     private func handleGestureEvent(_ event: NSEvent) -> NSEvent? {
-        let modifiers = event.modifierFlags
-            .intersection(.deviceIndependentFlagsMask)
-            .intersection([.shift, .control, .option, .command])
+        let modifiers = Shortcut.canonicalModifiers(event.modifierFlags)
 
         // Reset accumulators when a continuous gesture ends so the next gesture starts fresh.
         let isContinuousType = event.type == .magnify || event.type == .rotate

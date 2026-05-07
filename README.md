@@ -11,7 +11,7 @@ A unified in-app shortcut recorder for macOS apps. Record, display, and match an
 ### Features
 
 - Record any in-app input shortcut: key, mouse button, scroll direction, trackpad gesture (pinch / rotate / smart magnify)
-- Sequential keyboard shortcuts (e.g. `⌘K ⌘C`)
+- Sequential shortcuts (e.g. `⌘K ⌘C`, `A` then `Right Click`, `⌘K` then `Pinch In`)
 - Match shortcuts against `NSEvent` and SwiftUI `KeyPress`, including special keys like Tab and Escape
 - SwiftUI views and AppKit controls
 - `Codable`, `Equatable`, `Hashable`, `Sendable` model
@@ -177,7 +177,7 @@ Uses an `NSEvent` local monitor to match key, mouse, scroll, and trackpad gestur
 
 ### `ShortcutSequence`
 
-A sequential keyboard shortcut composed of multiple steps. `Codable`, `Equatable`, `Sendable`.
+A sequential shortcut composed of multiple steps. Each step is a `Shortcut` of any kind — keyboard keys, mouse buttons, scroll directions, and trackpad gestures are all supported. `Codable`, `Equatable`, `Sendable`.
 
 ```swift
 let sequence = ShortcutSequence(steps: [
@@ -187,7 +187,14 @@ let sequence = ShortcutSequence(steps: [
 print(sequence.displayString) // "⌘K ⌘C"
 ```
 
-The sequence's recorder field currently only accepts keyboard input (each step is a `.key(...)` shortcut). The model itself holds an array of `Shortcut`, so it can be constructed programmatically with any kind, but the live recorder is keyboard-only for now.
+Mixed-kind sequences work too — for example, `⌘K` followed by a pinch-in gesture:
+
+```swift
+let sequence = ShortcutSequence(steps: [
+    Shortcut(keyCode: 40, modifiers: .command),  // ⌘K
+    Shortcut(kind: .pinchIn, modifiers: []),     // Pinch In
+])
+```
 
 | Property | Description |
 |---|---|
@@ -206,12 +213,16 @@ ShortcutSequenceRecorderView($sequence)
     .style(.rounded)
 ```
 
-Press keys in order. The recording finalizes after a 1-second pause.
+Perform the sequence one step at a time — keys, modified left-clicks, right / middle mouse clicks, scroll directions, or trackpad gestures. The recording finalizes after a 1-second pause.
+
+#### Click semantics
+
+Bare left-click can't be captured as a step — it's reserved for focusing controls and dismissing the recorder. Other inputs (right click, middle click, modified left click, scroll, pinch, rotate, smart magnify) can be captured anywhere with no modifiers required.
 
 | Modifier | Description |
 |---|---|
 | `.placeholder(_:)` | Text when empty (default: "Record Sequence") |
-| `.recordingPlaceholder(_:)` | Text during recording (default: "Press keys...") |
+| `.recordingPlaceholder(_:)` | Text during recording (default: "Record sequence…") |
 | `.style(_:)` | `.rounded`, `.plain`, or `.borderless` |
 | `.textColor(_:)` | Text color (`NSColor`) |
 | `.fieldBackgroundColor(_:)` | Background color (`NSColor`); uses a layer because `NSSearchFieldCell` ignores `backgroundColor` |
@@ -249,7 +260,7 @@ Both `ShortcutRecorderField` and `ShortcutSequenceRecorderField` share these beh
 
 `ShortcutRecorderField` also accepts mouse, scroll, and trackpad gesture input. Bare left clicks (no modifiers) are reserved for UI interaction and not captured; modified left clicks (e.g. `⌃Left Click`) are. A chevron button on the trailing edge opens a menu of pickable non-keyboard kinds for click-only entry. Continuous gestures (pinch, rotate) finalize once a small cumulative threshold is exceeded; discrete gestures (smart magnify) finalize on the first matching event.
 
-The sequence recorder finalizes after a **1-second pause** between key presses. Each key press resets the timer.
+The sequence recorder finalizes after a **1-second pause** between captured steps. Each captured step resets the timer.
 
 ### Suppressing the system alert sound
 

@@ -36,8 +36,7 @@ struct GestureEventShape: Equatable {
 public extension Shortcut {
     /// Match against an NSEvent. Dispatches to per-kind logic.
     func matches(_ event: NSEvent) -> Bool {
-        let eventMods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            .intersection([.shift, .control, .option, .command])
+        let eventMods = Self.canonicalModifiers(event.modifierFlags)
         guard eventMods == modifiers else { return false }
 
         switch kind {
@@ -81,8 +80,7 @@ extension Shortcut {
     /// Match against a synthesized gesture event shape — used by tests and by
     /// `matches(_ event: NSEvent)` for gesture kinds.
     func matchesGesture(_ event: GestureEventShape) -> Bool {
-        let eventMods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            .intersection([.shift, .control, .option, .command])
+        let eventMods = Shortcut.canonicalModifiers(event.modifierFlags)
         guard eventMods == modifiers else { return false }
 
         switch kind {

@@ -1,11 +1,24 @@
 import AppKit
 import Carbon.HIToolbox
 
-/// An AppKit control that records sequential keyboard shortcuts.
+/// An AppKit control that records sequential shortcuts.
 ///
 /// Subclasses `NSSearchField` to provide a familiar text-field appearance.
-/// Click to start recording, press key combinations in sequence (finalized
-/// after a 1-second timeout), press Escape to cancel, or Delete to clear.
+/// Click to start recording, then perform any combination of: keystrokes,
+/// modified left-clicks, right/middle/other mouse-button clicks, scroll
+/// directions, or trackpad gestures (pinch, rotate, smart magnify). Each
+/// captured input becomes one step in the sequence; recording finalizes
+/// after a 1-second pause.
+///
+/// Press Escape to cancel without saving. Press Delete (only before any
+/// step is captured) to clear the existing sequence.
+///
+/// **Left-click is uniquely special**: a bare left-click (no modifiers) is
+/// not capturable as a step — it's reserved for UI interactions (focusing
+/// the field, clicking other controls). Bare left-clicks outside the field
+/// finalize the recording (the unambiguous "click away to dismiss"
+/// gesture). All other inputs — including right-click and other mouse
+/// buttons — can be captured as steps with no modifiers required.
 ///
 /// For SwiftUI, use ``ShortcutSequenceRecorderView`` instead.
 public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDelegate, NSTextViewDelegate,
@@ -24,6 +37,19 @@ public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDe
     private var isStartingRecording = false
     private var recordedSteps: [Shortcut] = []
     private var timeoutTask: Task<Void, Never>?
+
+    /// Cumulative magnification accumulated within the current pinch gesture.
+    private var pinchAccumulator: Double = 0
+    /// Cumulative rotation (degrees) accumulated within the current rotate gesture.
+    private var rotateAccumulator: Double = 0
+    /// Whether the current scroll burst has already been captured as a step.
+    private var scrollCaptured: Bool = false
+    /// Whether the current pinch gesture has already been captured as a step.
+    /// Cleared on the gesture's `.ended`/`.cancelled` phase or when a non-`.magnify`
+    /// event arrives, so the next physical pinch can record a fresh step.
+    private var pinchCaptured: Bool = false
+    /// Same as `pinchCaptured`, but for rotate gestures.
+    private var rotateCaptured: Bool = false
 
     /// Timeout interval in seconds before finalizing a recording.
     private let recordingTimeout: TimeInterval = 1.0
@@ -53,7 +79,7 @@ public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDe
     }
 
     /// The placeholder text shown during recording.
-    public var recordingPlaceholder: String = "Press keys..."
+    public var recordingPlaceholder: String = "Record sequence\u{2026}"
 
     /// The text color for the sequence display. Nil uses the system default.
     public var fieldTextColor: NSColor? {
@@ -166,11 +192,19 @@ public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDe
         isRecording = true
         ShortcutRecordingState.begin(for: self)
         recordedSteps = []
+        resetGestureAccumulators()
         placeholderString = recordingPlaceholder
         showsCancelButton = shortcutSequence != nil
 
         eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [
             .keyDown,
+            .leftMouseDown,
+            .rightMouseDown,
+            .otherMouseDown,
+            .scrollWheel,
+            .magnify,
+            .rotate,
+            .smartMagnify,
             .leftMouseUp,
             .rightMouseUp,
         ]) { [weak self] event in
@@ -183,6 +217,7 @@ public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDe
     func endRecording() {
         guard isRecording else { return }
         isRecording = false
+        resetGestureAccumulators()
         ShortcutRecordingState.end(for: self)
         timeoutTask?.cancel()
         timeoutTask = nil
@@ -192,6 +227,14 @@ public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDe
         }
         placeholderString = defaultPlaceholder
         updateDisplay()
+    }
+
+    private func resetGestureAccumulators() {
+        pinchAccumulator = 0
+        rotateAccumulator = 0
+        scrollCaptured = false
+        pinchCaptured = false
+        rotateCaptured = false
     }
 
     func finalizeRecording() {
@@ -324,21 +367,59 @@ public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDe
     func handleEvent(_ event: NSEvent) -> NSEvent? {
         guard isRecording else { return event }
 
-        if event.type == .leftMouseUp || event.type == .rightMouseUp {
-            let clickPoint = convert(event.locationInWindow, from: nil)
-            let clickMargin: CGFloat = 3.0
-            if !bounds.insetBy(dx: -clickMargin, dy: -clickMargin).contains(clickPoint) {
-                finalizeRecording()
-                return event
-            }
-            return nil
+        // A non-scroll event ends any in-progress scroll burst.
+        if event.type != .scrollWheel {
+            scrollCaptured = false
+        }
+        // Same idea for pinch / rotate — defensive against missed `.ended` events.
+        if event.type != .magnify {
+            pinchCaptured = false
+        }
+        if event.type != .rotate {
+            rotateCaptured = false
         }
 
-        guard event.type == .keyDown else { return event }
+        switch event.type {
+        case .leftMouseUp, .rightMouseUp:
+            return handleMouseUpEvent(event)
+        case .keyDown:
+            return handleKeyEvent(event)
+        case .leftMouseDown, .rightMouseDown, .otherMouseDown:
+            return handleMouseButtonEvent(event)
+        case .scrollWheel:
+            return handleScrollEvent(event)
+        case .magnify, .rotate, .smartMagnify:
+            return handleGestureEvent(event)
+        default:
+            return event
+        }
+    }
 
-        let modifiers = event.modifierFlags
-            .intersection(.deviceIndependentFlagsMask)
-            .subtracting([.capsLock, .numericPad, .function])
+    private func handleMouseUpEvent(_ event: NSEvent) -> NSEvent? {
+        // Asymmetry: left-click outside finalizes; right-click outside doesn't.
+        //
+        // Bare left-click can't be a sequence step (it's reserved for UI — focusing
+        // controls, dismissing the recorder), so a left-click outside the field
+        // unambiguously means "I'm done — dismiss." We finalize on mouseUp.
+        //
+        // Right-click (and other mouse buttons), in contrast, *can* be steps with
+        // no modifiers required. The down event was just captured as a step, and
+        // the user may continue with more steps. We let the 1-second step timeout
+        // (or first-responder loss) close the recording when they actually stop.
+        if event.type == .rightMouseUp {
+            return nil
+        }
+        let clickPoint = convert(event.locationInWindow, from: nil)
+        let clickMargin: CGFloat = 3.0
+        if !bounds.insetBy(dx: -clickMargin, dy: -clickMargin).contains(clickPoint) {
+            finalizeRecording()
+            return event
+        }
+        return nil
+    }
+
+    private func handleKeyEvent(_ event: NSEvent) -> NSEvent? {
+        let modifiers = Shortcut.canonicalModifiers(event.modifierFlags)
 
         // Escape cancels without saving
         if modifiers.isEmpty, event.keyCode == UInt16(kVK_Escape) {
@@ -359,12 +440,155 @@ public final class ShortcutSequenceRecorderField: NSSearchField, NSSearchFieldDe
             return nil
         }
 
-        // Append step and show progress
         let step = Shortcut(keyCode: event.keyCode, modifiers: modifiers)
+        appendStep(step)
+        return nil
+    }
+
+    private func handleMouseButtonEvent(_ event: NSEvent) -> NSEvent? {
+        let clickPoint = convert(event.locationInWindow, from: nil)
+        let clickMargin: CGFloat = 3.0
+        let isInsideField = bounds.insetBy(dx: -clickMargin, dy: -clickMargin).contains(clickPoint)
+
+        let modifiers = Shortcut.canonicalModifiers(event.modifierFlags)
+
+        // Left mouse button
+        if event.type == .leftMouseDown {
+            if !isInsideField {
+                // Click outside — let the mouseUp handler finalize the recording.
+                return event
+            }
+
+            // Bare left click inside — ignore (reserved for UI)
+            if modifiers.isEmpty {
+                return nil
+            }
+
+            // Modified left click inside — capture as a step
+            let step = Shortcut(kind: .mouseButton(number: event.buttonNumber), modifiers: modifiers)
+            appendStep(step)
+            return nil
+        }
+
+        // Right click or other mouse buttons — always capture as a step
+        let step = Shortcut(kind: .mouseButton(number: event.buttonNumber), modifiers: modifiers)
+        appendStep(step)
+        return nil
+    }
+
+    private func handleScrollEvent(_ event: NSEvent) -> NSEvent? {
+        // Ignore momentum scroll events (trackpad inertia)
+        if event.momentumPhase != [] {
+            return nil
+        }
+
+        // Fresh scroll burst (trackpad finger touch-down) clears any prior capture flag.
+        if event.phase == .began {
+            scrollCaptured = false
+        }
+
+        // Suppress repeats within the same scroll burst.
+        if scrollCaptured {
+            return nil
+        }
+
+        // Stricter threshold for recording than for matching, so a tiny stray
+        // trackpad twitch doesn't accidentally append a Scroll step.
+        let dx = abs(event.scrollingDeltaX)
+        let dy = abs(event.scrollingDeltaY)
+        guard dx >= Shortcut.scrollRecordingThreshold || dy >= Shortcut.scrollRecordingThreshold else {
+            return nil
+        }
+
+        guard let direction = Shortcut.scrollDirection(from: event) else {
+            return nil
+        }
+
+        // Suppress further events only for trackpad bursts (which have phase info).
+        // Mouse-wheel notches have no phase — each is a distinct user action and
+        // should be capturable as its own step.
+        if event.phase != [] {
+            scrollCaptured = true
+        }
+
+        let modifiers = Shortcut.canonicalModifiers(event.modifierFlags)
+
+        let step = Shortcut(kind: .scroll(direction: direction), modifiers: modifiers)
+        appendStep(step)
+        return nil
+    }
+
+    private func handleGestureEvent(_ event: NSEvent) -> NSEvent? {
+        let modifiers = Shortcut.canonicalModifiers(event.modifierFlags)
+
+        // Reset accumulators / captured flags when a continuous gesture ends, so the
+        // next physical gesture starts fresh.
+        let isContinuousType = event.type == .magnify || event.type == .rotate
+        if isContinuousType, event.phase == .ended || event.phase == .cancelled {
+            pinchAccumulator = 0
+            rotateAccumulator = 0
+            pinchCaptured = false
+            rotateCaptured = false
+            return nil
+        }
+
+        // Fresh gesture burst clears any prior capture flag — defensive against
+        // missed `.ended` events from the OS.
+        if event.type == .magnify, event.phase == .began {
+            pinchCaptured = false
+            pinchAccumulator = 0
+        }
+        if event.type == .rotate, event.phase == .began {
+            rotateCaptured = false
+            rotateAccumulator = 0
+        }
+
+        switch event.type {
+        case .magnify:
+            // Suppress further captures within the same physical pinch.
+            if pinchCaptured { return nil }
+            pinchAccumulator += Double(event.magnification)
+            if abs(pinchAccumulator) >= Shortcut.magnifyRecordingThreshold {
+                let kind: Shortcut.Kind = pinchAccumulator < 0 ? .pinchIn : .pinchOut
+                let step = Shortcut(kind: kind, modifiers: modifiers)
+                appendStep(step)
+                pinchCaptured = true
+            }
+            return nil
+        case .rotate:
+            if rotateCaptured { return nil }
+            rotateAccumulator += Double(event.rotation)
+            if abs(rotateAccumulator) >= Shortcut.rotateRecordingThreshold {
+                let kind: Shortcut.Kind = rotateAccumulator > 0
+                    ? .rotateCounterClockwise
+                    : .rotateClockwise
+                let step = Shortcut(kind: kind, modifiers: modifiers)
+                appendStep(step)
+                rotateCaptured = true
+            }
+            return nil
+        case .smartMagnify:
+            let step = Shortcut(kind: .smartMagnify, modifiers: modifiers)
+            appendStep(step)
+            return nil
+        default:
+            return event
+        }
+    }
+
+    /// Append a recorded step, refresh the in-progress display, reset the timeout,
+    /// and clear gesture accumulators for the next step.
+    ///
+    /// `scrollCaptured` / `pinchCaptured` / `rotateCaptured` are intentionally NOT
+    /// reset here — a single physical gesture burst should produce at most one step.
+    /// Each flag is cleared by either a non-matching event type (see `handleEvent`)
+    /// or by the gesture's `.ended` / `.cancelled` phase.
+    private func appendStep(_ step: Shortcut) {
         recordedSteps.append(step)
         stringValue = recordedSteps.map(\.displayString).joined(separator: " ") + " …"
         resetTimeout()
-        return nil
+        pinchAccumulator = 0
+        rotateAccumulator = 0
     }
 
     func forceEndRecordingSession() {

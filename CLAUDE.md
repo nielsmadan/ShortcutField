@@ -28,7 +28,7 @@ ShortcutField is a Swift package providing a unified in-app shortcut recorder fo
 - `ShortcutRecorderField+Menu.swift` — chevron menu picker (lists non-keyboard kinds)
 - `ShortcutRecorderStyle.swift` — .rounded, .plain, .borderless styles
 - `OnShortcutModifier.swift` — .onShortcut() view modifier (covers all kinds, throttles continuous ones)
-- `ShortcutSequence.swift` — Sequential shortcut composed of `[Shortcut]` (still keyboard-only at the recorder level)
+- `ShortcutSequence.swift` — Sequential shortcut composed of `[Shortcut]` of any kind (keys, mouse, scroll, gestures)
 - `ShortcutSequenceRecorderField.swift`, `ShortcutSequenceRecorderView.swift`, `OnShortcutSequenceModifier.swift` — sequence pipeline
 - `ThrottleState.swift` — Internal: shared throttle state for OnShortcutModifier
 - `SensitivitySliderRepresentable.swift` — internal slider helper used by ShortcutRecorderView for continuous kinds

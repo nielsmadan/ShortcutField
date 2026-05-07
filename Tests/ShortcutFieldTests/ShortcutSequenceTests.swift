@@ -55,14 +55,47 @@ import Testing
     }
 }
 
-// Construction with a non-`.key` step (e.g. `.mouseButton`) traps via `precondition`;
-// Swift Testing has no clean way to assert preconditions, so the construction-time
-// constraint is documented rather than tested. The Codable-side rejection is
-// covered below.
-@Test func sequence_decodeNonKeyStep_throwsDecodingError() {
-    let data = Data(#"{"steps":[{"type":"mouseButton","buttonNumber":0,"modifiers":0,"sensitivity":0}]}"#.utf8)
+@Test func sequence_init_mixedKinds_succeeds() {
+    let steps: [Shortcut] = [
+        Shortcut(keyCode: UInt16(kVK_ANSI_K), modifiers: .command),
+        Shortcut(kind: .mouseButton(number: 1), modifiers: []),
+        Shortcut(kind: .pinchIn, modifiers: []),
+        Shortcut(kind: .rotateClockwise, modifiers: .command),
+        Shortcut(kind: .smartMagnify, modifiers: []),
+    ]
+    let seq = ShortcutSequence(steps: steps)
+    #expect(seq.steps == steps)
+}
+
+@Test func sequence_codableRoundtrip_mixedKinds() throws {
+    let original = ShortcutSequence(steps: [
+        Shortcut(keyCode: UInt16(kVK_ANSI_K), modifiers: .command),
+        Shortcut(kind: .mouseButton(number: 1), modifiers: []),
+        Shortcut(kind: .pinchIn, modifiers: []),
+        Shortcut(kind: .rotateClockwise, modifiers: .command),
+        Shortcut(kind: .smartMagnify, modifiers: []),
+        Shortcut(kind: .scroll(direction: .up), modifiers: []),
+    ])
+    let data = try JSONEncoder().encode(original)
+    let decoded = try JSONDecoder().decode(ShortcutSequence.self, from: data)
+    #expect(decoded == original)
+}
+
+@Test func sequence_decodeMalformed_throwsDecodingError() {
+    // Unknown step type — the per-step `Shortcut.init(from:)` should reject it.
+    let unknownTypeJSON = Data(#"""
+    {"steps":[{"type":"bogus","modifiers":0}]}
+    """#.utf8)
     #expect(throws: DecodingError.self) {
-        try JSONDecoder().decode(ShortcutSequence.self, from: data)
+        try JSONDecoder().decode(ShortcutSequence.self, from: unknownTypeJSON)
+    }
+
+    // Swipe step missing the required `direction` field.
+    let missingFieldJSON = Data(#"""
+    {"steps":[{"type":"scroll","modifiers":0}]}
+    """#.utf8)
+    #expect(throws: DecodingError.self) {
+        try JSONDecoder().decode(ShortcutSequence.self, from: missingFieldJSON)
     }
 }
 

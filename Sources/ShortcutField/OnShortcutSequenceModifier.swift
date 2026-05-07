@@ -16,6 +16,17 @@ final class ShortcutSequenceMatcher {
     private var action: () -> Void = {}
     private var timeoutTask: Task<Void, Never>?
 
+    /// Event types of continuous gestures (`.magnify`, `.rotate`, `.scrollWheel`) that
+    /// have already advanced the matcher past a step within the current physical burst.
+    /// Subsequent events of the same type are suppressed so a single trackpad burst
+    /// doesn't re-fire the matcher. Entries are cleared on the gesture's end-phase
+    /// event so the next physical burst can advance the matcher again.
+    ///
+    /// A Set (rather than a single optional) supports overlapping bursts — e.g. a
+    /// sequence `[PinchIn, RotateClockwise]` where the rotate-step's matching event
+    /// arrives while the pinch's end-phase hasn't fired yet.
+    private var inProgressContinuousEventTypes: Set<NSEvent.EventType> = []
+
     private(set) var currentStep = 0
     private(set) var isTracking = false {
         didSet {
@@ -36,15 +47,64 @@ final class ShortcutSequenceMatcher {
     func handle(_ event: NSEvent) -> ShortcutSequenceEventResult {
         guard let sequence else { return .ignored }
 
+        // Phase-end reset: clear the in-progress flag for this gesture type so the
+        // next physical burst can advance the matcher again. Trackpad scrolls also
+        // emit `.ended`/`.cancelled`; mouse-wheel events have empty phase and never
+        // enter the suppression set in the first place.
+        if event.type == .magnify || event.type == .rotate || event.type == .scrollWheel,
+           event.phase == .ended || event.phase == .cancelled
+        {
+            inProgressContinuousEventTypes.remove(event.type)
+            return .ignored
+        }
+
+        // Momentum scroll passthrough — trackpad inertia after the user lifts.
+        if event.type == .scrollWheel, event.momentumPhase != [] {
+            return .ignored
+        }
+
+        // Active-gesture suppression: once a continuous gesture has advanced the
+        // matcher, ignore further events of the same type until the gesture ends.
+        if inProgressContinuousEventTypes.contains(event.type) {
+            return .ignored
+        }
+
         let step = sequence.steps[currentStep]
         guard step.matches(event) else {
+            // Continuous-gesture events arrive in bursts where many are sub-threshold
+            // or in the wrong direction. Don't reset progress on those — the user may
+            // be mid-gesture toward the expected step. Scroll bursts behave similarly:
+            // a single trackpad swipe emits many events, and a non-matching one
+            // shouldn't unwind progress. The 1-second step timeout cleans up stale
+            // state.
+            if event.type == .magnify || event.type == .rotate || event.type == .scrollWheel {
+                return .ignored
+            }
             reset()
             return .ignored
         }
 
+        // If the matching event is a continuous gesture / trackpad scroll for the
+        // matching kind, mark the gesture as in-progress so subsequent events of the
+        // same gesture are suppressed — preventing a single physical burst from
+        // firing the matcher repeatedly. Mouse-wheel events have empty phase and
+        // are *not* added: each wheel notch is a discrete user action.
+        //
+        // `event.phase` is only valid for gesture / scroll-wheel events; calling it
+        // on a key or mouse event throws. Guard the access by event type.
+        let isContinuousEvent = event.type == .magnify || event.type == .rotate
+            || event.type == .scrollWheel
+        let hasPhase = isContinuousEvent && event.phase != []
+        let suppressType: NSEvent.EventType? = (
+            Shortcut.isContinuous(step.kind) && isContinuousEvent && hasPhase
+        ) ? event.type : nil
+
         let isLast = currentStep == sequence.steps.count - 1
         if isLast {
             reset()
+            if let suppressType {
+                inProgressContinuousEventTypes.insert(suppressType)
+            }
             action()
             return .matched
         }
@@ -52,12 +112,21 @@ final class ShortcutSequenceMatcher {
         currentStep += 1
         beginTracking()
         restartTimeout()
-        return .advanced(consumeEvent: Self.isInterceptedByFocusSystem(keyCode: event.keyCode))
+        if let suppressType {
+            inProgressContinuousEventTypes.insert(suppressType)
+        }
+
+        // `event.keyCode` is only valid for keyboard events; calling it on a
+        // mouse, scroll, or gesture event throws.
+        let consumeEvent = (event.type == .keyDown)
+            && Self.isInterceptedByFocusSystem(keyCode: event.keyCode)
+        return .advanced(consumeEvent: consumeEvent)
     }
 
     func reset() {
         currentStep = 0
         isTracking = false
+        inProgressContinuousEventTypes.removeAll()
         timeoutTask?.cancel()
         timeoutTask = nil
     }
@@ -138,7 +207,16 @@ final class ShortcutSequenceEventDispatcher {
     private func installMonitorIfNeeded() {
         guard eventMonitor == nil, !handlers.isEmpty else { return }
 
-        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [
+            .keyDown,
+            .leftMouseDown,
+            .rightMouseDown,
+            .otherMouseDown,
+            .scrollWheel,
+            .magnify,
+            .rotate,
+            .smartMagnify,
+        ]) { [weak self] event in
             guard let self else { return event }
             return handleEvent(event)
         }
@@ -169,15 +247,15 @@ public enum ShortcutSequenceTracking {
     }
 }
 
-/// View modifier that fires an action when a shortcut sequence is pressed.
+/// View modifier that fires an action when a shortcut sequence is performed.
 ///
 /// Each modifier instance tracks its position in the sequence independently,
-/// while a shared event dispatcher fans key events out to every active matcher.
+/// while a shared event dispatcher fans events out to every active matcher.
 /// This allows sequences sharing a prefix to advance in parallel and ensures
 /// focus-intercepted keys like Tab are consumed only after every matcher has
 /// seen the event. Only the final matching step is consumed.
 ///
-/// Because intermediate key events propagate through the responder chain,
+/// Because intermediate events propagate through the responder chain,
 /// macOS may play the system alert sound for unhandled keys. Check
 /// ``ShortcutSequenceTracking/isActive`` in a `noResponder(for:)` override
 /// to suppress the beep selectively.
@@ -232,11 +310,11 @@ struct OnShortcutSequenceModifier: ViewModifier {
 // MARK: - View Extension
 
 public extension View {
-    /// Perform an action when the given shortcut sequence is pressed.
+    /// Perform an action when the given shortcut sequence is performed.
     ///
-    /// Tracks key presses in order, firing the action when the full sequence
-    /// is matched. Intermediate steps propagate normally; only the final
-    /// step is consumed.
+    /// Tracks events in order, firing the action when the full sequence is
+    /// matched. Intermediate steps propagate normally; only the final step
+    /// is consumed.
     ///
     /// Multiple sequences that share a common prefix (e.g. `A B` and `A T`)
     /// work correctly — each modifier tracks independently and the shared

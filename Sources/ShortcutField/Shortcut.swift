@@ -71,6 +71,20 @@ public struct Shortcut: Sendable, Equatable {
         }
     }
 
+    // MARK: - Modifier mask
+
+    /// The four modifier flags that participate in shortcut matching.
+    public static let canonicalModifierMask: NSEvent.ModifierFlags = [.shift, .control, .option, .command]
+
+    /// Mask raw `NSEvent.modifierFlags` to the canonical set
+    /// (`.shift`, `.control`, `.option`, `.command`).
+    ///
+    /// Strips Caps Lock, numeric pad, function key, and any non-device-independent
+    /// flags so recorders, matchers, and UI compare modifiers consistently.
+    static func canonicalModifiers(_ flags: NSEvent.ModifierFlags) -> NSEvent.ModifierFlags {
+        flags.intersection(.deviceIndependentFlagsMask).intersection(canonicalModifierMask)
+    }
+
     /// Reserved hook for future kind clamping. Currently a no-op.
     static func normalizeKind(_ kind: Kind) -> Kind {
         kind

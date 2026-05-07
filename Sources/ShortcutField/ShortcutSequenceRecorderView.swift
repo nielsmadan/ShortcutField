@@ -1,6 +1,9 @@
 import SwiftUI
 
-/// A SwiftUI view that lets users record a sequential keyboard shortcut.
+/// A SwiftUI view that lets users record a sequential shortcut. Each step can
+/// be a keystroke, a modified left-click, a right/middle/other mouse-button
+/// click, a scroll direction, or a trackpad gesture. Recording finalizes after
+/// a 1-second pause; bare left-click can't be a step (it's reserved for UI).
 ///
 /// ```swift
 /// @State private var sequence: ShortcutSequence?
@@ -13,7 +16,7 @@ public struct ShortcutSequenceRecorderView: NSViewRepresentable {
     @Binding var shortcutSequence: ShortcutSequence?
 
     private var placeholderText: String = "Record Sequence"
-    private var recordingPlaceholderText: String = "Press keys..."
+    private var recordingPlaceholderText: String = "Record sequence\u{2026}"
     private var style: ShortcutRecorderStyle = .rounded
     private var textColorValue: NSColor?
     private var backgroundColorValue: NSColor?
