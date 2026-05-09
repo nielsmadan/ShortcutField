@@ -23,7 +23,7 @@ struct ShortcutFieldExampleApp: App {
 // MARK: - Beep Suppression
 
 /// Overrides `noResponder(for:)` on the hosting window to suppress the
-/// system alert sound during active sequence tracking.
+/// system alert sound during in-progress multi-step shortcut matching.
 ///
 /// Uses ObjC runtime to add the override to the existing window class
 /// rather than replacing the window, preserving SwiftUI's window lifecycle.
@@ -54,9 +54,9 @@ private struct BeepSuppressor: NSViewRepresentable {
 
         let block: @convention(block) (AnyObject, Selector) -> Void = { obj, eventSelector in
             if eventSelector == #selector(NSResponder.keyDown(with:)),
-               ShortcutSequenceTracking.isActive
+               ShortcutTracking.isActive
             {
-                return // suppress beep during sequence tracking
+                return // suppress beep during in-progress multi-step matches
             }
             original(obj, selector, eventSelector)
         }

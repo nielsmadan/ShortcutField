@@ -4,6 +4,9 @@ import ShortcutField
 import Testing
 
 // UCKeyTranslate is not thread-safe; run display-string tests serially.
+// `@MainActor` at struct level also serializes against other @MainActor suites
+// that use UCKeyTranslate via `Shortcut.Step.displayString`.
+@MainActor
 @Suite(.serialized) struct ShortcutDisplayStringTests {
     // MARK: - Keyboard
 

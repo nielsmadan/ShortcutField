@@ -3,8 +3,9 @@ import Carbon.HIToolbox
 
 // MARK: - Display String
 
-public extension Shortcut {
-    /// Human-readable representation, combining the modifier prefix with the kind label.
+public extension Shortcut.Step {
+    /// Human-readable representation of a single step, combining the modifier
+    /// prefix with the kind label.
     ///
     /// Examples: `⌘K`, `Tab`, `↑`, `⌃Right Click`, `⇧Scroll Up`, `⌘Pinch In`,
     /// `⌃⌥Smart Magnify`.
@@ -29,10 +30,10 @@ public extension Shortcut {
     }
 
     private func keyDisplayString(keyCode: UInt16) -> String {
-        if let specialKeyString = Self.specialKeyString(keyCode: keyCode) {
+        if let specialKeyString = Shortcut.specialKeyString(keyCode: keyCode) {
             return specialKeyString
         }
-        if let char = Self.keyToCharacter(keyCode: keyCode) {
+        if let char = Shortcut.keyToCharacter(keyCode: keyCode) {
             return char
         }
         return "?"
@@ -47,12 +48,20 @@ public extension Shortcut {
         }
     }
 
-    private func scrollDisplayString(direction: ScrollDirection) -> String {
+    private func scrollDisplayString(direction: Shortcut.ScrollDirection) -> String {
         switch direction {
         case .up: "Scroll Up"
         case .down: "Scroll Down"
         case .left: "Scroll Left"
         case .right: "Scroll Right"
         }
+    }
+}
+
+public extension Shortcut {
+    /// Human-readable representation of the full shortcut. For multi-step shortcuts
+    /// (e.g. `⌘K ⌘C`), step display strings are joined with a space.
+    var displayString: String {
+        steps.map(\.displayString).joined(separator: " ")
     }
 }

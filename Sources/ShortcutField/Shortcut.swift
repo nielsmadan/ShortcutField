@@ -1,12 +1,37 @@
 import AppKit
 
-/// A unified in-app input shortcut: keyboard, mouse button, scroll, or trackpad gesture.
+/// A fire-once in-app shortcut composed of one or more steps.
 ///
-/// `Shortcut` covers every recordable single-event input that ShortcutField supports.
-/// Use the convenience init for keyboard shortcuts (the most common case), or the
-/// general init for any kind.
-public struct Shortcut: Sendable, Equatable {
-    /// The kind of input this shortcut represents.
+/// Each step is a single recordable input — a keyboard key, mouse button, scroll
+/// direction, smart-magnify, or trackpad gesture. A single keystroke is a 1-step
+/// shortcut; a multi-step sequence (e.g. `⌘K ⌘C`) is an N-step shortcut. The
+/// matcher fires the bound action exactly once when the user completes the full
+/// sequence.
+///
+/// For sensitivity-bearing throttled continuous fire (e.g. scroll-to-zoom with a
+/// user-tunable rate), use ``ContinuousShortcut`` and `.onContinuousShortcut`.
+public struct Shortcut: Sendable, Equatable, Hashable {
+    /// One step in a shortcut. Each step is a single recordable input event.
+    public struct Step: Sendable, Equatable, Hashable {
+        /// The kind of input this step represents.
+        public let kind: Kind
+
+        /// Modifier flags (Command, Shift, Option, Control). Other flags are masked off in `init`.
+        public let modifiers: NSEvent.ModifierFlags
+
+        public init(kind: Kind, modifiers: NSEvent.ModifierFlags) {
+            self.kind = Self.normalizeKind(kind)
+            self.modifiers = Shortcut.canonicalModifiers(modifiers)
+        }
+
+        public init(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) {
+            self.init(kind: .key(keyCode: keyCode), modifiers: modifiers)
+        }
+
+        static func normalizeKind(_ kind: Kind) -> Kind { kind }
+    }
+
+    /// The kind of input a step represents.
     public enum Kind: Sendable, Equatable, Hashable {
         /// A keyboard key. Associated value is the virtual key code (e.g.,
         /// `kVK_Tab` from Carbon.HIToolbox).
@@ -31,30 +56,25 @@ public struct Shortcut: Sendable, Equatable {
         case up, down, left, right
     }
 
-    /// The kind of input.
-    public let kind: Kind
+    /// The ordered steps that make up this shortcut. Always non-empty.
+    public let steps: [Step]
 
-    /// The modifier flags (Command, Shift, Option, Control). Other flags are masked off in `init`.
-    public let modifiers: NSEvent.ModifierFlags
-
-    /// Sensitivity from 0.0 (fire once per gesture) to 1.0 (fire on every event).
-    /// Only meaningful for continuous kinds (scroll, pinch, rotate); forced to 0.0
-    /// for discrete kinds (key, mouseButton, smartMagnify).
-    public let sensitivity: Double
-
-    public init(kind: Kind, modifiers: NSEvent.ModifierFlags, sensitivity: Double = 0.0) {
-        self.kind = Self.normalizeKind(kind)
-        self.modifiers = modifiers.intersection([.shift, .control, .option, .command])
-        if Self.isContinuous(self.kind) {
-            self.sensitivity = min(1.0, max(0.0, sensitivity))
-        } else {
-            self.sensitivity = 0.0
-        }
+    /// Create a shortcut from an explicit list of steps.
+    ///
+    /// - Precondition: `steps` must not be empty.
+    public init(steps: [Step]) {
+        precondition(!steps.isEmpty, "Shortcut requires at least 1 step")
+        self.steps = steps
     }
 
-    /// Convenience init for keyboard shortcuts.
+    /// Convenience init for a 1-step shortcut.
+    public init(kind: Kind, modifiers: NSEvent.ModifierFlags) {
+        self.init(steps: [Step(kind: kind, modifiers: modifiers)])
+    }
+
+    /// Convenience init for a 1-step keyboard shortcut.
     public init(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) {
-        self.init(kind: .key(keyCode: keyCode), modifiers: modifiers)
+        self.init(steps: [Step(keyCode: keyCode, modifiers: modifiers)])
     }
 
     // MARK: - Helpers
@@ -74,7 +94,7 @@ public struct Shortcut: Sendable, Equatable {
     // MARK: - Modifier mask
 
     /// The four modifier flags that participate in shortcut matching.
-    public static let canonicalModifierMask: NSEvent.ModifierFlags = [.shift, .control, .option, .command]
+    static let canonicalModifierMask: NSEvent.ModifierFlags = [.shift, .control, .option, .command]
 
     /// Mask raw `NSEvent.modifierFlags` to the canonical set
     /// (`.shift`, `.control`, `.option`, `.command`).
@@ -83,11 +103,6 @@ public struct Shortcut: Sendable, Equatable {
     /// flags so recorders, matchers, and UI compare modifiers consistently.
     static func canonicalModifiers(_ flags: NSEvent.ModifierFlags) -> NSEvent.ModifierFlags {
         flags.intersection(.deviceIndependentFlagsMask).intersection(canonicalModifierMask)
-    }
-
-    /// Reserved hook for future kind clamping. Currently a no-op.
-    static func normalizeKind(_ kind: Kind) -> Kind {
-        kind
     }
 
     // MARK: - Thresholds (shared between matcher and recorder)
@@ -109,98 +124,125 @@ public struct Shortcut: Sendable, Equatable {
 // MARK: - Codable
 
 extension Shortcut: Codable {
+    private enum CodingKeys: String, CodingKey {
+        case steps
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let steps = try container.decode([Step].self, forKey: .steps)
+        guard !steps.isEmpty else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .steps,
+                in: container,
+                debugDescription: "Shortcut requires at least 1 step"
+            )
+        }
+        self.steps = steps
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(steps, forKey: .steps)
+    }
+}
+
+// MARK: - Kind Codable
+
+extension Shortcut.Kind {
+    /// Coding keys for the type discriminator and per-kind payload fields. Shared
+    /// between `Shortcut.Step` and `ContinuousShortcut` so the JSON shape stays
+    /// flat — `{type, keyCode?, buttonNumber?, direction?, ...parent fields}`.
     enum CodingKeys: String, CodingKey {
         case type
         case keyCode
         case buttonNumber
         case direction
-        case modifiers
-        case sensitivity
     }
 
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let type = try container.decode(String.self, forKey: .type)
+    /// String discriminator for the wire format.
+    var tag: String {
+        switch self {
+        case .key: "key"
+        case .mouseButton: "mouseButton"
+        case .scroll: "scroll"
+        case .pinchIn: "pinchIn"
+        case .pinchOut: "pinchOut"
+        case .rotateClockwise: "rotateClockwise"
+        case .rotateCounterClockwise: "rotateCounterClockwise"
+        case .smartMagnify: "smartMagnify"
+        }
+    }
 
-        let decodedKind: Kind
-        switch type {
+    /// Decode a `Kind` from a keyed container that holds the `type` discriminator
+    /// and any payload fields (`keyCode`, `buttonNumber`, `direction`).
+    init(from container: KeyedDecodingContainer<CodingKeys>) throws {
+        let tag = try container.decode(String.self, forKey: .type)
+        switch tag {
         case "key":
-            let keyCode = try container.decode(UInt16.self, forKey: .keyCode)
-            decodedKind = .key(keyCode: keyCode)
+            self = try .key(keyCode: container.decode(UInt16.self, forKey: .keyCode))
         case "mouseButton":
-            let number = try container.decode(Int.self, forKey: .buttonNumber)
-            decodedKind = .mouseButton(number: number)
+            self = try .mouseButton(number: container.decode(Int.self, forKey: .buttonNumber))
         case "scroll":
-            let direction = try container.decode(ScrollDirection.self, forKey: .direction)
-            decodedKind = .scroll(direction: direction)
-        case "pinchIn": decodedKind = .pinchIn
-        case "pinchOut": decodedKind = .pinchOut
-        case "rotateClockwise": decodedKind = .rotateClockwise
-        case "rotateCounterClockwise": decodedKind = .rotateCounterClockwise
-        case "smartMagnify": decodedKind = .smartMagnify
+            self = try .scroll(direction: container.decode(Shortcut.ScrollDirection.self, forKey: .direction))
+        case "pinchIn": self = .pinchIn
+        case "pinchOut": self = .pinchOut
+        case "rotateClockwise": self = .rotateClockwise
+        case "rotateCounterClockwise": self = .rotateCounterClockwise
+        case "smartMagnify": self = .smartMagnify
         default:
             throw DecodingError.dataCorruptedError(
-                forKey: .type,
-                in: container,
-                debugDescription: "Unknown shortcut kind: \(type)"
+                forKey: CodingKeys.type, in: container,
+                debugDescription: "Unknown shortcut kind: \(tag)"
             )
-        }
-        kind = Self.normalizeKind(decodedKind)
-
-        let rawModifiers = try container.decode(UInt.self, forKey: .modifiers)
-        modifiers = NSEvent.ModifierFlags(rawValue: rawModifiers)
-            .intersection([.shift, .control, .option, .command])
-
-        if Self.isContinuous(kind) {
-            sensitivity = try min(
-                1.0,
-                max(0.0,
-                    container.decodeIfPresent(Double.self, forKey: .sensitivity) ?? 0.0)
-            )
-        } else {
-            sensitivity = 0.0
         }
     }
 
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(modifiers.rawValue, forKey: .modifiers)
-        if Self.isContinuous(kind) {
-            try container.encode(sensitivity, forKey: .sensitivity)
-        }
-
-        switch kind {
+    /// Encode the discriminator and payload into a keyed container alongside the
+    /// parent's other fields.
+    func encode(into container: inout KeyedEncodingContainer<CodingKeys>) throws {
+        try container.encode(tag, forKey: .type)
+        switch self {
         case let .key(keyCode):
-            try container.encode("key", forKey: .type)
             try container.encode(keyCode, forKey: .keyCode)
         case let .mouseButton(number):
-            try container.encode("mouseButton", forKey: .type)
             try container.encode(number, forKey: .buttonNumber)
         case let .scroll(direction):
-            try container.encode("scroll", forKey: .type)
             try container.encode(direction, forKey: .direction)
-        case .pinchIn:
-            try container.encode("pinchIn", forKey: .type)
-        case .pinchOut:
-            try container.encode("pinchOut", forKey: .type)
-        case .rotateClockwise:
-            try container.encode("rotateClockwise", forKey: .type)
-        case .rotateCounterClockwise:
-            try container.encode("rotateCounterClockwise", forKey: .type)
-        case .smartMagnify:
-            try container.encode("smartMagnify", forKey: .type)
+        case .pinchIn, .pinchOut, .rotateClockwise, .rotateCounterClockwise, .smartMagnify:
+            break
         }
     }
 }
 
-// MARK: - Hashable
+extension Shortcut.Step: Codable {
+    enum CodingKeys: String, CodingKey {
+        case modifiers
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let kindContainer = try decoder.container(keyedBy: Shortcut.Kind.CodingKeys.self)
+        kind = try Self.normalizeKind(Shortcut.Kind(from: kindContainer))
+
+        let modifiersContainer = try decoder.container(keyedBy: CodingKeys.self)
+        let rawModifiers = try modifiersContainer.decode(UInt.self, forKey: .modifiers)
+        modifiers = Shortcut.canonicalModifiers(NSEvent.ModifierFlags(rawValue: rawModifiers))
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var modifiersContainer = encoder.container(keyedBy: CodingKeys.self)
+        try modifiersContainer.encode(modifiers.rawValue, forKey: .modifiers)
+
+        var kindContainer = encoder.container(keyedBy: Shortcut.Kind.CodingKeys.self)
+        try kind.encode(into: &kindContainer)
+    }
+}
 
 // `NSEvent.ModifierFlags` is an `OptionSet` but does not conform to `Hashable`,
-// so we hash its raw value alongside the kind and sensitivity.
-extension Shortcut: Hashable {
-    public func hash(into hasher: inout Hasher) {
+// so we hash its raw value alongside the kind.
+public extension Shortcut.Step {
+    func hash(into hasher: inout Hasher) {
         hasher.combine(kind)
         hasher.combine(modifiers.rawValue)
-        hasher.combine(sensitivity)
     }
 }

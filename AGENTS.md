@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-`ShortcutField` is a Swift Package for macOS. Library sources live in `Sources/ShortcutField/`; keep public API types small and focused, with related behavior split into extension files such as `Shortcut+Matching.swift` and `Shortcut+KeyMapping.swift`. Tests live in `Tests/ShortcutFieldTests/` and mirror the library surface with focused suites like `ShortcutTests.swift` and `ShortcutSequenceTests.swift`. The manual demo app is in `Example/ShortcutFieldExample/`. Design notes and implementation plans belong in `docs/`.
+`ShortcutField` is a Swift Package for macOS. Library sources live in `Sources/ShortcutField/`; keep public API types small and focused, with related behavior split into extension files such as `Shortcut+Matching.swift` and `Shortcut+KeyMapping.swift`. Tests live in `Tests/ShortcutFieldTests/` and mirror the library surface with focused suites like `ShortcutTests.swift` and `ContinuousShortcutTests.swift`. The manual demo app is in `Example/ShortcutFieldExample/`. Architecture and current API are documented in `README.md` and `CLAUDE.md`.
 
 ## Build, Test, and Development Commands
 Use `just` for the common workflow:

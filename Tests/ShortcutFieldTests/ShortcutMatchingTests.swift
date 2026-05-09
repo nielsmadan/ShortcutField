@@ -9,160 +9,193 @@ private func makeKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = []
     return NSEvent(cgEvent: event)!
 }
 
-// CGEvent is not thread-safe — run these serially to avoid crashes in CI
+// CGEvent is not thread-safe — run these serially to avoid crashes in CI.
+// `@MainActor` at struct level also serializes against other @MainActor suites
+// that touch CGEvent / NSSearchField / global ShortcutRecordingState.
+@MainActor
 @Suite(.serialized) struct ShortcutMatchingTests {
     // MARK: - Keyboard
 
     @Test func key_matchesEvent_sameKeyAndModifiers_returnsTrue() {
-        let s = Shortcut(keyCode: UInt16(kVK_Tab), modifiers: [.command, .shift])
+        let step = Shortcut.Step(keyCode: UInt16(kVK_Tab), modifiers: [.command, .shift])
         let event = makeKeyEvent(keyCode: UInt16(kVK_Tab), modifiers: [.command, .shift])
-        #expect(s.matches(event))
+        #expect(step.matches(event))
     }
 
     @Test func key_matchesEvent_wrongModifiers_returnsFalse() {
-        let s = Shortcut(keyCode: UInt16(kVK_Tab), modifiers: [.command])
+        let step = Shortcut.Step(keyCode: UInt16(kVK_Tab), modifiers: [.command])
         let event = makeKeyEvent(keyCode: UInt16(kVK_Tab), modifiers: [.command, .shift])
-        #expect(!s.matches(event))
+        #expect(!step.matches(event))
     }
 
     @Test func key_matchesEvent_wrongKey_returnsFalse() {
-        let s = Shortcut(keyCode: UInt16(kVK_Tab), modifiers: [.command])
+        let step = Shortcut.Step(keyCode: UInt16(kVK_Tab), modifiers: [.command])
         let event = makeKeyEvent(keyCode: UInt16(kVK_Return), modifiers: [.command])
-        #expect(!s.matches(event))
+        #expect(!step.matches(event))
     }
 
     @Test func key_matchesEvent_ignoresNonShortcutFlags() {
-        let s = Shortcut(keyCode: UInt16(kVK_Tab), modifiers: [.command])
+        let step = Shortcut.Step(keyCode: UInt16(kVK_Tab), modifiers: [.command])
         let event = makeKeyEvent(keyCode: UInt16(kVK_Tab), modifiers: [.command, .capsLock, .numericPad])
-        #expect(s.matches(event))
+        #expect(step.matches(event))
     }
 
     @Test func key_matchesEvent_noModifiers() {
-        let s = Shortcut(keyCode: UInt16(kVK_Tab), modifiers: [])
+        let step = Shortcut.Step(keyCode: UInt16(kVK_Tab), modifiers: [])
         let event = makeKeyEvent(keyCode: UInt16(kVK_Tab), modifiers: [])
-        #expect(s.matches(event))
+        #expect(step.matches(event))
     }
 
     // MARK: - Pinch (via gesture event shape)
 
     @Test func pinchIn_matchesNegativeMagnification() {
-        let s = Shortcut(kind: .pinchIn, modifiers: [])
+        let step = Shortcut.Step(kind: .pinchIn, modifiers: [])
         let event = GestureEventShape(type: .magnify, magnification: -0.05)
-        #expect(s.matchesGesture(event))
+        #expect(step.matchesGesture(event))
     }
 
     @Test func pinchIn_doesNotMatchPositiveMagnification() {
-        let s = Shortcut(kind: .pinchIn, modifiers: [])
+        let step = Shortcut.Step(kind: .pinchIn, modifiers: [])
         let event = GestureEventShape(type: .magnify, magnification: 0.05)
-        #expect(!s.matchesGesture(event))
+        #expect(!step.matchesGesture(event))
     }
 
     @Test func pinchOut_matchesPositiveMagnification() {
-        let s = Shortcut(kind: .pinchOut, modifiers: [])
+        let step = Shortcut.Step(kind: .pinchOut, modifiers: [])
         let event = GestureEventShape(type: .magnify, magnification: 0.05)
-        #expect(s.matchesGesture(event))
+        #expect(step.matchesGesture(event))
     }
 
     @Test func pinch_subThresholdDoesNotMatch() {
-        let s = Shortcut(kind: .pinchIn, modifiers: [])
+        let step = Shortcut.Step(kind: .pinchIn, modifiers: [])
         let event = GestureEventShape(type: .magnify, magnification: -0.001)
-        #expect(!s.matchesGesture(event))
+        #expect(!step.matchesGesture(event))
     }
 
     @Test func pinch_modifierMismatchDoesNotMatch() {
-        let s = Shortcut(kind: .pinchIn, modifiers: .command)
+        let step = Shortcut.Step(kind: .pinchIn, modifiers: .command)
         let event = GestureEventShape(type: .magnify, modifierFlags: [], magnification: -0.05)
-        #expect(!s.matchesGesture(event))
+        #expect(!step.matchesGesture(event))
     }
 
     @Test func pinch_modifierMatchMatches() {
-        let s = Shortcut(kind: .pinchIn, modifiers: .command)
+        let step = Shortcut.Step(kind: .pinchIn, modifiers: .command)
         let event = GestureEventShape(type: .magnify, modifierFlags: .command, magnification: -0.05)
-        #expect(s.matchesGesture(event))
+        #expect(step.matchesGesture(event))
     }
 
     @Test func pinch_doesNotMatchOtherEventType() {
-        let s = Shortcut(kind: .pinchIn, modifiers: [])
+        let step = Shortcut.Step(kind: .pinchIn, modifiers: [])
         let event = GestureEventShape(type: .rotate, rotation: 5)
-        #expect(!s.matchesGesture(event))
+        #expect(!step.matchesGesture(event))
     }
 
     // MARK: - Rotate
 
     @Test func rotateCCW_matchesPositiveRotation() {
-        let s = Shortcut(kind: .rotateCounterClockwise, modifiers: [])
+        let step = Shortcut.Step(kind: .rotateCounterClockwise, modifiers: [])
         let event = GestureEventShape(type: .rotate, rotation: 5)
-        #expect(s.matchesGesture(event))
+        #expect(step.matchesGesture(event))
     }
 
     @Test func rotateCW_matchesNegativeRotation() {
-        let s = Shortcut(kind: .rotateClockwise, modifiers: [])
+        let step = Shortcut.Step(kind: .rotateClockwise, modifiers: [])
         let event = GestureEventShape(type: .rotate, rotation: -5)
-        #expect(s.matchesGesture(event))
+        #expect(step.matchesGesture(event))
     }
 
     @Test func rotate_subThresholdDoesNotMatch() {
-        let s = Shortcut(kind: .rotateClockwise, modifiers: [])
+        let step = Shortcut.Step(kind: .rotateClockwise, modifiers: [])
         let event = GestureEventShape(type: .rotate, rotation: -0.1)
-        #expect(!s.matchesGesture(event))
+        #expect(!step.matchesGesture(event))
     }
 
     @Test func rotate_modifierMismatchDoesNotMatch() {
-        let s = Shortcut(kind: .rotateClockwise, modifiers: .command)
+        let step = Shortcut.Step(kind: .rotateClockwise, modifiers: .command)
         let event = GestureEventShape(type: .rotate, modifierFlags: [], rotation: -5)
-        #expect(!s.matchesGesture(event))
+        #expect(!step.matchesGesture(event))
     }
 
     @Test func rotate_modifierMatchMatches() {
-        let s = Shortcut(kind: .rotateClockwise, modifiers: .command)
+        let step = Shortcut.Step(kind: .rotateClockwise, modifiers: .command)
         let event = GestureEventShape(type: .rotate, modifierFlags: .command, rotation: -5)
-        #expect(s.matchesGesture(event))
+        #expect(step.matchesGesture(event))
     }
 
     @Test func rotate_doesNotMatchOtherEventType() {
-        let s = Shortcut(kind: .rotateClockwise, modifiers: [])
+        let step = Shortcut.Step(kind: .rotateClockwise, modifiers: [])
         let event = GestureEventShape(type: .magnify, magnification: -0.05)
-        #expect(!s.matchesGesture(event))
+        #expect(!step.matchesGesture(event))
     }
 
     // MARK: - Smart magnify
 
     @Test func smartMagnify_matchesEvent() {
-        let s = Shortcut(kind: .smartMagnify, modifiers: [])
+        let step = Shortcut.Step(kind: .smartMagnify, modifiers: [])
         let event = GestureEventShape(type: .smartMagnify)
-        #expect(s.matchesGesture(event))
+        #expect(step.matchesGesture(event))
     }
 
     @Test func smartMagnify_doesNotMatchPinch() {
-        let s = Shortcut(kind: .smartMagnify, modifiers: [])
+        let step = Shortcut.Step(kind: .smartMagnify, modifiers: [])
         let event = GestureEventShape(type: .magnify, magnification: 0.05)
-        #expect(!s.matchesGesture(event))
+        #expect(!step.matchesGesture(event))
     }
 
     @Test func smartMagnify_modifierMismatchDoesNotMatch() {
-        let s = Shortcut(kind: .smartMagnify, modifiers: .command)
+        let step = Shortcut.Step(kind: .smartMagnify, modifiers: .command)
         let event = GestureEventShape(type: .smartMagnify, modifierFlags: [])
-        #expect(!s.matchesGesture(event))
+        #expect(!step.matchesGesture(event))
     }
 
     @Test func smartMagnify_modifierMatchMatches() {
-        let s = Shortcut(kind: .smartMagnify, modifiers: .command)
+        let step = Shortcut.Step(kind: .smartMagnify, modifiers: .command)
         let event = GestureEventShape(type: .smartMagnify, modifierFlags: .command)
-        #expect(s.matchesGesture(event))
+        #expect(step.matchesGesture(event))
     }
 
-    // MARK: - Cross-kind: gesture shortcut should not match key event
+    // MARK: - Cross-kind: gesture step should not match key event
 
-    @Test func gestureShortcut_doesNotMatchKeyEvent() {
-        let s = Shortcut(kind: .pinchIn, modifiers: [])
+    @Test func gestureStep_doesNotMatchKeyEvent() {
+        let step = Shortcut.Step(kind: .pinchIn, modifiers: [])
         let event = makeKeyEvent(keyCode: UInt16(kVK_Tab))
-        #expect(!s.matches(event))
+        #expect(!step.matches(event))
     }
 
-    @Test func keyShortcut_doesNotMatchOtherEventType() {
-        // matches() should require .keyDown for key kinds
-        let s = Shortcut(keyCode: UInt16(kVK_Tab), modifiers: [])
+    @Test func keyStep_doesNotMatchGestureEvent() {
+        let step = Shortcut.Step(keyCode: UInt16(kVK_Tab), modifiers: [])
         let event = GestureEventShape(type: .magnify, magnification: -0.05)
-        #expect(!s.matchesGesture(event))
+        #expect(!step.matchesGesture(event))
+    }
+
+    // MARK: - ContinuousShortcut.matches reuses step matching
+
+    /// Build a scroll-wheel NSEvent — this is the only continuous kind we can
+    /// construct via CGEvent in tests (`magnify` / `rotate` events have no
+    /// CGEvent constructor).
+    private func makeScrollEvent(deltaY: Int32) -> NSEvent {
+        let cg = CGEvent(scrollWheelEvent2Source: nil,
+                         units: .pixel,
+                         wheelCount: 1,
+                         wheel1: deltaY,
+                         wheel2: 0,
+                         wheel3: 0)!
+        return NSEvent(cgEvent: cg)!
+    }
+
+    @Test func continuousShortcut_matches_scrollUp_returnsTrue() {
+        let cs = ContinuousShortcut(kind: .scroll(direction: .up), modifiers: [])
+        #expect(cs.matches(makeScrollEvent(deltaY: 10)))
+    }
+
+    @Test func continuousShortcut_matches_scrollDown_doesNotMatchUp() {
+        let cs = ContinuousShortcut(kind: .scroll(direction: .up), modifiers: [])
+        #expect(!cs.matches(makeScrollEvent(deltaY: -10)))
+    }
+
+    @Test func continuousShortcut_matches_modifierMismatch_returnsFalse() {
+        let cs = ContinuousShortcut(kind: .scroll(direction: .up), modifiers: .command)
+        // No modifiers on the synthesized scroll event.
+        #expect(!cs.matches(makeScrollEvent(deltaY: 10)))
     }
 }

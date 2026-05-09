@@ -31,12 +31,12 @@ struct GestureEventShape: Equatable {
     }
 }
 
-// MARK: - NSEvent Matching
+// MARK: - Step Matching
 
-public extension Shortcut {
-    /// Match against an NSEvent. Dispatches to per-kind logic.
+public extension Shortcut.Step {
+    /// Match this step against an NSEvent. Dispatches to per-kind logic.
     func matches(_ event: NSEvent) -> Bool {
-        let eventMods = Self.canonicalModifiers(event.modifierFlags)
+        let eventMods = Shortcut.canonicalModifiers(event.modifierFlags)
         guard eventMods == modifiers else { return false }
 
         switch kind {
@@ -51,12 +51,44 @@ public extension Shortcut {
             return event.buttonNumber == number
         case let .scroll(direction):
             guard event.type == .scrollWheel else { return false }
-            return Self.scrollDirection(from: event) == direction
+            return Shortcut.scrollDirection(from: event) == direction
         case .pinchIn, .pinchOut, .rotateClockwise, .rotateCounterClockwise, .smartMagnify:
             return matchesGesture(GestureEventShape(event))
         }
     }
+}
 
+extension Shortcut.Step {
+    /// Match this step against a synthesized gesture event shape — used by tests
+    /// and by `matches(_ event: NSEvent)` for gesture kinds.
+    func matchesGesture(_ event: GestureEventShape) -> Bool {
+        let eventMods = Shortcut.canonicalModifiers(event.modifierFlags)
+        guard eventMods == modifiers else { return false }
+
+        switch kind {
+        case .pinchIn:
+            guard event.type == .magnify else { return false }
+            return event.magnification < -Shortcut.magnifyEventThreshold
+        case .pinchOut:
+            guard event.type == .magnify else { return false }
+            return event.magnification > Shortcut.magnifyEventThreshold
+        case .rotateCounterClockwise:
+            guard event.type == .rotate else { return false }
+            return event.rotation > Shortcut.rotateEventThreshold
+        case .rotateClockwise:
+            guard event.type == .rotate else { return false }
+            return event.rotation < -Shortcut.rotateEventThreshold
+        case .smartMagnify:
+            return event.type == .smartMagnify
+        case .key, .mouseButton, .scroll:
+            return false
+        }
+    }
+}
+
+// MARK: - Scroll direction helper
+
+public extension Shortcut {
     /// Determine the discrete scroll direction from a scroll wheel event.
     /// Returns nil if the scroll deltas are below the noise threshold.
     static func scrollDirection(from event: NSEvent) -> ScrollDirection? {
@@ -74,46 +106,16 @@ public extension Shortcut {
     }
 }
 
-// MARK: - Gesture Event Shape (test seam)
-
-extension Shortcut {
-    /// Match against a synthesized gesture event shape — used by tests and by
-    /// `matches(_ event: NSEvent)` for gesture kinds.
-    func matchesGesture(_ event: GestureEventShape) -> Bool {
-        let eventMods = Shortcut.canonicalModifiers(event.modifierFlags)
-        guard eventMods == modifiers else { return false }
-
-        switch kind {
-        case .pinchIn:
-            guard event.type == .magnify else { return false }
-            return event.magnification < -Self.magnifyEventThreshold
-        case .pinchOut:
-            guard event.type == .magnify else { return false }
-            return event.magnification > Self.magnifyEventThreshold
-        case .rotateCounterClockwise:
-            guard event.type == .rotate else { return false }
-            return event.rotation > Self.rotateEventThreshold
-        case .rotateClockwise:
-            guard event.type == .rotate else { return false }
-            return event.rotation < -Self.rotateEventThreshold
-        case .smartMagnify:
-            return event.type == .smartMagnify
-        case .key, .mouseButton, .scroll:
-            return false
-        }
-    }
-}
-
 // MARK: - SwiftUI KeyPress Matching
 
 @available(macOS 14.0, *)
-extension Shortcut {
-    /// Match against a SwiftUI `KeyPress`.
+public extension Shortcut.Step {
+    /// Match this step against a SwiftUI `KeyPress`.
     ///
-    /// Only valid for `.key` shortcuts; returns `false` for any other kind.
+    /// Only valid for `.key` steps; returns `false` for any other kind.
     /// Handles special keys (Tab, arrows, etc.) where modifiers change `press.characters`,
     /// falling back to keyboard-layout-aware character comparison for regular keys.
-    public func matches(_ press: KeyPress) -> Bool {
+    func matches(_ press: KeyPress) -> Bool {
         guard case let .key(keyCode) = kind else { return false }
         let pressModifiers = Self.eventModifiersToNSModifiers(press.modifiers)
         guard pressModifiers == modifiers else { return false }
@@ -124,7 +126,7 @@ extension Shortcut {
         if let keyEquivalent = Self.specialKeyEquivalent(keyCode: keyCode) {
             return press.key == keyEquivalent
         }
-        return Self.keyToCharacter(keyCode: keyCode)?.lowercased() == press.characters.lowercased()
+        return Shortcut.keyToCharacter(keyCode: keyCode)?.lowercased() == press.characters.lowercased()
     }
 
     private static func specialKeyEquivalent(keyCode: UInt16) -> KeyEquivalent? {

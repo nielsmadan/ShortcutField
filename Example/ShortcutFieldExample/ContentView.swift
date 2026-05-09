@@ -22,8 +22,8 @@ struct WorkbenchTab: View {
     // Inputs
     @State private var shortcutA: Shortcut?
     @State private var shortcutB: Shortcut?
-    @State private var sequenceA: ShortcutSequence?
-    @State private var sequenceB: ShortcutSequence?
+    @State private var continuousA: ContinuousShortcut?
+    @State private var continuousB: ContinuousShortcut?
 
     // Controls A
     @State private var selectedStyleA: ShortcutRecorderStyle = .rounded
@@ -43,17 +43,17 @@ struct WorkbenchTab: View {
     @State private var selectedSensitivityModeB: SensitivityMode = .discrete
     @State private var selectedSensitivityPositionB: SensitivityPosition = .below
 
-    // Counters: single shortcut
+    // Counters: Shortcut
     @State private var matchCountA = 0
     @State private var lastMatchedA = false
     @State private var matchCountB = 0
     @State private var lastMatchedB = false
 
-    // Counters: sequence
-    @State private var seqAMatchCount = 0
-    @State private var seqALastMatched = false
-    @State private var seqBMatchCount = 0
-    @State private var seqBLastMatched = false
+    // Counters: ContinuousShortcut
+    @State private var contAMatchCount = 0
+    @State private var contALastMatched = false
+    @State private var contBMatchCount = 0
+    @State private var contBLastMatched = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -79,7 +79,7 @@ struct WorkbenchTab: View {
                 VStack(spacing: 24) {
                     shortcutSection()
                     Divider()
-                    sequenceSection()
+                    continuousSection()
                 }
                 .padding(20)
                 .frame(maxWidth: .infinity)
@@ -122,12 +122,8 @@ struct WorkbenchTab: View {
                 fieldColumn {
                     makeRecorder($shortcutA, style: selectedStyleA, size: selectedSizeA,
                                  textColor: selectedTextColorA.nsColor, bgColor: selectedBgColorA.nsColor,
-                                 placeholder: placeholderTextA,
-                                 sensitivityMode: selectedSensitivityModeA,
-                                 sensitivityPosition: selectedSensitivityPositionA)
-                        .frame(width: shortcutFrameWidth(
-                            shortcut: shortcutA, position: selectedSensitivityPositionA
-                        ))
+                                 placeholder: placeholderTextA)
+                        .frame(width: 260)
 
                     if let shortcutA {
                         Text(shortcutA.displayString)
@@ -142,12 +138,8 @@ struct WorkbenchTab: View {
                 fieldColumn {
                     makeRecorder($shortcutB, style: selectedStyleB, size: selectedSizeB,
                                  textColor: selectedTextColorB.nsColor, bgColor: selectedBgColorB.nsColor,
-                                 placeholder: placeholderTextB,
-                                 sensitivityMode: selectedSensitivityModeB,
-                                 sensitivityPosition: selectedSensitivityPositionB)
-                        .frame(width: shortcutFrameWidth(
-                            shortcut: shortcutB, position: selectedSensitivityPositionB
-                        ))
+                                 placeholder: placeholderTextB)
+                        .frame(width: 260)
 
                     if let shortcutB {
                         Text(shortcutB.displayString)
@@ -171,43 +163,49 @@ struct WorkbenchTab: View {
     }
 
     @ViewBuilder
-    private func sequenceSection() -> some View {
+    private func continuousSection() -> some View {
         let content = VStack(spacing: 12) {
             sectionHeading(
-                "Sequence",
-                counterA: counterChip(count: seqAMatchCount, lit: seqALastMatched) { seqAMatchCount = 0 },
-                counterB: counterChip(count: seqBMatchCount, lit: seqBLastMatched) { seqBMatchCount = 0 }
+                "Continuous",
+                counterA: counterChip(count: contAMatchCount, lit: contALastMatched) { contAMatchCount = 0 },
+                counterB: counterChip(count: contBMatchCount, lit: contBLastMatched) { contBMatchCount = 0 }
             )
 
             HStack(alignment: .top, spacing: 16) {
                 fieldColumn {
-                    makeSequenceRecorder($sequenceA, style: selectedStyleA, size: selectedSizeA,
-                                         textColor: selectedTextColorA.nsColor,
-                                         bgColor: selectedBgColorA.nsColor)
-                        .frame(width: 220)
+                    makeContinuousRecorder($continuousA, style: selectedStyleA, size: selectedSizeA,
+                                           textColor: selectedTextColorA.nsColor,
+                                           bgColor: selectedBgColorA.nsColor,
+                                           placeholder: "Record Continuous",
+                                           sensitivityMode: selectedSensitivityModeA,
+                                           sensitivityPosition: selectedSensitivityPositionA)
+                        .frame(width: continuousFrameWidth(position: selectedSensitivityPositionA))
 
-                    if let sequenceA {
-                        Text(sequenceA.displayString)
+                    if let continuousA {
+                        Text(continuousA.displayString)
                             .font(.title.monospaced())
                             .foregroundStyle(.secondary)
                     } else {
-                        Text("No sequence")
+                        Text("No continuous")
                             .foregroundStyle(.tertiary)
                     }
                 }
 
                 fieldColumn {
-                    makeSequenceRecorder($sequenceB, style: selectedStyleB, size: selectedSizeB,
-                                         textColor: selectedTextColorB.nsColor,
-                                         bgColor: selectedBgColorB.nsColor)
-                        .frame(width: 220)
+                    makeContinuousRecorder($continuousB, style: selectedStyleB, size: selectedSizeB,
+                                           textColor: selectedTextColorB.nsColor,
+                                           bgColor: selectedBgColorB.nsColor,
+                                           placeholder: "Record Continuous",
+                                           sensitivityMode: selectedSensitivityModeB,
+                                           sensitivityPosition: selectedSensitivityPositionB)
+                        .frame(width: continuousFrameWidth(position: selectedSensitivityPositionB))
 
-                    if let sequenceB {
-                        Text(sequenceB.displayString)
+                    if let continuousB {
+                        Text(continuousB.displayString)
                             .font(.title.monospaced())
                             .foregroundStyle(.secondary)
                     } else {
-                        Text("No sequence")
+                        Text("No continuous")
                             .foregroundStyle(.tertiary)
                     }
                 }
@@ -216,18 +214,15 @@ struct WorkbenchTab: View {
 
         if #available(macOS 14.0, *) {
             content
-                .onShortcutSequence(sequenceA) { fire($seqAMatchCount, $seqALastMatched) }
-                .onShortcutSequence(sequenceB) { fire($seqBMatchCount, $seqBLastMatched) }
+                .onContinuousShortcut(continuousA) { fire($contAMatchCount, $contALastMatched) }
+                .onContinuousShortcut(continuousB) { fire($contBMatchCount, $contBLastMatched) }
         } else {
             content
         }
     }
 
-    private func shortcutFrameWidth(shortcut: Shortcut?, position: SensitivityPosition) -> CGFloat {
-        guard let shortcut, Shortcut.isContinuous(shortcut.kind), position != .below else {
-            return 220
-        }
-        return 320
+    private func continuousFrameWidth(position: SensitivityPosition) -> CGFloat {
+        position == .below ? 220 : 320
     }
 
     private func fieldColumn(@ViewBuilder _ content: () -> some View) -> some View {
@@ -284,25 +279,31 @@ struct WorkbenchTab: View {
 
     private func makeRecorder(_ shortcut: Binding<Shortcut?>, style: ShortcutRecorderStyle,
                               size: ControlSize, textColor: NSColor?, bgColor: NSColor?,
-                              placeholder: String, sensitivityMode: SensitivityMode,
-                              sensitivityPosition: SensitivityPosition) -> some View
+                              placeholder: String) -> some View
     {
         var view = ShortcutRecorderView(shortcut)
             .placeholder(placeholder)
             .style(style)
-            .sensitivityMode(sensitivityMode)
-            .sensitivityPosition(sensitivityPosition)
         if let textColor { view = view.textColor(textColor) }
         if let bgColor { view = view.fieldBackgroundColor(bgColor) }
         return view.controlSize(size)
     }
 
-    private func makeSequenceRecorder(_ sequence: Binding<ShortcutSequence?>, style: ShortcutRecorderStyle,
-                                      size: ControlSize, textColor: NSColor?, bgColor: NSColor?) -> some View
-    {
-        var view = ShortcutSequenceRecorderView(sequence)
-            .placeholder("Record Sequence")
+    private func makeContinuousRecorder(
+        _ shortcut: Binding<ContinuousShortcut?>,
+        style: ShortcutRecorderStyle,
+        size: ControlSize,
+        textColor: NSColor?,
+        bgColor: NSColor?,
+        placeholder: String,
+        sensitivityMode: SensitivityMode,
+        sensitivityPosition: SensitivityPosition
+    ) -> some View {
+        var view = ContinuousShortcutRecorderView(shortcut)
+            .placeholder(placeholder)
             .style(style)
+            .sensitivityMode(sensitivityMode)
+            .sensitivityPosition(sensitivityPosition)
         if let textColor { view = view.textColor(textColor) }
         if let bgColor { view = view.fieldBackgroundColor(bgColor) }
         return view.controlSize(size)
@@ -357,20 +358,19 @@ struct WorkbenchTab: View {
             }
 
             Group {
-                Text("Sensitivity mode")
+                Text("Sensitivity mode (Continuous only)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Picker("", selection: sensitivityMode) {
                     Text(".discrete").tag(SensitivityMode.discrete)
                     Text(".continuous").tag(SensitivityMode.continuous)
-                    Text(".hidden").tag(SensitivityMode.hidden)
                 }
                 .labelsHidden()
                 .pickerStyle(.segmented)
             }
 
             Group {
-                Text("Sensitivity position")
+                Text("Sensitivity position (Continuous only)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Picker("", selection: sensitivityPosition) {
@@ -488,10 +488,10 @@ struct GalleryTab: View {
 
                 Divider()
 
-                column("Shortcut Sequences") {
+                column("Continuous Shortcuts") {
                     LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(SequenceGalleryItem.allItems) { item in
-                            SequenceGalleryCard(item: item)
+                        ForEach(ContinuousGalleryItem.allItems) { item in
+                            ContinuousGalleryCard(item: item)
                         }
                     }
                 }
@@ -576,11 +576,11 @@ struct GalleryItem: Identifiable {
     ]
 }
 
-// MARK: - Sequence Gallery
+// MARK: - Continuous Gallery
 
-struct SequenceGalleryCard: View {
-    let item: SequenceGalleryItem
-    @State private var sequence: ShortcutSequence?
+struct ContinuousGalleryCard: View {
+    let item: ContinuousGalleryItem
+    @State private var shortcut: ContinuousShortcut?
 
     var body: some View {
         VStack(spacing: 8) {
@@ -598,14 +598,14 @@ struct SequenceGalleryCard: View {
     }
 
     private var cardRecorder: some View {
-        var view = ShortcutSequenceRecorderView($sequence).style(item.style)
+        var view = ContinuousShortcutRecorderView($shortcut).style(item.style)
         if let textColor = item.textColor { view = view.textColor(textColor) }
         if let bgColor = item.bgColor { view = view.fieldBackgroundColor(bgColor) }
         return view.controlSize(item.size)
     }
 }
 
-struct SequenceGalleryItem: Identifiable {
+struct ContinuousGalleryItem: Identifiable {
     let id = UUID()
     let label: String
     let style: ShortcutRecorderStyle
@@ -627,14 +627,14 @@ struct SequenceGalleryItem: Identifiable {
         self.bgColor = bgColor
     }
 
-    static let allItems: [SequenceGalleryItem] = [
-        SequenceGalleryItem("Default"),
-        SequenceGalleryItem(".plain", style: .plain),
-        SequenceGalleryItem(".borderless", style: .borderless),
-        SequenceGalleryItem(".mini", size: .mini),
-        SequenceGalleryItem(".large", size: .large),
-        SequenceGalleryItem("Teal text", textColor: .systemTeal),
-        SequenceGalleryItem("Blue tint bg", bgColor: NSColor.systemBlue.withAlphaComponent(0.1)),
-        SequenceGalleryItem("Dark bg + white text", textColor: .white, bgColor: .darkGray),
+    static let allItems: [ContinuousGalleryItem] = [
+        ContinuousGalleryItem("Default"),
+        ContinuousGalleryItem(".plain", style: .plain),
+        ContinuousGalleryItem(".borderless", style: .borderless),
+        ContinuousGalleryItem(".mini", size: .mini),
+        ContinuousGalleryItem(".large", size: .large),
+        ContinuousGalleryItem("Teal text", textColor: .systemTeal),
+        ContinuousGalleryItem("Blue tint bg", bgColor: NSColor.systemBlue.withAlphaComponent(0.1)),
+        ContinuousGalleryItem("Dark bg + white text", textColor: .white, bgColor: .darkGray),
     ]
 }

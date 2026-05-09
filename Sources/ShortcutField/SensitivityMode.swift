@@ -1,17 +1,12 @@
 import Foundation
 
-/// Controls how the sensitivity slider/stepper is presented in a recorder UI
-/// (used by both `MouseInputRecorderView` for scroll inputs and
-/// `TrackpadGestureRecorderView` for continuous gestures).
+/// Controls how the sensitivity slider is presented in `ContinuousShortcutRecorderView`.
 public enum SensitivityMode: Sendable, Hashable {
     /// User adjusts sensitivity via a slider that snaps to 5 discrete tick marks (default).
     /// Maps to values: 0.0, 0.25, 0.5, 0.75, 1.0.
     case discrete
     /// User adjusts sensitivity via a continuous 0.0-1.0 slider.
     case continuous
-    /// Sensitivity UI is hidden. The developer sets sensitivity programmatically
-    /// via the binding's value.
-    case hidden
 
     /// The five discrete tick-mark values.
     static let discreteValues: [Double] = [0.0, 0.25, 0.5, 0.75, 1.0]

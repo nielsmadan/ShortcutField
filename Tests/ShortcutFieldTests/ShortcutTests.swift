@@ -1,225 +1,219 @@
 import AppKit
 import Carbon.HIToolbox
-import ShortcutField
+@testable import ShortcutField
 import Testing
 
-// MARK: - Init / clamping
+@Suite struct ShortcutTests {
+    // MARK: - Step init
 
-@Test func shortcut_storesKindAndModifiers() {
-    let s = Shortcut(kind: .key(keyCode: 38), modifiers: [.command, .shift])
-    #expect(s.kind == .key(keyCode: 38))
-    #expect(s.modifiers.contains(.command))
-    #expect(s.modifiers.contains(.shift))
-}
+    @Test func step_storesKindAndModifiers() {
+        let step = Shortcut.Step(kind: .key(keyCode: UInt16(kVK_ANSI_J)), modifiers: [.command, .shift])
+        #expect(step.kind == .key(keyCode: UInt16(kVK_ANSI_J)))
+        #expect(step.modifiers == [.command, .shift])
+    }
 
-@Test func shortcut_keyCodeConvenienceInit_buildsKeyKind() {
-    let s = Shortcut(keyCode: 38, modifiers: [.command, .shift])
-    #expect(s.kind == .key(keyCode: 38))
-    #expect(s.modifiers.contains(.command))
-    #expect(s.modifiers.contains(.shift))
-}
+    @Test func step_keyCodeConvenienceInit_buildsKeyKind() {
+        let step = Shortcut.Step(keyCode: UInt16(kVK_ANSI_J), modifiers: [.command, .shift])
+        #expect(step.kind == .key(keyCode: UInt16(kVK_ANSI_J)))
+        #expect(step.modifiers == [.command, .shift])
+    }
 
-@Test func shortcut_init_masksUnsupportedModifiers() {
-    let s = Shortcut(kind: .pinchIn, modifiers: [.command, .capsLock, .function])
-    #expect(s.modifiers == .command)
-}
+    @Test func step_init_masksUnsupportedModifiers() {
+        let step = Shortcut.Step(kind: .pinchIn, modifiers: [.command, .capsLock, .function])
+        #expect(step.modifiers == .command)
+    }
 
-// MARK: - Sensitivity clamping
+    // MARK: - Shortcut init
 
-@Test func sensitivity_defaultsToZero() {
-    let s = Shortcut(kind: .pinchIn, modifiers: [])
-    #expect(s.sensitivity == 0.0)
-}
+    @Test func shortcut_init_keyCode_buildsSingleStep() {
+        let s = Shortcut(keyCode: UInt16(kVK_ANSI_J), modifiers: [.command])
+        #expect(s.steps.count == 1)
+        #expect(s.steps[0].kind == .key(keyCode: UInt16(kVK_ANSI_J)))
+        #expect(s.steps[0].modifiers == .command)
+    }
 
-@Test func sensitivity_clampsAboveOne() {
-    let s = Shortcut(kind: .pinchIn, modifiers: [], sensitivity: 1.5)
-    #expect(s.sensitivity == 1.0)
-}
+    @Test func shortcut_init_kind_buildsSingleStep() {
+        let s = Shortcut(kind: .pinchIn, modifiers: [.command])
+        #expect(s.steps.count == 1)
+        #expect(s.steps[0].kind == .pinchIn)
+        #expect(s.steps[0].modifiers == .command)
+    }
 
-@Test func sensitivity_clampsBelowZero() {
-    let s = Shortcut(kind: .pinchIn, modifiers: [], sensitivity: -0.5)
-    #expect(s.sensitivity == 0.0)
-}
+    @Test func shortcut_init_steps_preservesOrder() {
+        let steps: [Shortcut.Step] = [
+            .init(keyCode: UInt16(kVK_ANSI_J), modifiers: [.command]),
+            .init(keyCode: UInt16(kVK_ANSI_S), modifiers: [.command]),
+        ]
+        let s = Shortcut(steps: steps)
+        #expect(s.steps == steps)
+    }
 
-@Test func sensitivity_preservesValidValueForContinuousKinds() {
-    let kinds: [Shortcut.Kind] = [
-        .scroll(direction: .up),
-        .pinchIn, .pinchOut,
-        .rotateClockwise, .rotateCounterClockwise,
-    ]
-    for kind in kinds {
-        let s = Shortcut(kind: kind, modifiers: [], sensitivity: 0.5)
-        #expect(s.sensitivity == 0.5)
+    @Test func shortcut_init_mixedKinds_succeeds() {
+        let steps: [Shortcut.Step] = [
+            .init(kind: .key(keyCode: UInt16(kVK_ANSI_K)), modifiers: .command),
+            .init(kind: .mouseButton(number: 1), modifiers: []),
+            .init(kind: .pinchIn, modifiers: []),
+            .init(kind: .rotateClockwise, modifiers: .command),
+            .init(kind: .smartMagnify, modifiers: []),
+        ]
+        let s = Shortcut(steps: steps)
+        #expect(s.steps == steps)
+    }
+
+    // MARK: - Equatable
+
+    @Test func shortcut_equatable_sameSteps_areEqual() {
+        let a = Shortcut(keyCode: UInt16(kVK_ANSI_J), modifiers: [.command])
+        let b = Shortcut(keyCode: UInt16(kVK_ANSI_J), modifiers: [.command])
+        #expect(a == b)
+    }
+
+    @Test func shortcut_equatable_differentSteps_areNotEqual() {
+        let a = Shortcut(keyCode: UInt16(kVK_ANSI_J), modifiers: [.command])
+        let b = Shortcut(keyCode: UInt16(kVK_ANSI_S), modifiers: [.command])
+        #expect(a != b)
+    }
+
+    @Test func shortcut_equatable_differentLength_areNotEqual() {
+        let a = Shortcut(steps: [.init(keyCode: UInt16(kVK_ANSI_J), modifiers: .command)])
+        let b = Shortcut(steps: [
+            .init(keyCode: UInt16(kVK_ANSI_J), modifiers: .command),
+            .init(keyCode: UInt16(kVK_ANSI_S), modifiers: .command),
+        ])
+        #expect(a != b)
+    }
+
+    // MARK: - Hashable
+
+    @Test func shortcut_hashable_sameValuesProduceEqualHash() {
+        let a = Shortcut(keyCode: UInt16(kVK_ANSI_J), modifiers: [.command])
+        let b = Shortcut(keyCode: UInt16(kVK_ANSI_J), modifiers: [.command])
+        var set: Set<Shortcut> = [a]
+        set.insert(b)
+        #expect(set.count == 1)
+    }
+
+    @Test func shortcut_hashable_differentStepsProduceDifferentHash() {
+        let a = Shortcut(kind: .pinchIn, modifiers: [])
+        let b = Shortcut(kind: .pinchOut, modifiers: [])
+        let set: Set<Shortcut> = [a, b]
+        #expect(set.count == 2)
+    }
+
+    // MARK: - Codable
+
+    @Test func shortcut_codableRoundtrip_singleStep() throws {
+        let original = Shortcut(keyCode: UInt16(kVK_ANSI_J), modifiers: [.command, .shift])
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(Shortcut.self, from: data)
+        #expect(decoded == original)
+    }
+
+    @Test func shortcut_codableRoundtrip_multiStep() throws {
+        let original = Shortcut(steps: [
+            .init(keyCode: UInt16(kVK_ANSI_K), modifiers: .command),
+            .init(keyCode: UInt16(kVK_ANSI_C), modifiers: .command),
+        ])
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(Shortcut.self, from: data)
+        #expect(decoded == original)
+    }
+
+    @Test func shortcut_codableRoundtrip_mixedKinds() throws {
+        let original = Shortcut(steps: [
+            .init(kind: .key(keyCode: UInt16(kVK_ANSI_K)), modifiers: .command),
+            .init(kind: .mouseButton(number: 1), modifiers: []),
+            .init(kind: .pinchIn, modifiers: []),
+            .init(kind: .rotateCounterClockwise, modifiers: .shift),
+            .init(kind: .smartMagnify, modifiers: []),
+            .init(kind: .scroll(direction: .down), modifiers: []),
+        ])
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(Shortcut.self, from: data)
+        #expect(decoded == original)
+    }
+
+    @Test func shortcut_decodeEmptySteps_throwsDecodingError() {
+        let data = Data(#"{"steps":[]}"#.utf8)
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(Shortcut.self, from: data)
+        }
+    }
+
+    @Test func shortcut_decodeUnknownStepType_throwsDecodingError() {
+        let data = Data(#"""
+        {"steps":[{"type":"bogus","modifiers":0}]}
+        """#.utf8)
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(Shortcut.self, from: data)
+        }
+    }
+
+    @Test func shortcut_decodeMissingStepField_throwsDecodingError() {
+        // scroll step missing the required `direction` field
+        let data = Data(#"""
+        {"steps":[{"type":"scroll","modifiers":0}]}
+        """#.utf8)
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(Shortcut.self, from: data)
+        }
+    }
+
+    @Test func shortcut_decodeOldFlatShape_throwsDecodingError() {
+        // Pre-refactor v1 shape: bare `{type, keyCode, modifiers}` without `steps`.
+        // The new decoder requires the `steps` envelope and must cleanly reject the old shape.
+        let cmd = NSEvent.ModifierFlags.command.rawValue
+        let json = #"{"type":"key","keyCode":38,"modifiers":\#(cmd)}"#
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(Shortcut.self, from: Data(json.utf8))
+        }
+    }
+
+    // MARK: - Convenience-init equivalence
+
+    @Test func shortcut_keyCodeConvenienceInit_equivalentToStepsInit() {
+        let a = Shortcut(keyCode: UInt16(kVK_ANSI_J), modifiers: [.command])
+        let b = Shortcut(steps: [Shortcut.Step(keyCode: UInt16(kVK_ANSI_J), modifiers: [.command])])
+        #expect(a == b)
+    }
+
+    @Test func shortcut_kindConvenienceInit_equivalentToStepsInit() {
+        let a = Shortcut(kind: .pinchIn, modifiers: [.command])
+        let b = Shortcut(steps: [Shortcut.Step(kind: .pinchIn, modifiers: [.command])])
+        #expect(a == b)
+    }
+
+    // MARK: - Kind.tag (wire-format discriminator)
+
+    @Test func kind_tag_pinsCanonicalStrings() {
+        #expect(Shortcut.Kind.key(keyCode: 0).tag == "key")
+        #expect(Shortcut.Kind.mouseButton(number: 0).tag == "mouseButton")
+        #expect(Shortcut.Kind.scroll(direction: .up).tag == "scroll")
+        #expect(Shortcut.Kind.pinchIn.tag == "pinchIn")
+        #expect(Shortcut.Kind.pinchOut.tag == "pinchOut")
+        #expect(Shortcut.Kind.rotateClockwise.tag == "rotateClockwise")
+        #expect(Shortcut.Kind.rotateCounterClockwise.tag == "rotateCounterClockwise")
+        #expect(Shortcut.Kind.smartMagnify.tag == "smartMagnify")
     }
 }
 
-@Test func sensitivity_forcedZeroForDiscreteKinds() {
-    let kinds: [Shortcut.Kind] = [
-        .key(keyCode: 38),
-        .mouseButton(number: 0),
-        .smartMagnify,
-    ]
-    for kind in kinds {
-        let s = Shortcut(kind: kind, modifiers: [], sensitivity: 0.7)
-        #expect(s.sensitivity == 0.0)
+// MARK: - Display string
+
+// UCKeyTranslate is not thread-safe — keep these in the serialized display-string
+// suite (see ShortcutDisplayStringTests.swift) rather than free top-level tests.
+
+@MainActor
+@Suite(.serialized) struct ShortcutDisplayStringStructuralTests {
+    @Test func shortcut_displayString_singleStep_pinsLiteral() {
+        let s = Shortcut(keyCode: UInt16(kVK_Tab), modifiers: .command)
+        #expect(s.displayString == "⌘Tab")
     }
-}
 
-// MARK: - Equatable
-
-@Test func equatable_sameValues_areEqual() {
-    let a = Shortcut(keyCode: 38, modifiers: [.command])
-    let b = Shortcut(keyCode: 38, modifiers: [.command])
-    #expect(a == b)
-}
-
-@Test func equatable_differentKey_areNotEqual() {
-    let a = Shortcut(keyCode: 38, modifiers: [.command])
-    let b = Shortcut(keyCode: 1, modifiers: [.command])
-    #expect(a != b)
-}
-
-@Test func equatable_differentModifiers_areNotEqual() {
-    let a = Shortcut(keyCode: 38, modifiers: [.command])
-    let b = Shortcut(keyCode: 38, modifiers: [.shift])
-    #expect(a != b)
-}
-
-@Test func equatable_differentKind_areNotEqual() {
-    let a = Shortcut(kind: .pinchIn, modifiers: [])
-    let b = Shortcut(kind: .pinchOut, modifiers: [])
-    #expect(a != b)
-}
-
-@Test func equatable_differentSensitivity_areNotEqual() {
-    let a = Shortcut(kind: .pinchIn, modifiers: [], sensitivity: 0.0)
-    let b = Shortcut(kind: .pinchIn, modifiers: [], sensitivity: 0.5)
-    #expect(a != b)
-}
-
-@Test func equatable_buttonsWithDifferentSensitivityArguments_areEqual() {
-    let a = Shortcut(kind: .mouseButton(number: 1), modifiers: [], sensitivity: 0.5)
-    let b = Shortcut(kind: .mouseButton(number: 1), modifiers: [], sensitivity: 1.0)
-    #expect(a == b) // sensitivity forced to 0 for discrete kinds
-}
-
-@Test func equatable_sameScrollSensitivity_areEqual() {
-    let a = Shortcut(kind: .scroll(direction: .up), modifiers: [], sensitivity: 0.75)
-    let b = Shortcut(kind: .scroll(direction: .up), modifiers: [], sensitivity: 0.75)
-    #expect(a == b)
-}
-
-// MARK: - Hashable
-
-@Test func hashable_sameValuesProduceEqualHash() {
-    let a = Shortcut(keyCode: 38, modifiers: [.command])
-    let b = Shortcut(keyCode: 38, modifiers: [.command])
-    var setA: Set<Shortcut> = [a]
-    setA.insert(b)
-    #expect(setA.count == 1)
-}
-
-@Test func hashable_differentKindsProduceDifferentHash() {
-    let a = Shortcut(kind: .pinchIn, modifiers: [])
-    let b = Shortcut(kind: .pinchOut, modifiers: [])
-    let set: Set<Shortcut> = [a, b]
-    #expect(set.count == 2)
-}
-
-// MARK: - Codable round-trip
-
-@Test func codable_keyRoundtrip() throws {
-    let original = Shortcut(keyCode: 38, modifiers: [.command, .shift])
-    let data = try JSONEncoder().encode(original)
-    let decoded = try JSONDecoder().decode(Shortcut.self, from: data)
-    #expect(decoded == original)
-}
-
-@Test func codable_keyRoundtrip_noModifiers() throws {
-    let original = Shortcut(keyCode: 36, modifiers: [])
-    let data = try JSONEncoder().encode(original)
-    let decoded = try JSONDecoder().decode(Shortcut.self, from: data)
-    #expect(decoded == original)
-}
-
-@Test func codable_mouseButtonRoundtrip() throws {
-    let original = Shortcut(kind: .mouseButton(number: 2), modifiers: .control)
-    let data = try JSONEncoder().encode(original)
-    let decoded = try JSONDecoder().decode(Shortcut.self, from: data)
-    #expect(decoded == original)
-}
-
-@Test func codable_scrollRoundtrip_withSensitivity() throws {
-    let original = Shortcut(
-        kind: .scroll(direction: .down),
-        modifiers: .shift,
-        sensitivity: 0.6
-    )
-    let data = try JSONEncoder().encode(original)
-    let decoded = try JSONDecoder().decode(Shortcut.self, from: data)
-    #expect(decoded == original)
-    #expect(decoded.sensitivity == 0.6)
-}
-
-@Test func codable_pinchRoundtrip() throws {
-    let original = Shortcut(kind: .pinchIn, modifiers: .command, sensitivity: 0.5)
-    let data = try JSONEncoder().encode(original)
-    let decoded = try JSONDecoder().decode(Shortcut.self, from: data)
-    #expect(decoded == original)
-}
-
-@Test func codable_rotateRoundtrip() throws {
-    let original = Shortcut(
-        kind: .rotateCounterClockwise,
-        modifiers: .shift,
-        sensitivity: 0.75
-    )
-    let data = try JSONEncoder().encode(original)
-    let decoded = try JSONDecoder().decode(Shortcut.self, from: data)
-    #expect(decoded == original)
-}
-
-@Test func codable_smartMagnifyRoundtrip() throws {
-    let original = Shortcut(kind: .smartMagnify, modifiers: .control)
-    let data = try JSONEncoder().encode(original)
-    let decoded = try JSONDecoder().decode(Shortcut.self, from: data)
-    #expect(decoded == original)
-}
-
-@Test func codable_clampsSensitivityOnDecode() throws {
-    let json = """
-    {"type":"pinchIn","modifiers":0,"sensitivity":5.0}
-    """
-    let data = Data(json.utf8)
-    let decoded = try JSONDecoder().decode(Shortcut.self, from: data)
-    #expect(decoded.sensitivity == 1.0)
-}
-
-@Test func codable_backwardCompat_pinchMissingSensitivity() throws {
-    let json = """
-    {"type":"pinchIn","modifiers":1048576}
-    """
-    let data = Data(json.utf8)
-    let decoded = try JSONDecoder().decode(Shortcut.self, from: data)
-    #expect(decoded.kind == .pinchIn)
-    #expect(decoded.sensitivity == 0.0)
-}
-
-@Test func codable_buttonDecodesWithZeroSensitivity() throws {
-    let json = """
-    {"type":"mouseButton","buttonNumber":1,"modifiers":0,"sensitivity":0.5}
-    """
-    let data = Data(json.utf8)
-    let decoded = try JSONDecoder().decode(Shortcut.self, from: data)
-    #expect(decoded.sensitivity == 0.0)
-}
-
-@Test func codable_unknownTypeThrows() {
-    let json = """
-    {"type":"something_else","modifiers":0}
-    """
-    let data = Data(json.utf8)
-    #expect(throws: DecodingError.self) {
-        _ = try JSONDecoder().decode(Shortcut.self, from: data)
+    @Test func shortcut_displayString_joinedWithSpace_pinsLiteral() {
+        let s = Shortcut(steps: [
+            .init(keyCode: UInt16(kVK_Tab), modifiers: .command),
+            .init(keyCode: UInt16(kVK_Return), modifiers: .command),
+        ])
+        #expect(s.displayString == "⌘Tab ⌘↩")
     }
 }
