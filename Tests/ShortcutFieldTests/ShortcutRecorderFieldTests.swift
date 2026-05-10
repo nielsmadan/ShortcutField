@@ -304,7 +304,6 @@ private let scrollDeltaAboveThreshold: Int32 = 10
 
     @MainActor
     @Test func dispatcher_sharedTabPrefix_canMatchSiblingAfterReset() {
-        // After one shortcut completes, a sibling sharing the same prefix can still match.
         let dispatcher = ShortcutEventDispatcher()
         let matcherT = ShortcutMatcher()
         let matcherQ = ShortcutMatcher()
@@ -334,7 +333,6 @@ private let scrollDeltaAboveThreshold: Int32 = 10
             dispatcher.unregister(id: idQ)
         }
 
-        // Q variant first.
         _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_Tab)))
         _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_Tab)))
         _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_Q)))
@@ -379,7 +377,6 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     @MainActor
     @Test func dispatcher_singleScroll_firesPerNotch_forMouseWheel() {
         // Mouse-wheel events have empty phase; each notch is a discrete user action.
-        // Two notches against a single-step `[Scroll Up]` shortcut should fire twice.
         let dispatcher = ShortcutEventDispatcher()
         let listenerID = UUID()
         let matcher = ShortcutMatcher()
@@ -492,16 +489,13 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         let shortcut = Shortcut(keyCode: UInt16(kVK_ANSI_A), modifiers: [])
         matcher.configure(shortcut: shortcut) { fireCount += 1 }
 
-        // Before register: no handler, event ignored.
         _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_A)))
         #expect(fireCount == 0)
 
-        // After register: snapshot includes handler, event fires.
         dispatcher.register(id: listenerID) { matcher.handle($0) }
         _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_A)))
         #expect(fireCount == 1)
 
-        // After unregister: snapshot drops handler, subsequent events ignored.
         dispatcher.unregister(id: listenerID)
         _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_A)))
         #expect(fireCount == 1)

@@ -83,9 +83,7 @@ struct OnContinuousShortcutModifier: ViewModifier {
         }
     }
 
-    /// Whether a continuous gesture event type (.magnify / .rotate) corresponds to
-    /// the bound shortcut's kind. Used to scope throttle resets so a stray
-    /// rotate-ended event doesn't wipe a scroll shortcut's throttle.
+    /// Whether a continuous event type matches the bound continuous kind.
     private static func eventTypeMatchesContinuousKind(
         _ eventType: NSEvent.EventType,
         _ kind: ContinuousShortcut.Kind

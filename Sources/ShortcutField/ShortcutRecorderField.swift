@@ -47,7 +47,7 @@ enum ShortcutRecordingState {
 }
 
 /// NSSearchFieldCell subclass that vertically centers text when the bezel
-/// is disabled (e.g. when a custom background color is applied).
+/// is disabled.
 class CenteredSearchFieldCell: NSSearchFieldCell {
     override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
         super.drawInterior(withFrame: centeredFrame(cellFrame), in: controlView)
@@ -135,7 +135,6 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
     /// Same as `pinchCaptured`, but for rotate gestures.
     private var rotateCaptured: Bool = false
 
-    /// Timeout interval in seconds before finalizing a recording.
     private let recordingTimeout: TimeInterval = 1.0
 
     /// Whether this field is currently recording a shortcut.
@@ -454,22 +453,12 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
     }
 
     private func handleMouseUpEvent(_ event: NSEvent) -> NSEvent? {
-        // Asymmetry: bare left-click finalizes anywhere; right/other-button mouseUp
-        // doesn't finalize.
-        //
-        // Bare left-click can't be a step (it's reserved for UI — focusing controls,
-        // dismissing the recorder), so a left-click anywhere unambiguously means
-        // "I'm done — commit." We finalize on mouseUp.
-        //
-        // Right-click (and other mouse buttons), in contrast, *can* be steps with
-        // no modifiers required. The down event was just captured as a step, and
-        // the user may continue with more steps. We let the 1-second step timeout
-        // (or first-responder loss) close the recording when they actually stop.
+        // Bare left-click finalizes (it's reserved for UI, can't be a step). Right-click
+        // and other buttons can be steps, so we let the timeout close the recording instead.
         if event.type == .rightMouseUp {
             return nil
         }
 
-        // event.type == .leftMouseUp
         let modifiers = Shortcut.canonicalModifiers(event.modifierFlags)
         if !modifiers.isEmpty {
             // Modified left-up — paired with the modified left-down captured as a step.
@@ -477,7 +466,6 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
             return nil
         }
 
-        // Bare left-up: finalize the recording with whatever we've captured so far.
         let clickPoint = convert(event.locationInWindow, from: nil)
         let clickMargin: CGFloat = 3.0
         let isInsideField = bounds.insetBy(dx: -clickMargin, dy: -clickMargin).contains(clickPoint)
@@ -614,9 +602,6 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
         }
     }
 
-    /// Append a recorded step, refresh the in-progress display, reset the timeout,
-    /// and clear gesture accumulators for the next step.
-    ///
     /// `scrollCaptured` / `pinchCaptured` / `rotateCaptured` are intentionally NOT
     /// reset here — a single physical gesture burst should produce at most one step.
     /// Each flag is cleared by either a non-matching event type (see `handleEvent`)

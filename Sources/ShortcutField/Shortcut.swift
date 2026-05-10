@@ -13,7 +13,6 @@ import AppKit
 public struct Shortcut: Sendable, Equatable, Hashable {
     /// One step in a shortcut. Each step is a single recordable input event.
     public struct Step: Sendable, Equatable, Hashable {
-        /// The kind of input this step represents.
         public let kind: Kind
 
         /// Modifier flags (Command, Shift, Option, Control). Other flags are masked off in `init`.

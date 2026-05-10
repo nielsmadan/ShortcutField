@@ -160,8 +160,8 @@ import Testing
     }
 
     @Test func shortcut_decodeOldFlatShape_throwsDecodingError() {
-        // Pre-refactor v1 shape: bare `{type, keyCode, modifiers}` without `steps`.
-        // The new decoder requires the `steps` envelope and must cleanly reject the old shape.
+        // The decoder requires the `steps` envelope and must cleanly reject bare
+        // `{type, keyCode, modifiers}` shapes.
         let cmd = NSEvent.ModifierFlags.command.rawValue
         let json = #"{"type":"key","keyCode":38,"modifiers":\#(cmd)}"#
         #expect(throws: DecodingError.self) {

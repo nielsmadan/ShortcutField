@@ -122,7 +122,6 @@ import Testing
 
     @Test func menuPicked_preservesSensitivityAcrossPicks() {
         let field = ContinuousShortcutRecorderField()
-        // Set initial value with non-zero sensitivity.
         field.shortcut = ContinuousShortcut(kind: .pinchIn, modifiers: [], sensitivity: 0.5)
 
         let menu = ContinuousShortcutRecorderField.makeContinuousShortcutMenu(target: field)

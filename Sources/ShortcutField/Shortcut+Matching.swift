@@ -34,7 +34,7 @@ struct GestureEventShape: Equatable {
 // MARK: - Step Matching
 
 public extension Shortcut.Step {
-    /// Match this step against an NSEvent. Dispatches to per-kind logic.
+    /// Match this step against an NSEvent.
     func matches(_ event: NSEvent) -> Bool {
         let eventMods = Shortcut.canonicalModifiers(event.modifierFlags)
         guard eventMods == modifiers else { return false }

@@ -45,7 +45,6 @@ public struct ContinuousShortcut: Sendable, Equatable, Hashable {
         }
     }
 
-    /// The continuous-gesture kind this shortcut binds to.
     public let kind: Kind
 
     /// Modifier flags (Command, Shift, Option, Control). Other flags are masked off in `init`.
@@ -113,8 +112,7 @@ public extension ContinuousShortcut {
 // MARK: - Matching
 
 public extension ContinuousShortcut {
-    /// Match against an NSEvent. Dispatches to the same per-kind logic as
-    /// `Shortcut.Step.matches(_:)`.
+    /// Match against an NSEvent.
     func matches(_ event: NSEvent) -> Bool {
         Shortcut.Step(kind: kind.asShortcutKind, modifiers: modifiers).matches(event)
     }

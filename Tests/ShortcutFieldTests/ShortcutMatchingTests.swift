@@ -195,7 +195,6 @@ private func makeKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = []
 
     @Test func continuousShortcut_matches_modifierMismatch_returnsFalse() {
         let cs = ContinuousShortcut(kind: .scroll(direction: .up), modifiers: .command)
-        // No modifiers on the synthesized scroll event.
         #expect(!cs.matches(makeScrollEvent(deltaY: 10)))
     }
 }
