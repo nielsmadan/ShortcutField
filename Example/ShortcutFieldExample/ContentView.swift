@@ -12,7 +12,7 @@ struct ContentView: View {
                 GalleryTab()
             }
         }
-        .frame(minWidth: 1200, minHeight: 650)
+        .frame(minWidth: 1000, minHeight: 600)
     }
 }
 
@@ -26,19 +26,15 @@ struct WorkbenchTab: View {
     @State private var continuousB: ContinuousShortcut?
 
     // Controls A
-    @State private var selectedStyleA: ShortcutRecorderStyle = .rounded
-    @State private var selectedSizeA: ControlSize = .regular
     @State private var selectedTextColorA: NamedColor = .default
-    @State private var selectedBgColorA: NamedBgColor = .default
+    @State private var selectedWidthA: NamedWidth = .medium
     @State private var placeholderTextA: String = "Record Shortcut"
     @State private var selectedSensitivityModeA: SensitivityMode = .discrete
     @State private var selectedSensitivityPositionA: SensitivityPosition = .below
 
     // Controls B
-    @State private var selectedStyleB: ShortcutRecorderStyle = .rounded
-    @State private var selectedSizeB: ControlSize = .regular
     @State private var selectedTextColorB: NamedColor = .default
-    @State private var selectedBgColorB: NamedBgColor = .default
+    @State private var selectedWidthB: NamedWidth = .medium
     @State private var placeholderTextB: String = "Record Shortcut"
     @State private var selectedSensitivityModeB: SensitivityMode = .discrete
     @State private var selectedSensitivityPositionB: SensitivityPosition = .below
@@ -59,10 +55,8 @@ struct WorkbenchTab: View {
         HStack(spacing: 0) {
             ScrollView {
                 controlsPanel(
-                    style: $selectedStyleA,
-                    size: $selectedSizeA,
                     textColor: $selectedTextColorA,
-                    bgColor: $selectedBgColorA,
+                    width: $selectedWidthA,
                     placeholder: $placeholderTextA,
                     sensitivityMode: $selectedSensitivityModeA,
                     sensitivityPosition: $selectedSensitivityPositionA
@@ -70,8 +64,9 @@ struct WorkbenchTab: View {
                 .padding(.horizontal, 28)
                 .padding(.vertical, 20)
             }
-            .frame(width: 260)
+            .frame(width: 240)
             .background(Color.gray.opacity(0.04))
+            .padding(12)
 
             Divider()
 
@@ -91,10 +86,8 @@ struct WorkbenchTab: View {
 
             ScrollView {
                 controlsPanel(
-                    style: $selectedStyleB,
-                    size: $selectedSizeB,
                     textColor: $selectedTextColorB,
-                    bgColor: $selectedBgColorB,
+                    width: $selectedWidthB,
                     placeholder: $placeholderTextB,
                     sensitivityMode: $selectedSensitivityModeB,
                     sensitivityPosition: $selectedSensitivityPositionB
@@ -102,8 +95,9 @@ struct WorkbenchTab: View {
                 .padding(.horizontal, 28)
                 .padding(.vertical, 20)
             }
-            .frame(width: 260)
+            .frame(width: 240)
             .background(Color.gray.opacity(0.04))
+            .padding(12)
         }
     }
 
@@ -120,10 +114,9 @@ struct WorkbenchTab: View {
 
             HStack(alignment: .top, spacing: 16) {
                 fieldColumn {
-                    makeRecorder($shortcutA, style: selectedStyleA, size: selectedSizeA,
-                                 textColor: selectedTextColorA.nsColor, bgColor: selectedBgColorA.nsColor,
+                    makeRecorder($shortcutA, textColor: selectedTextColorA.nsColor,
                                  placeholder: placeholderTextA)
-                        .frame(width: 260)
+                        .frame(width: selectedWidthA.value)
 
                     if let shortcutA {
                         Text(shortcutA.displayString)
@@ -136,10 +129,9 @@ struct WorkbenchTab: View {
                 }
 
                 fieldColumn {
-                    makeRecorder($shortcutB, style: selectedStyleB, size: selectedSizeB,
-                                 textColor: selectedTextColorB.nsColor, bgColor: selectedBgColorB.nsColor,
+                    makeRecorder($shortcutB, textColor: selectedTextColorB.nsColor,
                                  placeholder: placeholderTextB)
-                        .frame(width: 260)
+                        .frame(width: selectedWidthB.value)
 
                     if let shortcutB {
                         Text(shortcutB.displayString)
@@ -173,13 +165,15 @@ struct WorkbenchTab: View {
 
             HStack(alignment: .top, spacing: 16) {
                 fieldColumn {
-                    makeContinuousRecorder($continuousA, style: selectedStyleA, size: selectedSizeA,
+                    makeContinuousRecorder($continuousA,
                                            textColor: selectedTextColorA.nsColor,
-                                           bgColor: selectedBgColorA.nsColor,
                                            placeholder: "Record Continuous",
                                            sensitivityMode: selectedSensitivityModeA,
                                            sensitivityPosition: selectedSensitivityPositionA)
-                        .frame(width: continuousFrameWidth(position: selectedSensitivityPositionA))
+                        .frame(width: continuousFrameWidth(
+                            base: selectedWidthA.value,
+                            position: selectedSensitivityPositionA
+                        ))
 
                     if let continuousA {
                         Text(continuousA.displayString)
@@ -192,13 +186,15 @@ struct WorkbenchTab: View {
                 }
 
                 fieldColumn {
-                    makeContinuousRecorder($continuousB, style: selectedStyleB, size: selectedSizeB,
+                    makeContinuousRecorder($continuousB,
                                            textColor: selectedTextColorB.nsColor,
-                                           bgColor: selectedBgColorB.nsColor,
                                            placeholder: "Record Continuous",
                                            sensitivityMode: selectedSensitivityModeB,
                                            sensitivityPosition: selectedSensitivityPositionB)
-                        .frame(width: continuousFrameWidth(position: selectedSensitivityPositionB))
+                        .frame(width: continuousFrameWidth(
+                            base: selectedWidthB.value,
+                            position: selectedSensitivityPositionB
+                        ))
 
                     if let continuousB {
                         Text(continuousB.displayString)
@@ -221,8 +217,9 @@ struct WorkbenchTab: View {
         }
     }
 
-    private func continuousFrameWidth(position: SensitivityPosition) -> CGFloat {
-        position == .below ? 220 : 320
+    private func continuousFrameWidth(base: CGFloat, position: SensitivityPosition) -> CGFloat {
+        // Reserve extra horizontal room for the slider when it sits next to the field.
+        position == .below ? base : base + 100
     }
 
     private func fieldColumn(@ViewBuilder _ content: () -> some View) -> some View {
@@ -277,78 +274,64 @@ struct WorkbenchTab: View {
         }
     }
 
-    private func makeRecorder(_ shortcut: Binding<Shortcut?>, style: ShortcutRecorderStyle,
-                              size: ControlSize, textColor: NSColor?, bgColor: NSColor?,
+    private func makeRecorder(_ shortcut: Binding<Shortcut?>,
+                              textColor: NSColor?,
                               placeholder: String) -> some View
     {
         var view = ShortcutRecorderView(shortcut)
             .placeholder(placeholder)
-            .style(style)
         if let textColor { view = view.textColor(textColor) }
-        if let bgColor { view = view.fieldBackgroundColor(bgColor) }
-        return view.controlSize(size)
+        return view
     }
 
     private func makeContinuousRecorder(
         _ shortcut: Binding<ContinuousShortcut?>,
-        style: ShortcutRecorderStyle,
-        size: ControlSize,
         textColor: NSColor?,
-        bgColor: NSColor?,
         placeholder: String,
         sensitivityMode: SensitivityMode,
         sensitivityPosition: SensitivityPosition
     ) -> some View {
         var view = ContinuousShortcutRecorderView(shortcut)
             .placeholder(placeholder)
-            .style(style)
             .sensitivityMode(sensitivityMode)
             .sensitivityPosition(sensitivityPosition)
         if let textColor { view = view.textColor(textColor) }
-        if let bgColor { view = view.fieldBackgroundColor(bgColor) }
-        return view.controlSize(size)
+        return view
     }
 
     // MARK: Controls Panel
 
     private func controlsPanel(
-        style: Binding<ShortcutRecorderStyle>,
-        size: Binding<ControlSize>,
         textColor: Binding<NamedColor>,
-        bgColor: Binding<NamedBgColor>,
+        width: Binding<NamedWidth>,
         placeholder: Binding<String>,
         sensitivityMode: Binding<SensitivityMode>,
         sensitivityPosition: Binding<SensitivityPosition>
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Group {
-                Text("Style")
+                Text("Text color")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Picker("", selection: style) {
-                    Text(".rounded").tag(ShortcutRecorderStyle.rounded)
-                    Text(".plain").tag(ShortcutRecorderStyle.plain)
-                    Text(".borderless").tag(ShortcutRecorderStyle.borderless)
+                Picker("", selection: textColor) {
+                    ForEach(NamedColor.allCases) { color in
+                        Text(color.label).tag(color)
+                    }
                 }
                 .labelsHidden()
-                .pickerStyle(.segmented)
             }
 
             Group {
-                Text("Size")
+                Text("Width")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Picker("", selection: size) {
-                    Text(".mini").tag(ControlSize.mini)
-                    Text(".small").tag(ControlSize.small)
-                    Text(".regular").tag(ControlSize.regular)
-                    Text(".large").tag(ControlSize.large)
+                Picker("", selection: width) {
+                    ForEach(NamedWidth.allCases) { w in
+                        Text(w.label).tag(w)
+                    }
                 }
                 .labelsHidden()
-                .pickerStyle(.segmented)
             }
-
-            colorRow(textColor: textColor, bgColor: bgColor)
 
             Group {
                 Text("Placeholder")
@@ -384,39 +367,33 @@ struct WorkbenchTab: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+}
 
-    private func colorRow(
-        textColor: Binding<NamedColor>,
-        bgColor: Binding<NamedBgColor>
-    ) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Text color")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Picker("", selection: textColor) {
-                    ForEach(NamedColor.allCases) { color in
-                        Text(color.label).tag(color)
-                    }
-                }
-                .labelsHidden()
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Background")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Picker("", selection: bgColor) {
-                    ForEach(NamedBgColor.allCases) { color in
-                        Text(color.label).tag(color)
-                    }
-                }
-                .labelsHidden()
-            }
+// MARK: - Named Width Enum
+
+enum NamedWidth: String, CaseIterable, Identifiable {
+    case small, medium, large
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .small: "Small (120)"
+        case .medium: "Medium (160)"
+        case .large: "Large (200)"
+        }
+    }
+
+    var value: CGFloat {
+        switch self {
+        case .small: 120
+        case .medium: 160
+        case .large: 200
         }
     }
 }
 
-// MARK: - Named Color Enums
+// MARK: - Named Color Enum
 
 enum NamedColor: String, CaseIterable, Identifiable {
     case `default`, teal, orange, indigo, white
@@ -444,35 +421,11 @@ enum NamedColor: String, CaseIterable, Identifiable {
     }
 }
 
-enum NamedBgColor: String, CaseIterable, Identifiable {
-    case `default`, blueTint, darkGray, indigoTint
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .default: "Default"
-        case .blueTint: "Blue Tint"
-        case .darkGray: "Dark Gray"
-        case .indigoTint: "Indigo Tint"
-        }
-    }
-
-    var nsColor: NSColor? {
-        switch self {
-        case .default: nil
-        case .blueTint: NSColor.systemBlue.withAlphaComponent(0.1)
-        case .darkGray: .darkGray
-        case .indigoTint: NSColor.systemIndigo.withAlphaComponent(0.1)
-        }
-    }
-}
-
 // MARK: - Gallery
 
 struct GalleryTab: View {
     private let columns = [
-        GridItem(.adaptive(minimum: 170, maximum: 200), spacing: 16),
+        GridItem(.adaptive(minimum: 220, maximum: 320), spacing: 16),
     ]
 
     var body: some View {
@@ -508,6 +461,7 @@ struct GalleryTab: View {
         VStack(alignment: .leading, spacing: 16) {
             Text(title)
                 .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .center)
             content()
         }
         .padding(.horizontal, 24)
@@ -522,7 +476,6 @@ struct GalleryCard: View {
     var body: some View {
         VStack(spacing: 8) {
             cardRecorder
-                .frame(maxWidth: .infinity)
 
             Text(item.label)
                 .font(.caption)
@@ -531,48 +484,44 @@ struct GalleryCard: View {
                 .multilineTextAlignment(.center)
         }
         .padding(12)
+        .frame(maxWidth: .infinity)
         .background(Color.gray.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private var cardRecorder: some View {
-        var view = ShortcutRecorderView($shortcut).style(item.style)
+        var view = ShortcutRecorderView($shortcut)
         if let textColor = item.textColor { view = view.textColor(textColor) }
-        if let bgColor = item.bgColor { view = view.fieldBackgroundColor(bgColor) }
-        return view.controlSize(item.size)
+        return view
+            .disabled(item.disabled)
+            .frame(width: item.width ?? 160)
     }
 }
 
 struct GalleryItem: Identifiable {
     let id = UUID()
     let label: String
-    let style: ShortcutRecorderStyle
-    let size: ControlSize
     let textColor: NSColor?
-    let bgColor: NSColor?
+    let width: CGFloat?
+    let disabled: Bool
 
     init(
         _ label: String,
-        style: ShortcutRecorderStyle = .rounded,
-        size: ControlSize = .regular,
         textColor: NSColor? = nil,
-        bgColor: NSColor? = nil
+        width: CGFloat? = nil,
+        disabled: Bool = false
     ) {
         self.label = label
-        self.style = style
-        self.size = size
         self.textColor = textColor
-        self.bgColor = bgColor
+        self.width = width
+        self.disabled = disabled
     }
 
     static let allItems: [GalleryItem] = [
         GalleryItem("Default"),
-        GalleryItem(".plain", style: .plain),
-        GalleryItem(".borderless", style: .borderless),
-        GalleryItem(".mini", size: .mini),
-        GalleryItem(".large", size: .large),
         GalleryItem("Teal text", textColor: .systemTeal),
-        GalleryItem("Blue tint bg", bgColor: NSColor.systemBlue.withAlphaComponent(0.1)),
-        GalleryItem("Dark bg + white text", textColor: .white, bgColor: .darkGray),
+        GalleryItem("Orange text", textColor: .systemOrange),
+        GalleryItem("Wider (240)", width: 240),
+        GalleryItem("Disabled", disabled: true),
     ]
 }
 
@@ -585,7 +534,6 @@ struct ContinuousGalleryCard: View {
     var body: some View {
         VStack(spacing: 8) {
             cardRecorder
-                .frame(maxWidth: .infinity)
 
             Text(item.label)
                 .font(.caption)
@@ -594,47 +542,50 @@ struct ContinuousGalleryCard: View {
                 .multilineTextAlignment(.center)
         }
         .padding(12)
+        .frame(maxWidth: .infinity)
         .background(Color.gray.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private var cardRecorder: some View {
-        var view = ContinuousShortcutRecorderView($shortcut).style(item.style)
+        var view = ContinuousShortcutRecorderView($shortcut)
+            .sensitivityMode(item.sensitivityMode)
+            .sensitivityPosition(item.sensitivityPosition)
         if let textColor = item.textColor { view = view.textColor(textColor) }
-        if let bgColor = item.bgColor { view = view.fieldBackgroundColor(bgColor) }
-        return view.controlSize(item.size)
+        return view
+            .disabled(item.disabled)
+            .frame(width: item.width ?? (item.sensitivityPosition == .below ? 160 : 260))
     }
 }
 
 struct ContinuousGalleryItem: Identifiable {
     let id = UUID()
     let label: String
-    let style: ShortcutRecorderStyle
-    let size: ControlSize
     let textColor: NSColor?
-    let bgColor: NSColor?
+    let width: CGFloat?
+    let sensitivityMode: SensitivityMode
+    let sensitivityPosition: SensitivityPosition
+    let disabled: Bool
 
     init(
         _ label: String,
-        style: ShortcutRecorderStyle = .rounded,
-        size: ControlSize = .regular,
         textColor: NSColor? = nil,
-        bgColor: NSColor? = nil
+        width: CGFloat? = nil,
+        sensitivityMode: SensitivityMode = .discrete,
+        sensitivityPosition: SensitivityPosition = .below,
+        disabled: Bool = false
     ) {
         self.label = label
-        self.style = style
-        self.size = size
         self.textColor = textColor
-        self.bgColor = bgColor
+        self.width = width
+        self.sensitivityMode = sensitivityMode
+        self.sensitivityPosition = sensitivityPosition
+        self.disabled = disabled
     }
 
     static let allItems: [ContinuousGalleryItem] = [
-        ContinuousGalleryItem("Default"),
-        ContinuousGalleryItem(".plain", style: .plain),
-        ContinuousGalleryItem(".borderless", style: .borderless),
-        ContinuousGalleryItem(".mini", size: .mini),
-        ContinuousGalleryItem(".large", size: .large),
+        ContinuousGalleryItem("Default (slider below, discrete)"),
+        ContinuousGalleryItem("Continuous mode", sensitivityMode: .continuous),
         ContinuousGalleryItem("Teal text", textColor: .systemTeal),
-        ContinuousGalleryItem("Blue tint bg", bgColor: NSColor.systemBlue.withAlphaComponent(0.1)),
-        ContinuousGalleryItem("Dark bg + white text", textColor: .white, bgColor: .darkGray),
+        ContinuousGalleryItem("Disabled", disabled: true),
     ]
 }

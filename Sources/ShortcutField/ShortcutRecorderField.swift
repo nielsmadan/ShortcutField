@@ -111,7 +111,12 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
     /// Whether any recorder instance is currently in recording mode.
     public static var isAnyRecording: Bool { ShortcutRecordingState.isAnyRecording }
 
-    private let minimumWidth: CGFloat = 130
+    /// Minimum intrinsic width. SwiftUI's `.frame(width:)` overrides this; the
+    /// floor only matters when no explicit frame is set. Defaults to 130.
+    public var minimumWidth: CGFloat = 130 {
+        didSet { invalidateIntrinsicContentSize() }
+    }
+
     private var bezeledHeight: CGFloat = 0
     private nonisolated(unsafe) var eventMonitor: Any?
     private var cancelButton: NSButtonCell?
@@ -165,32 +170,6 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
         didSet { textColor = fieldTextColor }
     }
 
-    /// The background color of the field. Nil uses the system default.
-    ///
-    /// Setting a background color replaces the default bezel with a custom
-    /// layer-backed rounded rectangle so the color is fully visible.
-    public var fieldBackgroundColor: NSColor? {
-        didSet {
-            applyBackgroundColor()
-        }
-    }
-
-    private func applyBackgroundColor() {
-        if let color = fieldBackgroundColor {
-            isBezeled = false
-            layer?.backgroundColor = color.cgColor
-            layer?.cornerRadius = 6
-            layer?.borderWidth = 0.5
-            layer?.borderColor = NSColor.separatorColor.cgColor
-        } else {
-            isBezeled = true
-            layer?.backgroundColor = nil
-            layer?.cornerRadius = 0
-            layer?.borderWidth = 0
-            layer?.borderColor = nil
-        }
-    }
-
     private var showsCancelButton: Bool {
         get { (cell as? NSSearchFieldCell)?.cancelButtonCell != nil }
         set { (cell as? NSSearchFieldCell)?.cancelButtonCell = newValue ? cancelButton : nil }
@@ -224,8 +203,11 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
         alignment = .center
         (cell as? NSSearchFieldCell)?.searchButtonCell = nil
         wantsLayer = true
+        // High vertical hugging keeps the field at its intrinsic height (don't
+        // stretch tall). Low horizontal hugging lets `.frame(width:)` expand it
+        // beyond the intrinsic minimumWidth.
         setContentHuggingPriority(.defaultHigh, for: .vertical)
-        setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        setContentHuggingPriority(.defaultLow, for: .horizontal)
 
         cancelButton = (cell as? NSSearchFieldCell)?.cancelButtonCell
         bezeledHeight = super.intrinsicContentSize.height

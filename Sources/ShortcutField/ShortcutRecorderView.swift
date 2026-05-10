@@ -12,33 +12,54 @@ import SwiftUI
 ///
 /// ShortcutRecorderView($shortcut)
 ///     .placeholder("Record")
-///     .style(.rounded)
 /// ```
 ///
 /// For sensitivity-bearing throttled continuous fire (scroll-to-zoom etc.),
 /// use ``ContinuousShortcutRecorderView``.
-public struct ShortcutRecorderView: NSViewRepresentable {
+public struct ShortcutRecorderView: View {
     @Binding var shortcut: Shortcut?
+    @Environment(\.isEnabled) private var isEnabled
 
     private var placeholderText: String = "Record Shortcut"
     private var recordingPlaceholderText: String = "Record shortcut\u{2026}"
-    private var style: ShortcutRecorderStyle = .rounded
     private var textColorValue: NSColor?
-    private var backgroundColorValue: NSColor?
+    private var minimumWidthValue: CGFloat?
 
     /// Create a shortcut recorder bound to the given shortcut value.
     public init(_ shortcut: Binding<Shortcut?>) {
         _shortcut = shortcut
     }
 
-    public func makeNSView(context _: Context) -> ShortcutRecorderField {
+    public var body: some View {
+        // NSSearchField's native disabled state is barely visible — apply an
+        // explicit opacity dim so disabled fields are clearly distinguishable.
+        FieldRepresentable(
+            shortcut: $shortcut,
+            placeholderText: placeholderText,
+            recordingPlaceholderText: recordingPlaceholderText,
+            textColorValue: textColorValue,
+            minimumWidthValue: minimumWidthValue
+        )
+        .opacity(isEnabled ? 1.0 : 0.5)
+    }
+}
+
+private struct FieldRepresentable: NSViewRepresentable {
+    @Binding var shortcut: Shortcut?
+
+    var placeholderText: String
+    var recordingPlaceholderText: String
+    var textColorValue: NSColor?
+    var minimumWidthValue: CGFloat?
+
+    func makeNSView(context: Context) -> ShortcutRecorderField {
         let field = ShortcutRecorderField()
         field.shortcut = shortcut
         field.defaultPlaceholder = placeholderText
         field.recordingPlaceholder = recordingPlaceholderText
-        field.applyRecorderStyle(style)
         field.fieldTextColor = textColorValue
-        field.fieldBackgroundColor = backgroundColorValue
+        if let minimumWidthValue { field.minimumWidth = minimumWidthValue }
+        field.isEnabled = context.environment.isEnabled
         field.onShortcutChange = { newShortcut in
             DispatchQueue.main.async {
                 shortcut = newShortcut
@@ -47,7 +68,7 @@ public struct ShortcutRecorderView: NSViewRepresentable {
         return field
     }
 
-    public func updateNSView(_ nsView: ShortcutRecorderField, context _: Context) {
+    public func updateNSView(_ nsView: ShortcutRecorderField, context: Context) {
         // Don't update while recording — the async binding update from onShortcutChange
         // can set stringValue on the field editor, triggering controlTextDidEndEditing
         // and prematurely stopping the recording session.
@@ -55,9 +76,9 @@ public struct ShortcutRecorderView: NSViewRepresentable {
         nsView.shortcut = shortcut
         nsView.defaultPlaceholder = placeholderText
         nsView.recordingPlaceholder = recordingPlaceholderText
-        nsView.applyRecorderStyle(style)
         nsView.fieldTextColor = textColorValue
-        nsView.fieldBackgroundColor = backgroundColorValue
+        if let minimumWidthValue { nsView.minimumWidth = minimumWidthValue }
+        nsView.isEnabled = context.environment.isEnabled
     }
 }
 
@@ -78,13 +99,6 @@ public extension ShortcutRecorderView {
         return view
     }
 
-    /// Set the visual style of the recorder.
-    func style(_ style: ShortcutRecorderStyle) -> ShortcutRecorderView {
-        var view = self
-        view.style = style
-        return view
-    }
-
     /// Set the text color of the shortcut display.
     func textColor(_ color: NSColor) -> ShortcutRecorderView {
         var view = self
@@ -92,10 +106,11 @@ public extension ShortcutRecorderView {
         return view
     }
 
-    /// Set the background color of the field.
-    func fieldBackgroundColor(_ color: NSColor) -> ShortcutRecorderView {
+    /// Override the field's minimum intrinsic width. SwiftUI's `.frame(width:)`
+    /// still wins over this; the floor only matters when no explicit frame is set.
+    func minimumWidth(_ width: CGFloat) -> ShortcutRecorderView {
         var view = self
-        view.backgroundColorValue = color
+        view.minimumWidthValue = width
         return view
     }
 }

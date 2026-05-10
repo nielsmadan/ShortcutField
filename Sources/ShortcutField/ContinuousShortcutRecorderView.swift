@@ -9,10 +9,10 @@ import SwiftUI
 ///
 /// ContinuousShortcutRecorderView($continuous)
 ///     .placeholder("Record")
-///     .style(.rounded)
 /// ```
 public struct ContinuousShortcutRecorderView: View {
     @Binding var continuousShortcut: ContinuousShortcut?
+    @Environment(\.isEnabled) private var isEnabled
 
     /// Slider value owned by the view, decoupled from the bound shortcut. Survives
     /// recorder re-records and adjustments made before any shortcut is bound.
@@ -20,9 +20,8 @@ public struct ContinuousShortcutRecorderView: View {
 
     private var placeholderText: String = "Record Continuous"
     private var recordingPlaceholderText: String = "Scroll / pinch / rotate\u{2026}"
-    private var style: ShortcutRecorderStyle = .rounded
     private var textColorValue: NSColor?
-    private var backgroundColorValue: NSColor?
+    private var minimumWidthValue: CGFloat?
     private var sensitivityModeValue: SensitivityMode = .discrete
     private var sensitivityPositionValue: SensitivityPosition = .below
 
@@ -34,7 +33,10 @@ public struct ContinuousShortcutRecorderView: View {
 
     @ViewBuilder
     public var body: some View {
+        // NSSearchField's native disabled state is barely visible — apply an
+        // explicit opacity dim so disabled fields are clearly distinguishable.
         layout
+            .opacity(isEnabled ? 1.0 : 0.5)
             .onChange(of: continuousShortcut) { newValue in
                 // Sync from external/programmatic changes; ignore in-flight changes
                 // we caused ourselves (sensitivity already matches).
@@ -71,9 +73,8 @@ public struct ContinuousShortcutRecorderView: View {
             sensitivity: sensitivity,
             placeholderText: placeholderText,
             recordingPlaceholderText: recordingPlaceholderText,
-            style: style,
             textColorValue: textColorValue,
-            backgroundColorValue: backgroundColorValue
+            minimumWidthValue: minimumWidthValue
         )
     }
 
@@ -123,19 +124,18 @@ private struct FieldRepresentable: NSViewRepresentable {
     var sensitivity: Double
     var placeholderText: String
     var recordingPlaceholderText: String
-    var style: ShortcutRecorderStyle
     var textColorValue: NSColor?
-    var backgroundColorValue: NSColor?
+    var minimumWidthValue: CGFloat?
 
-    func makeNSView(context _: Context) -> ContinuousShortcutRecorderField {
+    func makeNSView(context: Context) -> ContinuousShortcutRecorderField {
         let field = ContinuousShortcutRecorderField()
         field.lastSensitivity = sensitivity
         field.shortcut = continuousShortcut
         field.defaultPlaceholder = placeholderText
         field.recordingPlaceholder = recordingPlaceholderText
-        field.applyRecorderStyle(style)
         field.fieldTextColor = textColorValue
-        field.fieldBackgroundColor = backgroundColorValue
+        if let minimumWidthValue { field.minimumWidth = minimumWidthValue }
+        field.isEnabled = context.environment.isEnabled
         field.onShortcutChange = { newValue in
             DispatchQueue.main.async {
                 continuousShortcut = newValue
@@ -144,7 +144,7 @@ private struct FieldRepresentable: NSViewRepresentable {
         return field
     }
 
-    func updateNSView(_ nsView: ContinuousShortcutRecorderField, context _: Context) {
+    func updateNSView(_ nsView: ContinuousShortcutRecorderField, context: Context) {
         guard !nsView.isRecording else { return }
         // Push the SwiftUI view's slider value into the field so a fresh recording
         // (or chevron-menu pick) uses the user's last-set sensitivity.
@@ -152,9 +152,9 @@ private struct FieldRepresentable: NSViewRepresentable {
         nsView.shortcut = continuousShortcut
         nsView.defaultPlaceholder = placeholderText
         nsView.recordingPlaceholder = recordingPlaceholderText
-        nsView.applyRecorderStyle(style)
         nsView.fieldTextColor = textColorValue
-        nsView.fieldBackgroundColor = backgroundColorValue
+        if let minimumWidthValue { nsView.minimumWidth = minimumWidthValue }
+        nsView.isEnabled = context.environment.isEnabled
     }
 }
 
@@ -175,13 +175,6 @@ public extension ContinuousShortcutRecorderView {
         return view
     }
 
-    /// Set the visual style of the recorder.
-    func style(_ style: ShortcutRecorderStyle) -> ContinuousShortcutRecorderView {
-        var view = self
-        view.style = style
-        return view
-    }
-
     /// Set the text color of the shortcut display.
     func textColor(_ color: NSColor) -> ContinuousShortcutRecorderView {
         var view = self
@@ -189,10 +182,11 @@ public extension ContinuousShortcutRecorderView {
         return view
     }
 
-    /// Set the background color of the field.
-    func fieldBackgroundColor(_ color: NSColor) -> ContinuousShortcutRecorderView {
+    /// Override the field's minimum intrinsic width. SwiftUI's `.frame(width:)`
+    /// still wins over this; the floor only matters when no explicit frame is set.
+    func minimumWidth(_ width: CGFloat) -> ContinuousShortcutRecorderView {
         var view = self
-        view.backgroundColorValue = color
+        view.minimumWidthValue = width
         return view
     }
 
