@@ -21,8 +21,7 @@ Special keys like Tab that SwiftUI's focus system normally intercepts work in bo
 - Match against `NSEvent` and SwiftUI `KeyPress`, including special keys like Tab and Escape
 - SwiftUI views and AppKit controls
 - `Codable`, `Equatable`, `Hashable`, `Sendable` model
-- Three visual styles: rounded, plain, borderless
-- Custom text and background colors
+- Customizable placeholder text, text color, and minimum width
 
 ## Requirements
 
@@ -54,7 +53,6 @@ struct SettingsView: View {
     var body: some View {
         ShortcutRecorderView($shortcut)
             .placeholder("Record Shortcut")
-            .style(.rounded)
     }
 }
 ```
@@ -72,7 +70,6 @@ struct ZoomSettingsView: View {
     var body: some View {
         ContinuousShortcutRecorderView($zoomShortcut)
             .placeholder("Record Zoom")
-            .style(.rounded)
     }
 }
 ```
@@ -90,7 +87,7 @@ field.onShortcutChange = { shortcut in
 }
 
 let continuousField = ContinuousShortcutRecorderField()
-continuousField.onContinuousShortcutChange = { shortcut in
+continuousField.onShortcutChange = { shortcut in
     print("Recorded: \(shortcut?.displayString ?? "none")")
 }
 ```
@@ -149,25 +146,15 @@ let zoom = ContinuousShortcut(kind: .pinchIn, modifiers: .command, sensitivity: 
 print(zoom.displayString) // "⌘Pinch In"
 ```
 
-### Styles
-
-```swift
-ShortcutRecorderView($shortcut).style(.rounded)    // Default
-ShortcutRecorderView($shortcut).style(.plain)       // Minimal border
-ShortcutRecorderView($shortcut).style(.borderless)  // No border
-```
-
-The same `ShortcutRecorderStyle` enum applies to `ContinuousShortcutRecorderView`.
-
-### Colors
+### Customization
 
 ```swift
 ShortcutRecorderView($shortcut)
     .textColor(.systemTeal)
-    .fieldBackgroundColor(NSColor.systemBlue.withAlphaComponent(0.1))
+    .minimumWidth(180)
 ```
 
-Setting a background color uses a layer-backed background because `NSSearchFieldCell` does not render `NSTextField.backgroundColor`.
+The same modifiers apply to `ContinuousShortcutRecorderView`.
 
 ### Sensitivity (ContinuousShortcut only)
 
@@ -245,9 +232,8 @@ SwiftUI recorder for fire-once shortcuts.
 |---|---|
 | `.placeholder(_:)` | Text when empty (default: "Record Shortcut") |
 | `.recordingPlaceholder(_:)` | Text during recording (default: "Record shortcut…") |
-| `.style(_:)` | `.rounded`, `.plain`, or `.borderless` |
 | `.textColor(_:)` | Text color (`NSColor`) |
-| `.fieldBackgroundColor(_:)` | Background color (`NSColor`); uses a layer because `NSSearchFieldCell` ignores `backgroundColor` |
+| `.minimumWidth(_:)` | Minimum intrinsic width in points (default 130). SwiftUI's `.frame(width:)` still wins. |
 
 ### `ContinuousShortcutRecorderView`
 
@@ -257,9 +243,8 @@ SwiftUI recorder for sensitivity-bearing continuous shortcuts.
 |---|---|
 | `.placeholder(_:)` | Text when empty (default: "Record Continuous") |
 | `.recordingPlaceholder(_:)` | Text during recording (default: "Scroll / pinch / rotate…") |
-| `.style(_:)` | `.rounded`, `.plain`, or `.borderless` |
 | `.textColor(_:)` | Text color (`NSColor`) |
-| `.fieldBackgroundColor(_:)` | Background color (`NSColor`) |
+| `.minimumWidth(_:)` | Minimum intrinsic width in points. SwiftUI's `.frame(width:)` still wins. |
 | `.sensitivityMode(_:)` | `.discrete` (default) or `.continuous` |
 | `.sensitivityPosition(_:)` | `.below` (default), `.left`, or `.right` — placement of the sensitivity slider |
 
