@@ -45,6 +45,7 @@ public struct ContinuousShortcut: Sendable, Equatable, Hashable {
         }
     }
 
+    /// The continuous-gesture kind this shortcut binds to.
     public let kind: Kind
 
     /// Modifier flags (Command, Shift, Option, Control). Other flags are masked off in `init`.
@@ -53,6 +54,7 @@ public struct ContinuousShortcut: Sendable, Equatable, Hashable {
     /// Throttle sensitivity from 0.0 (fire once per gesture) to 1.0 (fire on every event).
     public let sensitivity: Double
 
+    /// Build a continuous shortcut. `sensitivity` is silently clamped to `0.0...1.0`.
     public init(kind: Kind, modifiers: NSEvent.ModifierFlags, sensitivity: Double = 0.0) {
         self.kind = kind
         self.modifiers = Shortcut.canonicalModifiers(modifiers)

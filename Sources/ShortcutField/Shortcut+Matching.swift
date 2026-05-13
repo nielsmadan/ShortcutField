@@ -88,7 +88,7 @@ extension Shortcut.Step {
 
 // MARK: - Scroll direction helper
 
-public extension Shortcut {
+extension Shortcut {
     /// Determine the discrete scroll direction from a scroll wheel event.
     /// Returns nil if the scroll deltas are below the noise threshold.
     static func scrollDirection(from event: NSEvent) -> ScrollDirection? {

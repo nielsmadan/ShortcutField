@@ -6,15 +6,15 @@ protocol ActiveShortcutRecorder: AnyObject {
     func forceEndRecordingSession()
 }
 
+@MainActor
 enum ShortcutRecordingState {
-    private nonisolated(unsafe) static var activeRecorders: Set<ObjectIdentifier> = []
-    private nonisolated(unsafe) weak static var activeRecorder: (any ActiveShortcutRecorder)?
+    private static var activeRecorders: Set<ObjectIdentifier> = []
+    private weak static var activeRecorder: (any ActiveShortcutRecorder)?
 
     static var isAnyRecording: Bool {
         !activeRecorders.isEmpty
     }
 
-    @MainActor
     static func begin(for recorder: AnyObject & ActiveShortcutRecorder) {
         if let activeRecorder, activeRecorder !== recorder {
             activeRecorder.forceEndRecordingSession()
@@ -23,7 +23,6 @@ enum ShortcutRecordingState {
         activeRecorder = recorder
     }
 
-    @MainActor
     static func end(for recorder: AnyObject) {
         activeRecorders.remove(ObjectIdentifier(recorder))
         if let activeRecorder, activeRecorder === recorder as AnyObject {
@@ -31,19 +30,30 @@ enum ShortcutRecordingState {
         }
     }
 
-    static func endOnDeinit(for recorder: AnyObject) {
-        activeRecorders.remove(ObjectIdentifier(recorder))
+    /// `deinit` is non-isolated under Swift 6 strict concurrency, so we route
+    /// the cleanup through main. The `Set` only stores `ObjectIdentifier`, not
+    /// the recorder itself, so a slightly-delayed remove is harmless.
+    nonisolated static func endOnDeinit(for recorder: AnyObject) {
+        let id = ObjectIdentifier(recorder)
+        Task { @MainActor in
+            activeRecorders.remove(id)
+        }
     }
 
-    @MainActor
     static func beginTestRecording(for recorder: AnyObject) {
         activeRecorders.insert(ObjectIdentifier(recorder))
     }
 
-    @MainActor
     static func endTestRecording(for recorder: AnyObject) {
         activeRecorders.remove(ObjectIdentifier(recorder))
     }
+}
+
+/// `@MainActor` namespace exposing whether any recorder field — fire-once or
+/// continuous — is currently capturing input. Useful for hosts that need to
+/// suppress their own keyboard handling while a shortcut is being recorded.
+public enum ShortcutRecording {
+    @MainActor public static var isActive: Bool { ShortcutRecordingState.isAnyRecording }
 }
 
 /// NSSearchFieldCell subclass that vertically centers text when the bezel
@@ -108,12 +118,9 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
         set { super.cellClass = newValue }
     }
 
-    /// Whether any recorder instance is currently in recording mode.
-    public static var isAnyRecording: Bool { ShortcutRecordingState.isAnyRecording }
-
     /// Minimum intrinsic width. SwiftUI's `.frame(width:)` overrides this; the
-    /// floor only matters when no explicit frame is set. Defaults to 130.
-    public var minimumWidth: CGFloat = 130 {
+    /// floor only matters when no explicit frame is set. Defaults to 160.
+    public var minimumWidth: CGFloat = 160 {
         didSet { invalidateIntrinsicContentSize() }
     }
 

@@ -100,9 +100,9 @@ public extension ShortcutRecorderView {
     }
 
     /// Set the text color of the shortcut display.
-    func textColor(_ color: NSColor) -> ShortcutRecorderView {
+    func textColor(_ color: Color) -> ShortcutRecorderView {
         var view = self
-        view.textColorValue = color
+        view.textColorValue = NSColor(color)
         return view
     }
 

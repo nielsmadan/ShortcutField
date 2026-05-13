@@ -114,7 +114,7 @@ struct WorkbenchTab: View {
 
             HStack(alignment: .top, spacing: 16) {
                 fieldColumn {
-                    makeRecorder($shortcutA, textColor: selectedTextColorA.nsColor,
+                    makeRecorder($shortcutA, textColor: selectedTextColorA.color,
                                  placeholder: placeholderTextA)
                         .frame(width: selectedWidthA.value)
 
@@ -129,7 +129,7 @@ struct WorkbenchTab: View {
                 }
 
                 fieldColumn {
-                    makeRecorder($shortcutB, textColor: selectedTextColorB.nsColor,
+                    makeRecorder($shortcutB, textColor: selectedTextColorB.color,
                                  placeholder: placeholderTextB)
                         .frame(width: selectedWidthB.value)
 
@@ -166,7 +166,7 @@ struct WorkbenchTab: View {
             HStack(alignment: .top, spacing: 16) {
                 fieldColumn {
                     makeContinuousRecorder($continuousA,
-                                           textColor: selectedTextColorA.nsColor,
+                                           textColor: selectedTextColorA.color,
                                            placeholder: "Record Continuous",
                                            sensitivityMode: selectedSensitivityModeA,
                                            sensitivityPosition: selectedSensitivityPositionA)
@@ -187,7 +187,7 @@ struct WorkbenchTab: View {
 
                 fieldColumn {
                     makeContinuousRecorder($continuousB,
-                                           textColor: selectedTextColorB.nsColor,
+                                           textColor: selectedTextColorB.color,
                                            placeholder: "Record Continuous",
                                            sensitivityMode: selectedSensitivityModeB,
                                            sensitivityPosition: selectedSensitivityPositionB)
@@ -275,7 +275,7 @@ struct WorkbenchTab: View {
     }
 
     private func makeRecorder(_ shortcut: Binding<Shortcut?>,
-                              textColor: NSColor?,
+                              textColor: Color?,
                               placeholder: String) -> some View
     {
         var view = ShortcutRecorderView(shortcut)
@@ -286,7 +286,7 @@ struct WorkbenchTab: View {
 
     private func makeContinuousRecorder(
         _ shortcut: Binding<ContinuousShortcut?>,
-        textColor: NSColor?,
+        textColor: Color?,
         placeholder: String,
         sensitivityMode: SensitivityMode,
         sensitivityPosition: SensitivityPosition
@@ -410,12 +410,12 @@ enum NamedColor: String, CaseIterable, Identifiable {
         }
     }
 
-    var nsColor: NSColor? {
+    var color: Color? {
         switch self {
         case .default: nil
-        case .teal: .systemTeal
-        case .orange: .systemOrange
-        case .indigo: .systemIndigo
+        case .teal: .teal
+        case .orange: .orange
+        case .indigo: .indigo
         case .white: .white
         }
     }
@@ -500,13 +500,13 @@ struct GalleryCard: View {
 struct GalleryItem: Identifiable {
     let id = UUID()
     let label: String
-    let textColor: NSColor?
+    let textColor: Color?
     let width: CGFloat?
     let disabled: Bool
 
     init(
         _ label: String,
-        textColor: NSColor? = nil,
+        textColor: Color? = nil,
         width: CGFloat? = nil,
         disabled: Bool = false
     ) {
@@ -518,8 +518,8 @@ struct GalleryItem: Identifiable {
 
     static let allItems: [GalleryItem] = [
         GalleryItem("Default"),
-        GalleryItem("Teal text", textColor: .systemTeal),
-        GalleryItem("Orange text", textColor: .systemOrange),
+        GalleryItem("Teal text", textColor: .teal),
+        GalleryItem("Orange text", textColor: .orange),
         GalleryItem("Wider (240)", width: 240),
         GalleryItem("Disabled", disabled: true),
     ]
@@ -560,7 +560,7 @@ struct ContinuousGalleryCard: View {
 struct ContinuousGalleryItem: Identifiable {
     let id = UUID()
     let label: String
-    let textColor: NSColor?
+    let textColor: Color?
     let width: CGFloat?
     let sensitivityMode: SensitivityMode
     let sensitivityPosition: SensitivityPosition
@@ -568,7 +568,7 @@ struct ContinuousGalleryItem: Identifiable {
 
     init(
         _ label: String,
-        textColor: NSColor? = nil,
+        textColor: Color? = nil,
         width: CGFloat? = nil,
         sensitivityMode: SensitivityMode = .discrete,
         sensitivityPosition: SensitivityPosition = .below,
@@ -585,7 +585,7 @@ struct ContinuousGalleryItem: Identifiable {
     static let allItems: [ContinuousGalleryItem] = [
         ContinuousGalleryItem("Default (slider below, discrete)"),
         ContinuousGalleryItem("Continuous mode", sensitivityMode: .continuous),
-        ContinuousGalleryItem("Teal text", textColor: .systemTeal),
+        ContinuousGalleryItem("Teal text", textColor: .teal),
         ContinuousGalleryItem("Disabled", disabled: true),
     ]
 }

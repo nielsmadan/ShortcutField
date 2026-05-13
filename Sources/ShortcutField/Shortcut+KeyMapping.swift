@@ -34,14 +34,14 @@ extension Shortcut {
     ]
 
     /// Returns a display string for special keys, or nil for regular keys.
-    public static func specialKeyString(keyCode: UInt16) -> String? {
+    static func specialKeyString(keyCode: UInt16) -> String? {
         specialKeyNames[Int(keyCode)]
     }
 }
 
 // MARK: - UCKeyTranslate
 
-public extension Shortcut {
+extension Shortcut {
     /// Converts a virtual key code to the character it produces on the current keyboard layout.
     static func keyToCharacter(keyCode: UInt16) -> String? {
         guard
@@ -83,7 +83,7 @@ public extension Shortcut {
 
 // MARK: - Modifier Flags Extension
 
-public extension NSEvent.ModifierFlags {
+extension NSEvent.ModifierFlags {
     /// Symbolic representation of modifier flags, e.g. "⌃⌥⇧⌘".
     var symbolicRepresentation: String {
         var result = ""

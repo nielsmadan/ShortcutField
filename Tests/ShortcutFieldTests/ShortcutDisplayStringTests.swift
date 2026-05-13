@@ -1,6 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
-import ShortcutField
+@testable import ShortcutField
 import Testing
 
 // UCKeyTranslate is not thread-safe; run display-string tests serially.

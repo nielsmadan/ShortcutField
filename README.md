@@ -150,7 +150,7 @@ print(zoom.displayString) // "⌘Pinch In"
 
 ```swift
 ShortcutRecorderView($shortcut)
-    .textColor(.systemTeal)
+    .textColor(.teal)
     .minimumWidth(180)
 ```
 
@@ -232,8 +232,8 @@ SwiftUI recorder for fire-once shortcuts.
 |---|---|
 | `.placeholder(_:)` | Text when empty (default: "Record Shortcut") |
 | `.recordingPlaceholder(_:)` | Text during recording (default: "Record shortcut…") |
-| `.textColor(_:)` | Text color (`NSColor`) |
-| `.minimumWidth(_:)` | Minimum intrinsic width in points (default 130). SwiftUI's `.frame(width:)` still wins. |
+| `.textColor(_:)` | Text color (SwiftUI `Color`) |
+| `.minimumWidth(_:)` | Minimum intrinsic width in points (default 160). SwiftUI's `.frame(width:)` still wins. |
 
 ### `ContinuousShortcutRecorderView`
 
@@ -243,8 +243,8 @@ SwiftUI recorder for sensitivity-bearing continuous shortcuts.
 |---|---|
 | `.placeholder(_:)` | Text when empty (default: "Record Continuous") |
 | `.recordingPlaceholder(_:)` | Text during recording (default: "Scroll / pinch / rotate…") |
-| `.textColor(_:)` | Text color (`NSColor`) |
-| `.minimumWidth(_:)` | Minimum intrinsic width in points. SwiftUI's `.frame(width:)` still wins. |
+| `.textColor(_:)` | Text color (SwiftUI `Color`) |
+| `.minimumWidth(_:)` | Minimum intrinsic width in points (default 160). SwiftUI's `.frame(width:)` still wins. |
 | `.sensitivityMode(_:)` | `.discrete` (default) or `.continuous` |
 | `.sensitivityPosition(_:)` | `.below` (default), `.left`, or `.right` — placement of the sensitivity slider |
 
@@ -273,6 +273,14 @@ Uses an `NSEvent` local monitor to match scroll, magnify, and rotate events glob
 | Property | Description |
 |---|---|
 | `ShortcutTracking.isActive: Bool` | `true` when at least one `.onShortcut()` modifier is partway through matching a multi-step shortcut. Used to suppress the macOS system alert beep on intermediate keys (see [Suppressing the system alert sound](#suppressing-the-system-alert-sound)). |
+
+### `ShortcutRecording`
+
+`@MainActor` namespace exposing one read-only flag.
+
+| Property | Description |
+|---|---|
+| `ShortcutRecording.isActive: Bool` | `true` when any recorder field — fire-once or continuous — is currently capturing input. Useful for hosts that want to suppress their own keyboard handling, hotkey libraries, or menu key equivalents while a shortcut is being recorded. |
 
 ## Notes
 

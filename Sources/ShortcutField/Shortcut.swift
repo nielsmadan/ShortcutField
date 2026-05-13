@@ -13,16 +13,19 @@ import AppKit
 public struct Shortcut: Sendable, Equatable, Hashable {
     /// One step in a shortcut. Each step is a single recordable input event.
     public struct Step: Sendable, Equatable, Hashable {
+        /// The input this step represents (key, mouse button, scroll, gesture, …).
         public let kind: Kind
 
         /// Modifier flags (Command, Shift, Option, Control). Other flags are masked off in `init`.
         public let modifiers: NSEvent.ModifierFlags
 
+        /// Build a step of any kind.
         public init(kind: Kind, modifiers: NSEvent.ModifierFlags) {
             self.kind = Self.normalizeKind(kind)
             self.modifiers = Shortcut.canonicalModifiers(modifiers)
         }
 
+        /// Convenience for keyboard steps; equivalent to `init(kind: .key(keyCode:), modifiers:)`.
         public init(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) {
             self.init(kind: .key(keyCode: keyCode), modifiers: modifiers)
         }
@@ -50,7 +53,8 @@ public struct Shortcut: Sendable, Equatable, Hashable {
         case smartMagnify
     }
 
-    /// A discrete scroll direction.
+    /// A discrete scroll direction. Codable wire format uses the lowercase case
+    /// names (`"up"` / `"down"` / `"left"` / `"right"`).
     public enum ScrollDirection: String, Sendable, Equatable, Hashable, Codable {
         case up, down, left, right
     }
@@ -81,7 +85,7 @@ public struct Shortcut: Sendable, Equatable, Hashable {
     /// Whether this kind can fire repeatedly during a single gesture and benefits
     /// from sensitivity throttling. True for `.scroll`, `.pinchIn/Out`, and
     /// `.rotateClockwise/CounterClockwise`; false for discrete kinds.
-    public static func isContinuous(_ kind: Kind) -> Bool {
+    static func isContinuous(_ kind: Kind) -> Bool {
         switch kind {
         case .scroll, .pinchIn, .pinchOut, .rotateClockwise, .rotateCounterClockwise:
             true

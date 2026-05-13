@@ -11,7 +11,7 @@ import SwiftUI
 ///     .placeholder("Record")
 /// ```
 public struct ContinuousShortcutRecorderView: View {
-    @Binding var continuousShortcut: ContinuousShortcut?
+    @Binding var shortcut: ContinuousShortcut?
     @Environment(\.isEnabled) private var isEnabled
 
     /// Slider value owned by the view, decoupled from the bound shortcut. Survives
@@ -26,9 +26,9 @@ public struct ContinuousShortcutRecorderView: View {
     private var sensitivityPositionValue: SensitivityPosition = .below
 
     /// Create a continuous-shortcut recorder bound to the given value.
-    public init(_ continuousShortcut: Binding<ContinuousShortcut?>) {
-        _continuousShortcut = continuousShortcut
-        _sensitivity = State(initialValue: continuousShortcut.wrappedValue?.sensitivity ?? 0.0)
+    public init(_ shortcut: Binding<ContinuousShortcut?>) {
+        _shortcut = shortcut
+        _sensitivity = State(initialValue: shortcut.wrappedValue?.sensitivity ?? 0.0)
     }
 
     @ViewBuilder
@@ -37,7 +37,7 @@ public struct ContinuousShortcutRecorderView: View {
         // explicit opacity dim so disabled fields are clearly distinguishable.
         layout
             .opacity(isEnabled ? 1.0 : 0.5)
-            .onChange(of: continuousShortcut) { newValue in
+            .onChange(of: shortcut) { newValue in
                 // Sync from external/programmatic changes; ignore in-flight changes
                 // we caused ourselves (sensitivity already matches).
                 if let newValue, abs(newValue.sensitivity - sensitivity) > 0.001 {
@@ -69,7 +69,7 @@ public struct ContinuousShortcutRecorderView: View {
 
     private var fieldView: some View {
         FieldRepresentable(
-            continuousShortcut: $continuousShortcut,
+            shortcut: $shortcut,
             sensitivity: sensitivity,
             placeholderText: placeholderText,
             recordingPlaceholderText: recordingPlaceholderText,
@@ -107,8 +107,8 @@ public struct ContinuousShortcutRecorderView: View {
             get: { sensitivity },
             set: { newValue in
                 sensitivity = newValue
-                if let s = continuousShortcut {
-                    continuousShortcut = ContinuousShortcut(
+                if let s = shortcut {
+                    shortcut = ContinuousShortcut(
                         kind: s.kind,
                         modifiers: s.modifiers,
                         sensitivity: newValue
@@ -120,7 +120,7 @@ public struct ContinuousShortcutRecorderView: View {
 }
 
 private struct FieldRepresentable: NSViewRepresentable {
-    @Binding var continuousShortcut: ContinuousShortcut?
+    @Binding var shortcut: ContinuousShortcut?
     var sensitivity: Double
     var placeholderText: String
     var recordingPlaceholderText: String
@@ -130,7 +130,7 @@ private struct FieldRepresentable: NSViewRepresentable {
     func makeNSView(context: Context) -> ContinuousShortcutRecorderField {
         let field = ContinuousShortcutRecorderField()
         field.lastSensitivity = sensitivity
-        field.shortcut = continuousShortcut
+        field.shortcut = shortcut
         field.defaultPlaceholder = placeholderText
         field.recordingPlaceholder = recordingPlaceholderText
         field.fieldTextColor = textColorValue
@@ -138,7 +138,7 @@ private struct FieldRepresentable: NSViewRepresentable {
         field.isEnabled = context.environment.isEnabled
         field.onShortcutChange = { newValue in
             DispatchQueue.main.async {
-                continuousShortcut = newValue
+                shortcut = newValue
             }
         }
         return field
@@ -149,7 +149,7 @@ private struct FieldRepresentable: NSViewRepresentable {
         // Push the SwiftUI view's slider value into the field so a fresh recording
         // (or chevron-menu pick) uses the user's last-set sensitivity.
         nsView.lastSensitivity = sensitivity
-        nsView.shortcut = continuousShortcut
+        nsView.shortcut = shortcut
         nsView.defaultPlaceholder = placeholderText
         nsView.recordingPlaceholder = recordingPlaceholderText
         nsView.fieldTextColor = textColorValue
@@ -176,9 +176,9 @@ public extension ContinuousShortcutRecorderView {
     }
 
     /// Set the text color of the shortcut display.
-    func textColor(_ color: NSColor) -> ContinuousShortcutRecorderView {
+    func textColor(_ color: Color) -> ContinuousShortcutRecorderView {
         var view = self
-        view.textColorValue = color
+        view.textColorValue = NSColor(color)
         return view
     }
 

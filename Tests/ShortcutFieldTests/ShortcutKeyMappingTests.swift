@@ -1,6 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
-import ShortcutField
+@testable import ShortcutField
 import Testing
 
 // MARK: - Special Key Strings

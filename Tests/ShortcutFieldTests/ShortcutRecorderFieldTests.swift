@@ -238,10 +238,10 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     @Test func recordingState_clearsWhenRecorderLeavesWindow() {
         let field = ShortcutRecorderField()
         field.startRecording()
-        #expect(ShortcutRecorderField.isAnyRecording)
+        #expect(ShortcutRecording.isActive)
 
         field.viewWillMove(toWindow: nil)
-        #expect(!ShortcutRecorderField.isAnyRecording)
+        #expect(!ShortcutRecording.isActive)
     }
 
     @MainActor
