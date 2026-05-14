@@ -319,6 +319,19 @@ class MainWindow: NSWindow {
 
 `ShortcutTracking.isActive` is `true` whenever at least one `.onShortcut()` modifier has matched one or more intermediate steps and is waiting for the next event. It resets automatically on completion, timeout, or mismatch.
 
+### System-reserved hotkeys
+
+Shortcuts that collide with a macOS system hotkey — `Cmd+Space` (Spotlight), the Mission Control / Spaces keys, screenshot shortcuts, etc. — cannot be recorded or matched. macOS consumes those combos at the system level before they ever reach the app, and ShortcutField only sees events delivered to the app (it uses local `NSEvent` monitors, not a system event tap).
+
+This is different from Tab: Tab *is* delivered to the app — macOS just routes it through the in-app focus system first, so ShortcutField can intercept it. A system-reserved combo never arrives at all.
+
+Symptoms:
+
+- In the recorder, pressing such a combo does nothing — the recorder can't see it, so it captures no step.
+- A shortcut recorded *before* the user enabled the conflicting OS shortcut will silently stop firing once the OS claims the combo.
+
+There's no in-app workaround; intercepting system hotkeys requires a system-wide event tap with Accessibility permission, which is out of scope for an in-app shortcut library. If you need global/system-wide hotkeys, see [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts).
+
 ### How does this differ from KeyboardShortcuts?
 
 [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) registers **global** (system-wide) hotkeys. ShortcutField records **in-app** shortcuts that you match yourself via `.onShortcut()` or `.onContinuousShortcut()` view modifiers. ShortcutField also supports multi-step shortcuts (chord sequences like `⌘K ⌘C`) and non-keyboard inputs (mouse buttons, scroll directions, trackpad gestures), neither of which KeyboardShortcuts covers.
