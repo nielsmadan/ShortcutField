@@ -329,7 +329,7 @@ Issues and pull requests are welcome.
 
 ## Acknowledgments
 
-ShortcutField's key mapping and display logic is adapted from [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) by Sindre Sorhus (MIT license).
+ShortcutField's key mapping and display logic — see [`Shortcut+KeyMapping.swift`](Sources/ShortcutField/Shortcut+KeyMapping.swift) — is adapted from [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) by Sindre Sorhus (MIT license).
 
 ## License
 

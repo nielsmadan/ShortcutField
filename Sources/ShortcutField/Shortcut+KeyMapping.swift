@@ -1,3 +1,8 @@
+// `keyToCharacter(keyCode:)` and `NSEvent.ModifierFlags.symbolicRepresentation`
+// are adapted from KeyboardShortcuts (https://github.com/sindresorhus/KeyboardShortcuts).
+//
+// MIT License - Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+
 import AppKit
 import Carbon.HIToolbox
 
