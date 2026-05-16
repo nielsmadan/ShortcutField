@@ -13,27 +13,27 @@ import Testing
 
 @Test func gestureAccumulator_magnify_negativeAtThreshold_returnsPinchIn() {
     var acc = GestureAccumulator()
-    let result = acc.consumeMagnify(-Shortcut.magnifyRecordingThreshold)
+    let result = acc.consumeMagnify(-DiscreteShortcut.magnifyRecordingThreshold)
     #expect(result == .pinchIn)
 }
 
 @Test func gestureAccumulator_magnify_positiveAtThreshold_returnsPinchOut() {
     var acc = GestureAccumulator()
-    let result = acc.consumeMagnify(Shortcut.magnifyRecordingThreshold)
+    let result = acc.consumeMagnify(DiscreteShortcut.magnifyRecordingThreshold)
     #expect(result == .pinchOut)
 }
 
 @Test func gestureAccumulator_magnify_cumulativeCrossesThreshold() {
     var acc = GestureAccumulator()
-    let halfThreshold = Shortcut.magnifyRecordingThreshold / 2
+    let halfThreshold = DiscreteShortcut.magnifyRecordingThreshold / 2
     #expect(acc.consumeMagnify(-halfThreshold) == nil)
     #expect(acc.consumeMagnify(-halfThreshold) == .pinchIn)
 }
 
 @Test func gestureAccumulator_magnify_oppositeSignsCancel() {
     var acc = GestureAccumulator()
-    _ = acc.consumeMagnify(Shortcut.magnifyRecordingThreshold * 0.9)
-    let result = acc.consumeMagnify(-Shortcut.magnifyRecordingThreshold * 0.9)
+    _ = acc.consumeMagnify(DiscreteShortcut.magnifyRecordingThreshold * 0.9)
+    let result = acc.consumeMagnify(-DiscreteShortcut.magnifyRecordingThreshold * 0.9)
     #expect(result == nil)
     #expect(abs(acc.pinch) < 0.001)
 }
@@ -48,19 +48,19 @@ import Testing
 
 @Test func gestureAccumulator_rotate_positiveAtThreshold_returnsCounterClockwise() {
     var acc = GestureAccumulator()
-    let result = acc.consumeRotate(Shortcut.rotateRecordingThreshold)
+    let result = acc.consumeRotate(DiscreteShortcut.rotateRecordingThreshold)
     #expect(result == .rotateCounterClockwise)
 }
 
 @Test func gestureAccumulator_rotate_negativeAtThreshold_returnsClockwise() {
     var acc = GestureAccumulator()
-    let result = acc.consumeRotate(-Shortcut.rotateRecordingThreshold)
+    let result = acc.consumeRotate(-DiscreteShortcut.rotateRecordingThreshold)
     #expect(result == .rotateClockwise)
 }
 
 @Test func gestureAccumulator_rotate_cumulativeCrossesThreshold() {
     var acc = GestureAccumulator()
-    let halfThreshold = Shortcut.rotateRecordingThreshold / 2
+    let halfThreshold = DiscreteShortcut.rotateRecordingThreshold / 2
     #expect(acc.consumeRotate(halfThreshold) == nil)
     #expect(acc.consumeRotate(halfThreshold) == .rotateCounterClockwise)
 }
@@ -96,7 +96,10 @@ import Testing
 
 // MARK: - scrollDirectionAboveRecordingThreshold
 
-// CGEvent is not thread-safe; serialize the scroll-event tests.
+// CGEvent is not thread-safe. `@MainActor` at struct level serializes this suite
+// against the other @MainActor suites that touch CGEvent / TIS / NSSearchField —
+// `.serialized` alone only serializes tests within the suite, not across suites.
+@MainActor
 @Suite(.serialized) struct ScrollDirectionThresholdTests {
     private func makeScrollEvent(deltaY: Int32 = 0, deltaX: Int32 = 0) -> NSEvent {
         let cg = CGEvent(scrollWheelEvent2Source: nil,
@@ -110,23 +113,23 @@ import Testing
 
     @Test func scrollDirectionAboveRecordingThreshold_belowThreshold_returnsNil() {
         // Scroll threshold is 5.0; deltaY = 1 is well below.
-        #expect(Shortcut.scrollDirectionAboveRecordingThreshold(from: makeScrollEvent(deltaY: 1)) == nil)
+        #expect(DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: makeScrollEvent(deltaY: 1)) == nil)
     }
 
     @Test func scrollDirectionAboveRecordingThreshold_positiveY_returnsUp() {
-        #expect(Shortcut.scrollDirectionAboveRecordingThreshold(from: makeScrollEvent(deltaY: 10)) == .up)
+        #expect(DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: makeScrollEvent(deltaY: 10)) == .up)
     }
 
     @Test func scrollDirectionAboveRecordingThreshold_negativeY_returnsDown() {
-        #expect(Shortcut.scrollDirectionAboveRecordingThreshold(from: makeScrollEvent(deltaY: -10)) == .down)
+        #expect(DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: makeScrollEvent(deltaY: -10)) == .down)
     }
 
     @Test func scrollDirectionAboveRecordingThreshold_positiveX_returnsLeft() {
         // CGEvent's wheel2 (X axis) sign and direction map to .left for positive.
-        #expect(Shortcut.scrollDirectionAboveRecordingThreshold(from: makeScrollEvent(deltaX: 10)) == .left)
+        #expect(DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: makeScrollEvent(deltaX: 10)) == .left)
     }
 
     @Test func scrollDirectionAboveRecordingThreshold_negativeX_returnsRight() {
-        #expect(Shortcut.scrollDirectionAboveRecordingThreshold(from: makeScrollEvent(deltaX: -10)) == .right)
+        #expect(DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: makeScrollEvent(deltaX: -10)) == .right)
     }
 }

@@ -33,10 +33,10 @@ struct GestureEventShape: Equatable {
 
 // MARK: - Step Matching
 
-public extension Shortcut.Step {
+public extension DiscreteShortcut.Step {
     /// Match this step against an NSEvent.
     func matches(_ event: NSEvent) -> Bool {
-        let eventMods = Shortcut.canonicalModifiers(event.modifierFlags)
+        let eventMods = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
         guard eventMods == modifiers else { return false }
 
         switch kind {
@@ -51,33 +51,33 @@ public extension Shortcut.Step {
             return event.buttonNumber == number
         case let .scroll(direction):
             guard event.type == .scrollWheel else { return false }
-            return Shortcut.scrollDirection(from: event) == direction
+            return DiscreteShortcut.scrollDirection(from: event) == direction
         case .pinchIn, .pinchOut, .rotateClockwise, .rotateCounterClockwise, .smartMagnify:
             return matchesGesture(GestureEventShape(event))
         }
     }
 }
 
-extension Shortcut.Step {
+extension DiscreteShortcut.Step {
     /// Match this step against a synthesized gesture event shape — used by tests
     /// and by `matches(_ event: NSEvent)` for gesture kinds.
     func matchesGesture(_ event: GestureEventShape) -> Bool {
-        let eventMods = Shortcut.canonicalModifiers(event.modifierFlags)
+        let eventMods = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
         guard eventMods == modifiers else { return false }
 
         switch kind {
         case .pinchIn:
             guard event.type == .magnify else { return false }
-            return event.magnification < -Shortcut.magnifyEventThreshold
+            return event.magnification < -DiscreteShortcut.magnifyEventThreshold
         case .pinchOut:
             guard event.type == .magnify else { return false }
-            return event.magnification > Shortcut.magnifyEventThreshold
+            return event.magnification > DiscreteShortcut.magnifyEventThreshold
         case .rotateCounterClockwise:
             guard event.type == .rotate else { return false }
-            return event.rotation > Shortcut.rotateEventThreshold
+            return event.rotation > DiscreteShortcut.rotateEventThreshold
         case .rotateClockwise:
             guard event.type == .rotate else { return false }
-            return event.rotation < -Shortcut.rotateEventThreshold
+            return event.rotation < -DiscreteShortcut.rotateEventThreshold
         case .smartMagnify:
             return event.type == .smartMagnify
         case .key, .mouseButton, .scroll:
@@ -88,14 +88,17 @@ extension Shortcut.Step {
 
 // MARK: - Scroll direction helper
 
-extension Shortcut {
+extension DiscreteShortcut {
     /// Determine the discrete scroll direction from a scroll wheel event.
     /// Returns nil if the scroll deltas are below the noise threshold.
     static func scrollDirection(from event: NSEvent) -> ScrollDirection? {
-        let dx = event.scrollingDeltaX
-        let dy = event.scrollingDeltaY
-        let threshold: CGFloat = 0.5
+        scrollDirection(dx: Double(event.scrollingDeltaX), dy: Double(event.scrollingDeltaY))
+    }
 
+    /// Core scroll-direction logic shared by discrete and continuous matching.
+    /// Returns nil if the dominant axis delta is below the noise threshold (0.5).
+    static func scrollDirection(dx: Double, dy: Double) -> ScrollDirection? {
+        let threshold = 0.5
         if abs(dy) >= abs(dx) {
             guard abs(dy) >= threshold else { return nil }
             return dy > 0 ? .up : .down
@@ -109,7 +112,7 @@ extension Shortcut {
 // MARK: - SwiftUI KeyPress Matching
 
 @available(macOS 14.0, *)
-public extension Shortcut.Step {
+public extension DiscreteShortcut.Step {
     /// Match this step against a SwiftUI `KeyPress`.
     ///
     /// Only valid for `.key` steps; returns `false` for any other kind.
@@ -126,7 +129,7 @@ public extension Shortcut.Step {
         if let keyEquivalent = Self.specialKeyEquivalent(keyCode: keyCode) {
             return press.key == keyEquivalent
         }
-        return Shortcut.keyToCharacter(keyCode: keyCode)?.lowercased() == press.characters.lowercased()
+        return DiscreteShortcut.keyToCharacter(keyCode: keyCode)?.lowercased() == press.characters.lowercased()
     }
 
     private static func specialKeyEquivalent(keyCode: UInt16) -> KeyEquivalent? {

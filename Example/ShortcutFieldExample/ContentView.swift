@@ -20,8 +20,8 @@ struct ContentView: View {
 
 struct WorkbenchTab: View {
     // Inputs
-    @State private var shortcutA: Shortcut?
-    @State private var shortcutB: Shortcut?
+    @State private var shortcutA: DiscreteShortcut?
+    @State private var shortcutB: DiscreteShortcut?
     @State private var continuousA: ContinuousShortcut?
     @State private var continuousB: ContinuousShortcut?
 
@@ -145,13 +145,9 @@ struct WorkbenchTab: View {
             }
         }
 
-        if #available(macOS 14.0, *) {
-            content
-                .onShortcut(shortcutA) { fire($matchCountA, $lastMatchedA) }
-                .onShortcut(shortcutB) { fire($matchCountB, $lastMatchedB) }
-        } else {
-            content
-        }
+        content
+            .onShortcut(shortcutA.map(Shortcut.discrete)) { fire($matchCountA, $lastMatchedA) }
+            .onShortcut(shortcutB.map(Shortcut.discrete)) { fire($matchCountB, $lastMatchedB) }
     }
 
     @ViewBuilder
@@ -208,13 +204,9 @@ struct WorkbenchTab: View {
             }
         }
 
-        if #available(macOS 14.0, *) {
-            content
-                .onContinuousShortcut(continuousA) { fire($contAMatchCount, $contALastMatched) }
-                .onContinuousShortcut(continuousB) { fire($contBMatchCount, $contBLastMatched) }
-        } else {
-            content
-        }
+        content
+            .onShortcut(continuousA.map(Shortcut.continuous)) { fire($contAMatchCount, $contALastMatched) }
+            .onShortcut(continuousB.map(Shortcut.continuous)) { fire($contBMatchCount, $contBLastMatched) }
     }
 
     private func continuousFrameWidth(base: CGFloat, position: SensitivityPosition) -> CGFloat {
@@ -274,7 +266,7 @@ struct WorkbenchTab: View {
         }
     }
 
-    private func makeRecorder(_ shortcut: Binding<Shortcut?>,
+    private func makeRecorder(_ shortcut: Binding<DiscreteShortcut?>,
                               textColor: Color?,
                               placeholder: String) -> some View
     {
@@ -471,7 +463,7 @@ struct GalleryTab: View {
 
 struct GalleryCard: View {
     let item: GalleryItem
-    @State private var shortcut: Shortcut?
+    @State private var shortcut: DiscreteShortcut?
 
     var body: some View {
         VStack(spacing: 8) {

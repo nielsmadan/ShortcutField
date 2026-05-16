@@ -11,17 +11,17 @@ struct GestureAccumulator {
     /// Accumulate a `.magnify` event delta, returning the captured kind once the
     /// cumulative magnification crosses the recording threshold. Returns nil while
     /// still under threshold.
-    mutating func consumeMagnify(_ delta: Double) -> Shortcut.Kind? {
+    mutating func consumeMagnify(_ delta: Double) -> DiscreteShortcut.Kind? {
         pinch += delta
-        guard abs(pinch) >= Shortcut.magnifyRecordingThreshold else { return nil }
+        guard abs(pinch) >= DiscreteShortcut.magnifyRecordingThreshold else { return nil }
         return pinch < 0 ? .pinchIn : .pinchOut
     }
 
     /// Accumulate a `.rotate` event delta (degrees), returning the captured kind
     /// once the cumulative rotation crosses the recording threshold.
-    mutating func consumeRotate(_ delta: Double) -> Shortcut.Kind? {
+    mutating func consumeRotate(_ delta: Double) -> DiscreteShortcut.Kind? {
         rotate += delta
-        guard abs(rotate) >= Shortcut.rotateRecordingThreshold else { return nil }
+        guard abs(rotate) >= DiscreteShortcut.rotateRecordingThreshold else { return nil }
         return rotate > 0 ? .rotateCounterClockwise : .rotateClockwise
     }
 
@@ -33,7 +33,7 @@ struct GestureAccumulator {
     }
 }
 
-extension Shortcut {
+extension DiscreteShortcut {
     /// Direction of a `.scrollWheel` event when its delta crosses the recording
     /// threshold. Returns nil for sub-threshold events (used to filter out stray
     /// trackpad twitches).

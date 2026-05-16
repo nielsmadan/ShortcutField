@@ -39,7 +39,7 @@ extension ContinuousShortcutRecorderField {
         for kind: ContinuousShortcut.Kind, target: AnyObject?
     ) -> NSMenuItem {
         // Modifiers are captured at click time from NSApp.currentEvent, not encoded here.
-        let displayLabel = Shortcut.Step(kind: kind.asShortcutKind, modifiers: []).displayString
+        let displayLabel = DiscreteShortcut.Step(kind: kind.asDiscreteKind, modifiers: []).displayString
         let item = NSMenuItem(
             title: displayLabel,
             action: #selector(ContinuousShortcutRecorderField.menuPicked(_:)),

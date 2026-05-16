@@ -3,7 +3,7 @@ import Carbon.HIToolbox
 
 /// An AppKit control that records a sensitivity-bearing continuous shortcut:
 /// a scroll direction or trackpad gesture (pinch / rotate) that fires throttled
-/// when the user performs the gesture later via `.onContinuousShortcut`.
+/// when the user performs the gesture later via `.onShortcut`.
 ///
 /// Subclasses `NSSearchField`. Click to start recording, then perform a
 /// scroll, pinch, or rotate (or pick from the chevron menu). The first
@@ -304,7 +304,7 @@ public final class ContinuousShortcutRecorderField: NSSearchField, NSSearchField
     }
 
     private func handleKeyEvent(_ event: NSEvent) -> NSEvent? {
-        let modifiers = Shortcut.canonicalModifiers(event.modifierFlags)
+        let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
 
         if modifiers.isEmpty, event.keyCode == UInt16(kVK_Escape) {
             endRecording()
@@ -330,7 +330,7 @@ public final class ContinuousShortcutRecorderField: NSSearchField, NSSearchField
         // Bare outside left-click dismisses; everything else is dropped (this recorder
         // doesn't capture mouse buttons, and inside left-click is reserved for UI focus).
         if event.type == .leftMouseDown {
-            let modifiers = Shortcut.canonicalModifiers(event.modifierFlags)
+            let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
             let clickPoint = convert(event.locationInWindow, from: nil)
             let clickMargin: CGFloat = 3.0
             let isInsideField = bounds.insetBy(dx: -clickMargin, dy: -clickMargin).contains(clickPoint)
@@ -347,12 +347,12 @@ public final class ContinuousShortcutRecorderField: NSSearchField, NSSearchField
     private func handleScrollEvent(_ event: NSEvent) -> NSEvent? {
         guard !scrollCaptured else { return nil }
         if event.momentumPhase != [] { return nil }
-        guard let direction = Shortcut.scrollDirectionAboveRecordingThreshold(from: event) else {
+        guard let direction = DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: event) else {
             return nil
         }
 
         scrollCaptured = true
-        let modifiers = Shortcut.canonicalModifiers(event.modifierFlags)
+        let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
         applyKind(.scroll(direction: direction), modifiers: modifiers)
         endRecording()
         blur()
@@ -360,7 +360,7 @@ public final class ContinuousShortcutRecorderField: NSSearchField, NSSearchField
     }
 
     private func handleGestureEvent(_ event: NSEvent) -> NSEvent? {
-        let modifiers = Shortcut.canonicalModifiers(event.modifierFlags)
+        let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
 
         // Reset accumulators when a continuous gesture ends so the next gesture starts fresh.
         if event.phase == .ended || event.phase == .cancelled {

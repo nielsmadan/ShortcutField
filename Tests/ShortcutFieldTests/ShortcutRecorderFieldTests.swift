@@ -24,7 +24,7 @@ private func makeScrollEvent(deltaY: Int32 = 0, deltaX: Int32 = 0) -> NSEvent {
     return NSEvent(cgEvent: cg)!
 }
 
-/// Above the recording threshold (`Shortcut.scrollRecordingThreshold = 5.0`).
+/// Above the recording threshold (`DiscreteShortcut.scrollRecordingThreshold = 5.0`).
 private let scrollDeltaAboveThreshold: Int32 = 10
 
 // NSSearchField instantiation can crash when run in parallel in headless CI.
@@ -45,7 +45,7 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     @MainActor
     @Test func recorderField_setShortcut_updatesDisplay() {
         let field = ShortcutRecorderField()
-        let shortcut = Shortcut(keyCode: UInt16(kVK_Tab), modifiers: .command)
+        let shortcut = DiscreteShortcut(keyCode: UInt16(kVK_Tab), modifiers: .command)
         field.shortcut = shortcut
         #expect(field.shortcut == shortcut)
         #expect(field.stringValue == shortcut.displayString)
@@ -54,7 +54,7 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     @MainActor
     @Test func recorderField_setMultiStepShortcut_displaysJoinedSteps() {
         let field = ShortcutRecorderField()
-        let shortcut = Shortcut(steps: [
+        let shortcut = DiscreteShortcut(steps: [
             .init(keyCode: UInt16(kVK_ANSI_K), modifiers: .command),
             .init(keyCode: UInt16(kVK_ANSI_C), modifiers: .command),
         ])
@@ -66,7 +66,7 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     @MainActor
     @Test func recorderField_clearShortcut_clearsDisplay() {
         let field = ShortcutRecorderField()
-        field.shortcut = Shortcut(keyCode: UInt16(kVK_Tab), modifiers: .command)
+        field.shortcut = DiscreteShortcut(keyCode: UInt16(kVK_Tab), modifiers: .command)
         field.shortcut = nil
         #expect(field.shortcut == nil)
         #expect(field.stringValue == "")
@@ -77,7 +77,7 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         let field = ShortcutRecorderField()
         var callCount = 0
         field.onShortcutChange = { _ in callCount += 1 }
-        field.shortcut = Shortcut(keyCode: UInt16(kVK_ANSI_J), modifiers: .command)
+        field.shortcut = DiscreteShortcut(keyCode: UInt16(kVK_ANSI_J), modifiers: .command)
         #expect(callCount == 0)
     }
 
@@ -90,8 +90,8 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     @Test func scrollRecordingThreshold_isHigherThanMatchingThreshold() {
         // Recording uses a stricter threshold than matching so a tiny stray
         // trackpad twitch can't accidentally finalize a Scroll step.
-        // Matching uses `0.5` (see `Shortcut.scrollDirection(from:)`).
-        #expect(Shortcut.scrollRecordingThreshold > 0.5)
+        // Matching uses `0.5` (see `DiscreteShortcut.scrollDirection(from:)`).
+        #expect(DiscreteShortcut.scrollRecordingThreshold > 0.5)
     }
 
     // MARK: - Set/clear with mixed-kind multi-step shortcut
@@ -99,7 +99,7 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     @MainActor
     @Test func recorderField_setMixedKindShortcut_displaysCorrectly() {
         let field = ShortcutRecorderField()
-        let shortcut = Shortcut(steps: [
+        let shortcut = DiscreteShortcut(steps: [
             .init(kind: .key(keyCode: UInt16(kVK_ANSI_K)), modifiers: .command),
             .init(kind: .mouseButton(number: 1), modifiers: []),
             .init(kind: .pinchIn, modifiers: []),
@@ -116,7 +116,7 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     @MainActor
     @Test func recorderField_clearMixedKindShortcut_clearsDisplay() {
         let field = ShortcutRecorderField()
-        field.shortcut = Shortcut(steps: [
+        field.shortcut = DiscreteShortcut(steps: [
             .init(kind: .key(keyCode: UInt16(kVK_ANSI_K)), modifiers: .command),
             .init(kind: .rotateClockwise, modifiers: .command),
         ])
@@ -140,7 +140,7 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         )!
         _ = field.handleEvent(event)
 
-        var receivedShortcut: Shortcut?
+        var receivedShortcut: DiscreteShortcut?
         field.onShortcutChange = { receivedShortcut = $0 }
 
         field.finalizeRecording()
@@ -177,7 +177,7 @@ private let scrollDeltaAboveThreshold: Int32 = 10
 
         field.finalizeRecording()
 
-        let expected = Shortcut(steps: [
+        let expected = DiscreteShortcut(steps: [
             .init(keyCode: UInt16(kVK_Tab), modifiers: []),
             .init(keyCode: UInt16(kVK_ANSI_T), modifiers: []),
         ])
@@ -200,7 +200,7 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         _ = field.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_T)))
         field.finalizeRecording()
 
-        let expected = Shortcut(steps: [
+        let expected = DiscreteShortcut(steps: [
             .init(keyCode: UInt16(kVK_Tab), modifiers: []),
             .init(keyCode: UInt16(kVK_Tab), modifiers: []),
             .init(keyCode: UInt16(kVK_ANSI_T), modifiers: []),
@@ -225,7 +225,7 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         _ = field.handleEvent(rmDown)
         field.finalizeRecording()
 
-        let expected = Shortcut(steps: [
+        let expected = DiscreteShortcut(steps: [
             .init(keyCode: UInt16(kVK_ANSI_A), modifiers: []),
             .init(kind: .mouseButton(number: 1), modifiers: []),
         ])
@@ -266,15 +266,15 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     @MainActor
     @Test func dispatcher_sharedTabPrefix_routesToMatchingShortcut() {
         let dispatcher = ShortcutEventDispatcher()
-        let matcherT = ShortcutMatcher()
-        let matcherQ = ShortcutMatcher()
+        let matcherT = SequenceMatcher()
+        let matcherQ = SequenceMatcher()
 
-        let shortcutT = Shortcut(steps: [
+        let shortcutT = DiscreteShortcut(steps: [
             .init(keyCode: UInt16(kVK_Tab), modifiers: []),
             .init(keyCode: UInt16(kVK_Tab), modifiers: []),
             .init(keyCode: UInt16(kVK_ANSI_T), modifiers: []),
         ])
-        let shortcutQ = Shortcut(steps: [
+        let shortcutQ = DiscreteShortcut(steps: [
             .init(keyCode: UInt16(kVK_Tab), modifiers: []),
             .init(keyCode: UInt16(kVK_Tab), modifiers: []),
             .init(keyCode: UInt16(kVK_ANSI_Q), modifiers: []),
@@ -283,12 +283,12 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         var tCount = 0
         var qCount = 0
 
-        matcherT.configure(shortcut: shortcutT) { tCount += 1 }
-        matcherQ.configure(shortcut: shortcutQ) { qCount += 1 }
+        matcherT.configure(shortcut: shortcutT)
+        matcherQ.configure(shortcut: shortcutQ)
 
         let idT = UUID(); let idQ = UUID()
-        dispatcher.register(id: idT) { matcherT.handle($0) }
-        dispatcher.register(id: idQ) { matcherQ.handle($0) }
+        dispatcher.register(id: idT) { let r = matcherT.handle($0); if r == .fired { tCount += 1 }; return r }
+        dispatcher.register(id: idQ) { let r = matcherQ.handle($0); if r == .fired { qCount += 1 }; return r }
         defer {
             dispatcher.unregister(id: idT)
             dispatcher.unregister(id: idQ)
@@ -305,15 +305,15 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     @MainActor
     @Test func dispatcher_sharedTabPrefix_canMatchSiblingAfterReset() {
         let dispatcher = ShortcutEventDispatcher()
-        let matcherT = ShortcutMatcher()
-        let matcherQ = ShortcutMatcher()
+        let matcherT = SequenceMatcher()
+        let matcherQ = SequenceMatcher()
 
-        let shortcutT = Shortcut(steps: [
+        let shortcutT = DiscreteShortcut(steps: [
             .init(keyCode: UInt16(kVK_Tab), modifiers: []),
             .init(keyCode: UInt16(kVK_Tab), modifiers: []),
             .init(keyCode: UInt16(kVK_ANSI_T), modifiers: []),
         ])
-        let shortcutQ = Shortcut(steps: [
+        let shortcutQ = DiscreteShortcut(steps: [
             .init(keyCode: UInt16(kVK_Tab), modifiers: []),
             .init(keyCode: UInt16(kVK_Tab), modifiers: []),
             .init(keyCode: UInt16(kVK_ANSI_Q), modifiers: []),
@@ -322,12 +322,12 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         var tCount = 0
         var qCount = 0
 
-        matcherT.configure(shortcut: shortcutT) { tCount += 1 }
-        matcherQ.configure(shortcut: shortcutQ) { qCount += 1 }
+        matcherT.configure(shortcut: shortcutT)
+        matcherQ.configure(shortcut: shortcutQ)
 
         let idT = UUID(); let idQ = UUID()
-        dispatcher.register(id: idT) { matcherT.handle($0) }
-        dispatcher.register(id: idQ) { matcherQ.handle($0) }
+        dispatcher.register(id: idT) { let r = matcherT.handle($0); if r == .fired { tCount += 1 }; return r }
+        dispatcher.register(id: idQ) { let r = matcherQ.handle($0); if r == .fired { qCount += 1 }; return r }
         defer {
             dispatcher.unregister(id: idT)
             dispatcher.unregister(id: idQ)
@@ -350,19 +350,19 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     @MainActor
     @Test func dispatcher_doesNotMatchWhileRecorderIsActive() {
         let dispatcher = ShortcutEventDispatcher()
-        let matcher = ShortcutMatcher()
+        let matcher = SequenceMatcher()
         let token = NSObject()
 
-        let shortcut = Shortcut(steps: [
+        let shortcut = DiscreteShortcut(steps: [
             .init(keyCode: UInt16(kVK_Tab), modifiers: []),
             .init(keyCode: UInt16(kVK_Tab), modifiers: []),
             .init(keyCode: UInt16(kVK_ANSI_T), modifiers: []),
         ])
 
         var fireCount = 0
-        matcher.configure(shortcut: shortcut) { fireCount += 1 }
+        matcher.configure(shortcut: shortcut)
         let listenerID = UUID()
-        dispatcher.register(id: listenerID) { matcher.handle($0) }
+        dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
         defer { dispatcher.unregister(id: listenerID) }
 
         ShortcutRecordingState.beginTestRecording(for: token)
@@ -379,11 +379,11 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         // Mouse-wheel events have empty phase; each notch is a discrete user action.
         let dispatcher = ShortcutEventDispatcher()
         let listenerID = UUID()
-        let matcher = ShortcutMatcher()
-        let shortcut = Shortcut(kind: .scroll(direction: .up), modifiers: [])
+        let matcher = SequenceMatcher()
+        let shortcut = DiscreteShortcut(kind: .scroll(direction: .up), modifiers: [])
         var fireCount = 0
-        matcher.configure(shortcut: shortcut) { fireCount += 1 }
-        dispatcher.register(id: listenerID) { matcher.handle($0) }
+        matcher.configure(shortcut: shortcut)
+        dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
         defer { dispatcher.unregister(id: listenerID) }
 
         _ = dispatcher.handleEvent(makeScrollEvent(deltaY: scrollDeltaAboveThreshold))
@@ -396,14 +396,14 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     @Test func dispatcher_keyThenScroll_fires() {
         let dispatcher = ShortcutEventDispatcher()
         let listenerID = UUID()
-        let matcher = ShortcutMatcher()
-        let shortcut = Shortcut(steps: [
+        let matcher = SequenceMatcher()
+        let shortcut = DiscreteShortcut(steps: [
             .init(keyCode: UInt16(kVK_ANSI_A), modifiers: []),
             .init(kind: .scroll(direction: .up), modifiers: []),
         ])
         var fireCount = 0
-        matcher.configure(shortcut: shortcut) { fireCount += 1 }
-        dispatcher.register(id: listenerID) { matcher.handle($0) }
+        matcher.configure(shortcut: shortcut)
+        dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
         defer { dispatcher.unregister(id: listenerID) }
 
         _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_A)))
@@ -416,14 +416,14 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     @Test func dispatcher_scrollThenKey_survivesScrollBurst() {
         let dispatcher = ShortcutEventDispatcher()
         let listenerID = UUID()
-        let matcher = ShortcutMatcher()
-        let shortcut = Shortcut(steps: [
+        let matcher = SequenceMatcher()
+        let shortcut = DiscreteShortcut(steps: [
             .init(kind: .scroll(direction: .up), modifiers: []),
             .init(keyCode: UInt16(kVK_ANSI_A), modifiers: []),
         ])
         var fireCount = 0
-        matcher.configure(shortcut: shortcut) { fireCount += 1 }
-        dispatcher.register(id: listenerID) { matcher.handle($0) }
+        matcher.configure(shortcut: shortcut)
+        dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
         defer { dispatcher.unregister(id: listenerID) }
 
         _ = dispatcher.handleEvent(makeScrollEvent(deltaY: scrollDeltaAboveThreshold))
@@ -437,14 +437,14 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     @Test func dispatcher_scrollThenKey_wrongDirectionDoesNotAdvance() {
         let dispatcher = ShortcutEventDispatcher()
         let listenerID = UUID()
-        let matcher = ShortcutMatcher()
-        let shortcut = Shortcut(steps: [
+        let matcher = SequenceMatcher()
+        let shortcut = DiscreteShortcut(steps: [
             .init(kind: .scroll(direction: .up), modifiers: []),
             .init(keyCode: UInt16(kVK_ANSI_A), modifiers: []),
         ])
         var fireCount = 0
-        matcher.configure(shortcut: shortcut) { fireCount += 1 }
-        dispatcher.register(id: listenerID) { matcher.handle($0) }
+        matcher.configure(shortcut: shortcut)
+        dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
         defer { dispatcher.unregister(id: listenerID) }
 
         _ = dispatcher.handleEvent(makeScrollEvent(deltaY: -scrollDeltaAboveThreshold))
@@ -457,14 +457,14 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     @Test func dispatcher_keyThenRightClick_fires() {
         let dispatcher = ShortcutEventDispatcher()
         let listenerID = UUID()
-        let matcher = ShortcutMatcher()
-        let shortcut = Shortcut(steps: [
+        let matcher = SequenceMatcher()
+        let shortcut = DiscreteShortcut(steps: [
             .init(keyCode: UInt16(kVK_ANSI_A), modifiers: []),
             .init(kind: .mouseButton(number: 1), modifiers: []),
         ])
         var fireCount = 0
-        matcher.configure(shortcut: shortcut) { fireCount += 1 }
-        dispatcher.register(id: listenerID) { matcher.handle($0) }
+        matcher.configure(shortcut: shortcut)
+        dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
         defer { dispatcher.unregister(id: listenerID) }
 
         _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_A)))
@@ -485,14 +485,14 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         let listenerID = UUID()
 
         var fireCount = 0
-        let matcher = ShortcutMatcher()
-        let shortcut = Shortcut(keyCode: UInt16(kVK_ANSI_A), modifiers: [])
-        matcher.configure(shortcut: shortcut) { fireCount += 1 }
+        let matcher = SequenceMatcher()
+        let shortcut = DiscreteShortcut(keyCode: UInt16(kVK_ANSI_A), modifiers: [])
+        matcher.configure(shortcut: shortcut)
 
         _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_A)))
         #expect(fireCount == 0)
 
-        dispatcher.register(id: listenerID) { matcher.handle($0) }
+        dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
         _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_A)))
         #expect(fireCount == 1)
 
@@ -502,7 +502,7 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     }
 }
 
-// MARK: - Throttle helpers (used by ContinuousShortcut / OnContinuousShortcutModifier)
+// MARK: - Throttle helpers (used by ContinuousShortcut / .onShortcut)
 
 @MainActor
 struct ShortcutThrottleTests {

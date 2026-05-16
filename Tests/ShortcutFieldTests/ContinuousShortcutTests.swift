@@ -178,7 +178,7 @@ import Testing
     #expect(cs.displayString == "Scroll Up")
 }
 
-// MARK: - Kind projection (ContinuousShortcut.Kind ↔ Shortcut.Kind)
+// MARK: - Kind projection (ContinuousShortcut.Kind ↔ DiscreteShortcut.Kind)
 
 @Test func continuousKind_init_fromDiscreteKey_returnsNil() {
     #expect(ContinuousShortcut.Kind(.key(keyCode: UInt16(kVK_ANSI_K))) == nil)
@@ -200,14 +200,14 @@ import Testing
     #expect(ContinuousShortcut.Kind(.rotateCounterClockwise) == .rotateCounterClockwise)
 }
 
-@Test func continuousKind_asShortcutKind_roundtrips() {
+@Test func continuousKind_asDiscreteKind_roundtrips() {
     let cases: [ContinuousShortcut.Kind] = [
         .scroll(direction: .right),
         .pinchIn, .pinchOut,
         .rotateClockwise, .rotateCounterClockwise,
     ]
     for kind in cases {
-        let lifted = kind.asShortcutKind
+        let lifted = kind.asDiscreteKind
         let projected = ContinuousShortcut.Kind(lifted)
         #expect(projected == kind)
     }

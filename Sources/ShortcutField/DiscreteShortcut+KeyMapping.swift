@@ -8,7 +8,7 @@ import Carbon.HIToolbox
 
 // MARK: - Special Key Names
 
-extension Shortcut {
+extension DiscreteShortcut {
     private static let specialKeyNames: [Int: String] = [
         kVK_Return: "↩",
         kVK_Delete: "⌫",
@@ -46,7 +46,7 @@ extension Shortcut {
 
 // MARK: - UCKeyTranslate
 
-extension Shortcut {
+extension DiscreteShortcut {
     /// Converts a virtual key code to the character it produces on the current keyboard layout.
     static func keyToCharacter(keyCode: UInt16) -> String? {
         guard

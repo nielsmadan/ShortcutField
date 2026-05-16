@@ -129,7 +129,7 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
     private var cancelButton: NSButtonCell?
     private var canBecomeKey = false
     private var isStartingRecording = false
-    private var recordedSteps: [Shortcut.Step] = []
+    private var recordedSteps: [DiscreteShortcut.Step] = []
     private var timeoutTask: Task<Void, Never>?
 
     private var gestures = GestureAccumulator()
@@ -150,14 +150,14 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
     override public var canBecomeKeyView: Bool { canBecomeKey }
 
     /// The currently recorded shortcut, or nil if cleared.
-    public var shortcut: Shortcut? {
+    public var shortcut: DiscreteShortcut? {
         didSet {
             updateDisplay()
         }
     }
 
     /// Called when the user records or clears a shortcut.
-    public var onShortcutChange: ((Shortcut?) -> Void)?
+    public var onShortcutChange: ((DiscreteShortcut?) -> Void)?
 
     /// The placeholder text shown when not recording and no shortcut is set.
     public var defaultPlaceholder: String = "Record Shortcut" {
@@ -305,7 +305,7 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
 
     func finalizeRecording() {
         if !recordedSteps.isEmpty {
-            let new = Shortcut(steps: recordedSteps)
+            let new = DiscreteShortcut(steps: recordedSteps)
             shortcut = new
             onShortcutChange?(new)
         }
@@ -346,7 +346,7 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
         // Don't call finalizeRecording() here — its blur() would interfere with
         // the first-responder transition already in progress.
         if !recordedSteps.isEmpty {
-            let new = Shortcut(steps: recordedSteps)
+            let new = DiscreteShortcut(steps: recordedSteps)
             shortcut = new
             onShortcutChange?(new)
             recordedSteps = []
@@ -466,7 +466,7 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
             return nil
         }
 
-        let modifiers = Shortcut.canonicalModifiers(event.modifierFlags)
+        let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
         if !modifiers.isEmpty {
             // Modified left-up — paired with the modified left-down captured as a step.
             // Don't treat as finalize.
@@ -485,7 +485,7 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
     }
 
     private func handleKeyEvent(_ event: NSEvent) -> NSEvent? {
-        let modifiers = Shortcut.canonicalModifiers(event.modifierFlags)
+        let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
 
         if modifiers.isEmpty, event.keyCode == UInt16(kVK_Escape) {
             recordedSteps = []
@@ -506,13 +506,13 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
             return nil
         }
 
-        let step = Shortcut.Step(keyCode: event.keyCode, modifiers: modifiers)
+        let step = DiscreteShortcut.Step(keyCode: event.keyCode, modifiers: modifiers)
         appendStep(step)
         return nil
     }
 
     private func handleMouseButtonEvent(_ event: NSEvent) -> NSEvent? {
-        let modifiers = Shortcut.canonicalModifiers(event.modifierFlags)
+        let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
 
         if event.type == .leftMouseDown {
             // Bare left-click is reserved for UI / finalize — pass outside clicks
@@ -524,12 +524,12 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
                 return isInsideField ? nil : event
             }
 
-            let step = Shortcut.Step(kind: .mouseButton(number: event.buttonNumber), modifiers: modifiers)
+            let step = DiscreteShortcut.Step(kind: .mouseButton(number: event.buttonNumber), modifiers: modifiers)
             appendStep(step)
             return nil
         }
 
-        let step = Shortcut.Step(kind: .mouseButton(number: event.buttonNumber), modifiers: modifiers)
+        let step = DiscreteShortcut.Step(kind: .mouseButton(number: event.buttonNumber), modifiers: modifiers)
         appendStep(step)
         return nil
     }
@@ -543,7 +543,7 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
         }
         if scrollCaptured { return nil }
 
-        guard let direction = Shortcut.scrollDirectionAboveRecordingThreshold(from: event) else {
+        guard let direction = DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: event) else {
             return nil
         }
 
@@ -554,14 +554,14 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
             scrollCaptured = true
         }
 
-        let modifiers = Shortcut.canonicalModifiers(event.modifierFlags)
-        let step = Shortcut.Step(kind: .scroll(direction: direction), modifiers: modifiers)
+        let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
+        let step = DiscreteShortcut.Step(kind: .scroll(direction: direction), modifiers: modifiers)
         appendStep(step)
         return nil
     }
 
     private func handleGestureEvent(_ event: NSEvent) -> NSEvent? {
-        let modifiers = Shortcut.canonicalModifiers(event.modifierFlags)
+        let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
 
         // Reset accumulators / captured flags when a continuous gesture ends, so the
         // next physical gesture starts fresh.
@@ -589,19 +589,19 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
             // Suppress further captures within the same physical pinch.
             if pinchCaptured { return nil }
             if let kind = gestures.consumeMagnify(Double(event.magnification)) {
-                appendStep(Shortcut.Step(kind: kind, modifiers: modifiers))
+                appendStep(DiscreteShortcut.Step(kind: kind, modifiers: modifiers))
                 pinchCaptured = true
             }
             return nil
         case .rotate:
             if rotateCaptured { return nil }
             if let kind = gestures.consumeRotate(Double(event.rotation)) {
-                appendStep(Shortcut.Step(kind: kind, modifiers: modifiers))
+                appendStep(DiscreteShortcut.Step(kind: kind, modifiers: modifiers))
                 rotateCaptured = true
             }
             return nil
         case .smartMagnify:
-            let step = Shortcut.Step(kind: .smartMagnify, modifiers: modifiers)
+            let step = DiscreteShortcut.Step(kind: .smartMagnify, modifiers: modifiers)
             appendStep(step)
             return nil
         default:
@@ -613,7 +613,7 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
     /// reset here — a single physical gesture burst should produce at most one step.
     /// Each flag is cleared by either a non-matching event type (see `handleEvent`)
     /// or by the gesture's `.ended` / `.cancelled` phase.
-    private func appendStep(_ step: Shortcut.Step) {
+    private func appendStep(_ step: DiscreteShortcut.Step) {
         recordedSteps.append(step)
         stringValue = recordedSteps.map(\.displayString).joined(separator: " ") + " …"
         resetTimeout()

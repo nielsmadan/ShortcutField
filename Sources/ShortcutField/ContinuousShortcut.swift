@@ -10,19 +10,19 @@ import AppKit
 /// `pinchIn/Out`, `rotateClockwise/CounterClockwise`).
 ///
 /// For fire-once shortcuts (matching keystrokes, mouse clicks, single gestures, or
-/// multi-step sequences), use ``Shortcut`` and `.onShortcut`.
+/// multi-step sequences), use ``DiscreteShortcut`` and `.onShortcut`.
 public struct ContinuousShortcut: Sendable, Equatable, Hashable {
-    /// The continuous-only subset of `Shortcut.Kind`. Discrete kinds (`key`,
+    /// The continuous-only subset of `DiscreteShortcut.Kind`. Discrete kinds (`key`,
     /// `mouseButton`, `smartMagnify`) are unrepresentable.
     public enum Kind: Sendable, Equatable, Hashable {
-        case scroll(direction: Shortcut.ScrollDirection)
+        case scroll(direction: DiscreteShortcut.ScrollDirection)
         case pinchIn
         case pinchOut
         case rotateClockwise
         case rotateCounterClockwise
 
-        /// Lift to the umbrella `Shortcut.Kind` for matching/display reuse.
-        public var asShortcutKind: Shortcut.Kind {
+        /// Lift to the umbrella `DiscreteShortcut.Kind` for matching/display reuse.
+        public var asDiscreteKind: DiscreteShortcut.Kind {
             switch self {
             case let .scroll(direction): .scroll(direction: direction)
             case .pinchIn: .pinchIn
@@ -33,8 +33,8 @@ public struct ContinuousShortcut: Sendable, Equatable, Hashable {
         }
 
         /// Project from an umbrella kind, returning nil for discrete kinds.
-        public init?(_ shortcutKind: Shortcut.Kind) {
-            switch shortcutKind {
+        public init?(_ discreteKind: DiscreteShortcut.Kind) {
+            switch discreteKind {
             case let .scroll(direction): self = .scroll(direction: direction)
             case .pinchIn: self = .pinchIn
             case .pinchOut: self = .pinchOut
@@ -57,7 +57,7 @@ public struct ContinuousShortcut: Sendable, Equatable, Hashable {
     /// Build a continuous shortcut. `sensitivity` is silently clamped to `0.0...1.0`.
     public init(kind: Kind, modifiers: NSEvent.ModifierFlags, sensitivity: Double = 0.0) {
         self.kind = kind
-        self.modifiers = Shortcut.canonicalModifiers(modifiers)
+        self.modifiers = DiscreteShortcut.canonicalModifiers(modifiers)
         self.sensitivity = min(1.0, max(0.0, sensitivity))
     }
 }
@@ -71,19 +71,19 @@ extension ContinuousShortcut: Codable {
     }
 
     public init(from decoder: any Decoder) throws {
-        let kindContainer = try decoder.container(keyedBy: Shortcut.Kind.CodingKeys.self)
-        let decodedShortcutKind = try Shortcut.Kind(from: kindContainer)
-        guard let decodedKind = Kind(decodedShortcutKind) else {
+        let kindContainer = try decoder.container(keyedBy: DiscreteShortcut.Kind.CodingKeys.self)
+        let decodedDiscreteKind = try DiscreteShortcut.Kind(from: kindContainer)
+        guard let decodedKind = Kind(decodedDiscreteKind) else {
             throw DecodingError.dataCorruptedError(
-                forKey: Shortcut.Kind.CodingKeys.type, in: kindContainer,
-                debugDescription: "ContinuousShortcut requires a continuous kind, got \(decodedShortcutKind.tag)"
+                forKey: DiscreteShortcut.Kind.CodingKeys.type, in: kindContainer,
+                debugDescription: "ContinuousShortcut requires a continuous kind, got \(decodedDiscreteKind.tag)"
             )
         }
         kind = decodedKind
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let rawModifiers = try container.decode(UInt.self, forKey: .modifiers)
-        modifiers = Shortcut.canonicalModifiers(NSEvent.ModifierFlags(rawValue: rawModifiers))
+        modifiers = DiscreteShortcut.canonicalModifiers(NSEvent.ModifierFlags(rawValue: rawModifiers))
 
         let rawSensitivity = try container.decodeIfPresent(Double.self, forKey: .sensitivity) ?? 0.0
         sensitivity = min(1.0, max(0.0, rawSensitivity))
@@ -94,8 +94,8 @@ extension ContinuousShortcut: Codable {
         try container.encode(modifiers.rawValue, forKey: .modifiers)
         try container.encode(sensitivity, forKey: .sensitivity)
 
-        var kindContainer = encoder.container(keyedBy: Shortcut.Kind.CodingKeys.self)
-        try kind.asShortcutKind.encode(into: &kindContainer)
+        var kindContainer = encoder.container(keyedBy: DiscreteShortcut.Kind.CodingKeys.self)
+        try kind.asDiscreteKind.encode(into: &kindContainer)
     }
 }
 
@@ -116,15 +116,15 @@ public extension ContinuousShortcut {
 public extension ContinuousShortcut {
     /// Match against an NSEvent.
     func matches(_ event: NSEvent) -> Bool {
-        Shortcut.Step(kind: kind.asShortcutKind, modifiers: modifiers).matches(event)
+        DiscreteShortcut.Step(kind: kind.asDiscreteKind, modifiers: modifiers).matches(event)
     }
 }
 
 // MARK: - Display string
 
 public extension ContinuousShortcut {
-    /// Human-readable representation. Same format as a single-step `Shortcut`.
+    /// Human-readable representation. Same format as a single-step `DiscreteShortcut`.
     var displayString: String {
-        Shortcut.Step(kind: kind.asShortcutKind, modifiers: modifiers).displayString
+        DiscreteShortcut.Step(kind: kind.asDiscreteKind, modifiers: modifiers).displayString
     }
 }

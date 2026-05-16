@@ -8,7 +8,7 @@ import SwiftUI
 /// modifiers).
 ///
 /// ```swift
-/// @State private var shortcut: Shortcut?
+/// @State private var shortcut: DiscreteShortcut?
 ///
 /// ShortcutRecorderView($shortcut)
 ///     .placeholder("Record")
@@ -17,7 +17,7 @@ import SwiftUI
 /// For sensitivity-bearing throttled continuous fire (scroll-to-zoom etc.),
 /// use ``ContinuousShortcutRecorderView``.
 public struct ShortcutRecorderView: View {
-    @Binding var shortcut: Shortcut?
+    @Binding var shortcut: DiscreteShortcut?
     @Environment(\.isEnabled) private var isEnabled
 
     private var placeholderText: String = "Record Shortcut"
@@ -26,7 +26,7 @@ public struct ShortcutRecorderView: View {
     private var minimumWidthValue: CGFloat?
 
     /// Create a shortcut recorder bound to the given shortcut value.
-    public init(_ shortcut: Binding<Shortcut?>) {
+    public init(_ shortcut: Binding<DiscreteShortcut?>) {
         _shortcut = shortcut
     }
 
@@ -45,7 +45,7 @@ public struct ShortcutRecorderView: View {
 }
 
 private struct FieldRepresentable: NSViewRepresentable {
-    @Binding var shortcut: Shortcut?
+    @Binding var shortcut: DiscreteShortcut?
 
     var placeholderText: String
     var recordingPlaceholderText: String
