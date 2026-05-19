@@ -68,6 +68,7 @@ struct SequenceMatcherTests {
 
     @Test("an unfinished sequence resets after the step timeout")
     func timeoutResetsSequence() async {
+        let baseline = ShortcutTracking.isActive
         let matcher = SequenceMatcher(stepTimeout: 0.01)
         matcher.configure(
             shortcut: DiscreteShortcut(steps: [
@@ -76,10 +77,13 @@ struct SequenceMatcherTests {
             ])
         )
         #expect(matcher.handle(keyDown(kVK_ANSI_K, .command)) == .advanced(consumeEvent: false))
+        #expect(ShortcutTracking.isActive == true)
         // Await the timeout task itself rather than racing a wall-clock sleep.
         await matcher.pendingTimeoutTask?.value
-        // The timeout fired and reset the matcher: step 2 alone no longer fires.
+        // The timeout fired and reset the matcher: step 2 alone no longer fires,
+        // and tracking ends so a later unrelated key is not beep-suppressed.
         #expect(matcher.handle(keyDown(kVK_ANSI_C, .command)) == .ignored)
+        #expect(ShortcutTracking.isActive == baseline)
     }
 
     @Test("an intermediate Tab step consumes the event")

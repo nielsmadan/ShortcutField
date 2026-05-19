@@ -21,6 +21,7 @@ final class SequenceMatcher {
     private(set) var isTracking = false {
         didSet {
             guard isTracking != oldValue else { return }
+            ShortcutTracking.activeCount += isTracking ? 1 : -1
             trackingStateDidChange?(isTracking)
         }
     }
@@ -35,6 +36,16 @@ final class SequenceMatcher {
 
     init(stepTimeout: TimeInterval = 1.0) {
         self.stepTimeout = stepTimeout
+    }
+
+    // Drop the tracking contribution if the matcher is deallocated mid-sequence —
+    // `reset()` may never be called. `SequenceMatcher` is @MainActor and only
+    // released from main-actor code, so the decrement runs synchronously here;
+    // an `isolated deinit` would instead defer it to a queued job.
+    deinit {
+        MainActor.assumeIsolated {
+            if isTracking { ShortcutTracking.activeCount -= 1 }
+        }
     }
 
     func configure(shortcut: DiscreteShortcut?) {

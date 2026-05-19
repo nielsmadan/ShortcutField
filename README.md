@@ -341,7 +341,7 @@ For `.discrete` shortcuts the action fires once on completion — immediately fo
 
 | Property | Description |
 |---|---|
-| `ShortcutTracking.isActive: Bool` | `true` when at least one `.onShortcut()` modifier is partway through matching a multi-step shortcut. Used to suppress the macOS system alert beep on intermediate keys (see [Suppressing the system alert sound](#suppressing-the-system-alert-sound)). |
+| `ShortcutTracking.isActive: Bool` | `true` when at least one `ShortcutMatcher` is partway through matching a multi-step shortcut — whether built by `.onShortcut()` or constructed directly. Used to suppress the macOS system alert beep on intermediate keys (see [Suppressing the system alert sound](#suppressing-the-system-alert-sound)). |
 
 ### `ShortcutRecording`
 
@@ -386,7 +386,7 @@ class MainWindow: NSWindow {
 }
 ```
 
-`ShortcutTracking.isActive` is `true` whenever at least one `.onShortcut()` modifier has matched one or more intermediate steps and is waiting for the next event. It resets automatically on completion, timeout, or mismatch.
+`ShortcutTracking.isActive` is `true` whenever at least one `ShortcutMatcher` has matched one or more intermediate steps and is waiting for the next event — whether the matcher was built by `.onShortcut()` or constructed directly by a host. It resets automatically on completion, timeout, or mismatch.
 
 ### System-reserved hotkeys
 

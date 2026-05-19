@@ -1,21 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// Whether any `.onShortcut()` modifier with a multi-step discrete shortcut is
-/// partway through matching (past step 0).
-///
-/// Use this in a `noResponder(for:)` override to suppress the system alert sound
-/// only for key events that are part of an in-progress sequence match.
-public enum ShortcutTracking {
-    /// `true` when at least one `.onShortcut()` modifier has matched one or more
-    /// intermediate steps and is waiting for the next event.
-    @MainActor public private(set) static var isActive = false
-
-    @MainActor fileprivate static var activeCount = 0 {
-        didSet { isActive = activeCount > 0 }
-    }
-}
-
 /// View modifier backing `.onShortcut`.
 struct OnShortcutModifier: ViewModifier {
     let shortcut: Shortcut?
@@ -41,9 +26,6 @@ struct OnShortcutModifier: ViewModifier {
     private func install(_ shortcut: Shortcut?) {
         guard let shortcut else { return }
         let m = ShortcutMatcher(shortcut)
-        m.trackingStateDidChange = { isTracking in
-            ShortcutTracking.activeCount += isTracking ? 1 : -1
-        }
         matcher = m
         ShortcutEventDispatcher.shared.register(id: listenerID) { event in
             let result = m.handle(event)

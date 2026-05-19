@@ -32,7 +32,8 @@ ShortcutField is a Swift package providing in-app shortcut recording for macOS a
 - `ContinuousShortcutRecorderView.swift` — SwiftUI recorder with sensitivity slider for `ContinuousShortcut`.
 - `ContinuousShortcutRecorderField.swift` — AppKit recorder for `ContinuousShortcut`.
 - `ContinuousShortcutRecorderField+Menu.swift` — chevron menu picker for continuous kinds (scroll / pinch / rotate).
-- `OnShortcutModifier.swift` — `.onShortcut()` fire-once dispatcher; `ShortcutMatcher`, `ShortcutEventDispatcher`, `ShortcutTracking`.
+- `OnShortcutModifier.swift` — `.onShortcut()` fire-once dispatcher; `ShortcutMatcher`, `ShortcutEventDispatcher`.
+- `Matching/ShortcutTracking.swift` — public `ShortcutTracking.isActive` flag for in-progress multi-step matches; bumped automatically by `SequenceMatcher`.
 - `OnContinuousShortcutModifier.swift` — `.onContinuousShortcut()` throttled-continuous dispatcher.
 - `ThrottleState.swift` — Internal: shared throttle state for `OnContinuousShortcutModifier`.
 - `GestureAccumulator.swift` — Internal: per-burst threshold detection for pinch / rotate / scroll, shared between both recorder fields.
