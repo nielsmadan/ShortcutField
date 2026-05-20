@@ -6,10 +6,10 @@
 
 A unified in-app shortcut recorder for macOS apps.
 
-`Shortcut` is the umbrella type — an enum with two cases:
+`Shortcut` is the umbrella type, an enum with two cases:
 
-- **`.discrete(DiscreteShortcut)`** — fire-once shortcuts. One step (e.g. `⌘K`, `Right Click`, `Pinch In`) or a multi-step sequence (e.g. `⌘K ⌘C`, `A → Right Click`). The matcher fires the bound action exactly once when the user completes the full sequence.
-- **`.continuous(ContinuousShortcut)`** — sensitivity-bearing throttled continuous fire. A single scroll / pinch / rotate gesture with a user-tunable `sensitivity` controlling the throttle rate (e.g. scroll-to-zoom).
+- **`.discrete(DiscreteShortcut)`**: fire-once shortcuts. One step (e.g. `⌘K`, `Right Click`, `Pinch In`) or a multi-step sequence (e.g. `⌘K ⌘C`, `A → Right Click`). The matcher fires the bound action exactly once when the user completes the full sequence.
+- **`.continuous(ContinuousShortcut)`**: sensitivity-bearing throttled continuous fire. A single scroll / pinch / rotate gesture with a user-tunable `sensitivity` controlling the throttle rate (e.g. scroll-to-zoom).
 
 Special keys like Tab that SwiftUI's focus system normally intercepts work in both.
 
@@ -21,7 +21,7 @@ Special keys like Tab that SwiftUI's focus system normally intercepts work in bo
 - Multi-step shortcuts (e.g. `⌘K ⌘C`, `A → Right Click`, `⌘K → Pinch In`)
 - Sensitivity-throttled continuous gestures via `ContinuousShortcut`
 - One `.onShortcut()` modifier for both kinds, plus a public `ShortcutMatcher` for manual matching
-- VS Code-style text syntax — `Shortcut("cmd+k cmd+c")`, `try Shortcut(ascii:)`, round-trippable `.ascii`
+- VS Code-style text syntax: `Shortcut("cmd+k cmd+c")`, `try Shortcut(ascii:)`, round-trippable `.ascii`
 - Match against `NSEvent` and SwiftUI `KeyPress`, including special keys like Tab and Escape
 - SwiftUI views and AppKit controls
 - `Codable`, `Equatable`, `Hashable`, `Sendable` model
@@ -60,7 +60,7 @@ struct SettingsView: View {
 }
 ```
 
-The recorder accepts whatever the user performs — a single keystroke, a (modified) mouse click, a scroll, a trackpad gesture, or a multi-step sequence. Recording finalizes after a 1-second idle pause OR on a bare left-click anywhere (no modifiers) — the unambiguous "I'm done" gesture.
+The recorder accepts whatever the user performs: a single keystroke, a (modified) mouse click, a scroll, a trackpad gesture, or a multi-step sequence. Recording finalizes after a 1-second idle pause OR on a bare left-click anywhere (no modifiers), the unambiguous "I'm done" gesture.
 
 ### Recording continuous (sensitivity-bearing) shortcuts
 
@@ -97,7 +97,7 @@ continuousField.onShortcutChange = { shortcut in  // shortcut is ContinuousShort
 
 ### Matching shortcuts
 
-`.onShortcut()` takes the umbrella `Shortcut?` and fires an action when it's performed — once on completion for `.discrete`, repeatedly (throttled) for `.continuous`:
+`.onShortcut()` takes the umbrella `Shortcut?` and fires an action when it's performed: once on completion for `.discrete`, repeatedly (throttled) for `.continuous`:
 
 ```swift
 // A recorder binds a DiscreteShortcut?; lift it into the umbrella to match it.
@@ -124,7 +124,7 @@ For 1-step discrete shortcuts the action fires once on the matching event. For m
 For manual matching, drive a `ShortcutMatcher` yourself or use the `matches()` primitives directly:
 
 ```swift
-// ShortcutMatcher — feed it NSEvents, inspect the ShortcutMatchResult.
+// ShortcutMatcher: feed it NSEvents, inspect the ShortcutMatchResult.
 let matcher = ShortcutMatcher(.discrete(shortcut))
 switch matcher.handle(event) {
 case .fired:                       runAction()
@@ -147,15 +147,15 @@ let chord: Shortcut = "cmd+k cmd+c"                  // ExpressibleByStringLiter
 let zoom = try Shortcut(ascii: "scroll-up @0.5")     // .continuous, sensitivity 0.5
 let parsed = try DiscreteShortcut(ascii: "ctrl+right-click")
 
-chord.ascii        // "cmd+k cmd+c"  — round-trips
+chord.ascii        // "cmd+k cmd+c"  (round-trips)
 ```
 
-- **Modifiers**: `cmd`, `ctrl`, `opt`, `shift` — joined with `+`.
+- **Modifiers**: `cmd`, `ctrl`, `opt`, `shift`, joined with `+`.
 - **Keys**: `a`–`z`, `0`–`9`, `tab`, `return`, `escape`, `space`, `delete`, arrows, `home`/`end`/`pageup`/`pagedown`, `f1`–`f12`, punctuation names.
 - **Mouse**: `left-click`, `right-click`, `middle-click`, `button4`, `button5`.
 - **Scroll / gestures**: `scroll-up/down/left/right`, `pinch-in`, `pinch-out`, `rotate-clockwise`, `rotate-counterclockwise`, `smart-magnify`.
-- **Multi-step**: space-separated steps — `cmd+k cmd+c`.
-- **Sensitivity**: a ` @N` suffix (`0.0...1.0`) on a single bare gesture makes it `.continuous` — `pinch-out @0.5`.
+- **Multi-step**: space-separated steps, e.g. `cmd+k cmd+c`.
+- **Sensitivity**: a ` @N` suffix (`0.0...1.0`) on a single bare gesture makes it `.continuous`, e.g. `pinch-out @0.5`.
 
 A single bare gesture string resolves to `.continuous`; anything else (multi-step, key, mouse, `smart-magnify`) resolves to `.discrete`. `ExpressibleByStringLiteral` (used for *literals*) traps on a malformed string; the throwing `init(ascii:)` is for runtime input and throws `ShortcutParsingError`.
 
@@ -208,7 +208,7 @@ Discrete mode snaps to five tick marks (0, 0.25, 0.5, 0.75, 1.0). Continuous is 
 
 ### `Shortcut`
 
-The umbrella shortcut type — an enum over the two kinds. `Codable`, `Equatable`, `Hashable`, `Sendable`, `ExpressibleByStringLiteral`.
+The umbrella shortcut type, an enum over the two kinds. `Codable`, `Equatable`, `Hashable`, `Sendable`, `ExpressibleByStringLiteral`.
 
 | Case / Member | Description |
 |---|---|
@@ -221,7 +221,7 @@ The umbrella shortcut type — an enum over the two kinds. `Codable`, `Equatable
 
 ### `DiscreteShortcut`
 
-A fire-once shortcut — one or more ordered steps. `Codable`, `Equatable`, `Hashable`, `Sendable`.
+A fire-once shortcut: one or more ordered steps. `Codable`, `Equatable`, `Hashable`, `Sendable`.
 
 | Property/Method | Description |
 |---|---|
@@ -253,7 +253,7 @@ Sensitivity-bearing single-step shortcut for throttled continuous fire. `Codable
 
 | Property/Method | Description |
 |---|---|
-| `kind: ContinuousShortcut.Kind` | Continuous kind only — `.scroll`, `.pinchIn/Out`, `.rotateClockwise/CounterClockwise`. Discrete kinds are unrepresentable at the type level. |
+| `kind: ContinuousShortcut.Kind` | Continuous kind only: `.scroll`, `.pinchIn/Out`, `.rotateClockwise/CounterClockwise`. Discrete kinds are unrepresentable at the type level. |
 | `modifiers: NSEvent.ModifierFlags` | Modifier flags (Command, Shift, Option, Control) |
 | `sensitivity: Double` | 0.0 (fire once per gesture) to 1.0 (every matching event), clamped in init |
 | `displayString: String` | Human-readable, same format as a single `DiscreteShortcut.Step` |
@@ -283,7 +283,7 @@ public enum Kind: Sendable, Equatable, Hashable {
 | `reset()` | Discard in-progress sequence / throttle state |
 | `trackingStateDidChange: ((Bool) -> Void)?` | Notified when a multi-step match starts/stops tracking |
 
-`ShortcutMatchResult` is `.ignored`, `.advanced(consumeEvent:)` (matched but did not complete a fire — consume per the flag), `.fired` (a discrete shortcut completed), or `.continuousFired(magnitude:)` (a throttled continuous fire, with the event's signed delta).
+`ShortcutMatchResult` is `.ignored`, `.advanced(consumeEvent:)` (matched but did not complete a fire; consume per the flag), `.fired` (a discrete shortcut completed), or `.continuousFired(magnitude:)` (a throttled continuous fire, with the event's signed delta).
 
 ### `ShortcutEventDispatcher`
 
@@ -323,7 +323,7 @@ SwiftUI recorder for sensitivity-bearing continuous shortcuts. Binds a `Continuo
 | `.textColor(_:)` | Text color (SwiftUI `Color`) |
 | `.minimumWidth(_:)` | Minimum intrinsic width in points (default 160). SwiftUI's `.frame(width:)` still wins. |
 | `.sensitivityMode(_:)` | `.discrete` (default) or `.continuous` |
-| `.sensitivityPosition(_:)` | `.below` (default), `.left`, or `.right` — placement of the sensitivity slider |
+| `.sensitivityPosition(_:)` | `.below` (default), `.left`, or `.right`; placement of the sensitivity slider |
 
 ### AppKit recorder fields
 
@@ -333,7 +333,7 @@ SwiftUI recorder for sensitivity-bearing continuous shortcuts. Binds a `Continuo
 
 View modifier that fires an action when a `Shortcut` is performed. Takes the umbrella `Shortcut?`.
 
-For `.discrete` shortcuts the action fires once on completion — immediately for 1-step, after the full sequence for multi-step (intermediate events propagate normally; only focus-intercepted keys like Tab/Escape are consumed mid-sequence). For `.continuous` shortcuts it fires on each throttled gesture event. Multiple shortcuts that share a common prefix (e.g. `A B` and `A T`) work correctly — each tracks independently and the shared dispatcher delivers every event to all active matchers. Matching is automatically disabled while any recorder field is active.
+For `.discrete` shortcuts the action fires once on completion: immediately for 1-step, after the full sequence for multi-step (intermediate events propagate normally; only focus-intercepted keys like Tab/Escape are consumed mid-sequence). For `.continuous` shortcuts it fires on each throttled gesture event. Multiple shortcuts that share a common prefix (e.g. `A B` and `A T`) work correctly: each tracks independently and the shared dispatcher delivers every event to all active matchers. Matching is automatically disabled while any recorder field is active.
 
 ### `ShortcutTracking`
 
@@ -341,7 +341,7 @@ For `.discrete` shortcuts the action fires once on completion — immediately fo
 
 | Property | Description |
 |---|---|
-| `ShortcutTracking.isActive: Bool` | `true` when at least one `ShortcutMatcher` is partway through matching a multi-step shortcut — whether built by `.onShortcut()` or constructed directly. Used to suppress the macOS system alert beep on intermediate keys (see [Suppressing the system alert sound](#suppressing-the-system-alert-sound)). |
+| `ShortcutTracking.isActive: Bool` | `true` when at least one `ShortcutMatcher` is partway through matching a multi-step shortcut, whether built by `.onShortcut()` or constructed directly. Used to suppress the macOS system alert beep on intermediate keys (see [Suppressing the system alert sound](#suppressing-the-system-alert-sound)). |
 
 ### `ShortcutRecording`
 
@@ -349,7 +349,7 @@ For `.discrete` shortcuts the action fires once on completion — immediately fo
 
 | Property | Description |
 |---|---|
-| `ShortcutRecording.isActive: Bool` | `true` when any recorder field — fire-once or continuous — is currently capturing input. Useful for hosts that want to suppress their own keyboard handling, hotkey libraries, or menu key equivalents while a shortcut is being recorded. |
+| `ShortcutRecording.isActive: Bool` | `true` when any recorder field (fire-once or continuous) is currently capturing input. Useful for hosts that want to suppress their own keyboard handling, hotkey libraries, or menu key equivalents while a shortcut is being recorded. |
 
 ## Notes
 
@@ -362,7 +362,7 @@ Both `ShortcutRecorderField` and `ContinuousShortcutRecorderField` share these b
 - **Delete** clears the current shortcut (multi-step recorder: only when no steps have been recorded yet)
 - Only one recorder can be active at a time. Focusing a new recorder ends the previous one.
 
-`ShortcutRecorderField` finalizes after a 1-second pause between captured steps OR on a bare left-click anywhere (no modifiers). Each captured step resets the idle timer. **Bare left-click can't be a step** — it's reserved for UI interaction (focusing controls, dismissing the recorder) and serves as the "finalize" gesture. Modified left clicks (e.g. `⌃Left Click`) are capturable. All other inputs — including right click and other mouse buttons — can be captured anywhere with no modifiers required.
+`ShortcutRecorderField` finalizes after a 1-second pause between captured steps OR on a bare left-click anywhere (no modifiers). Each captured step resets the idle timer. **Bare left-click can't be a step**: it's reserved for UI interaction (focusing controls, dismissing the recorder) and serves as the "finalize" gesture. Modified left clicks (e.g. `⌃Left Click`) are capturable. All other inputs, including right click and other mouse buttons, can be captured anywhere with no modifiers required.
 
 `ContinuousShortcutRecorderField` finalizes on the first matching gesture event (after threshold accumulation for pinch / rotate). It only accepts continuous kinds; keys, mouse buttons, and smart-magnify are ignored during recording. A chevron menu provides click-only entry for picking gesture kinds without performing them.
 
@@ -386,24 +386,20 @@ class MainWindow: NSWindow {
 }
 ```
 
-`ShortcutTracking.isActive` is `true` whenever at least one `ShortcutMatcher` has matched one or more intermediate steps and is waiting for the next event — whether the matcher was built by `.onShortcut()` or constructed directly by a host. It resets automatically on completion, timeout, or mismatch.
+`ShortcutTracking.isActive` is `true` whenever at least one `ShortcutMatcher` has matched one or more intermediate steps and is waiting for the next event, whether the matcher was built by `.onShortcut()` or constructed directly by a host. It resets automatically on completion, timeout, or mismatch.
 
 ### System-reserved hotkeys
 
-Shortcuts that collide with a macOS system hotkey — `Cmd+Space` (Spotlight), the Mission Control / Spaces keys, screenshot shortcuts, etc. — cannot be recorded or matched. macOS consumes those combos at the system level before they ever reach the app, and ShortcutField only sees events delivered to the app (it uses local `NSEvent` monitors, not a system event tap).
+Shortcuts that collide with a macOS system hotkey, such as `Cmd+Space` (Spotlight), the Mission Control / Spaces keys, or screenshot shortcuts, cannot be recorded or matched. macOS consumes those combos at the system level before they ever reach the app, and ShortcutField only sees events delivered to the app (it uses local `NSEvent` monitors, not a system event tap).
 
-This is different from Tab: Tab *is* delivered to the app — macOS just routes it through the in-app focus system first, so ShortcutField can intercept it. A system-reserved combo never arrives at all.
+This is different from Tab: Tab *is* delivered to the app, macOS just routes it through the in-app focus system first, so ShortcutField can intercept it. A system-reserved combo never arrives at all.
 
 Symptoms:
 
-- In the recorder, pressing such a combo does nothing — the recorder can't see it, so it captures no step.
+- In the recorder, pressing such a combo does nothing: the recorder can't see it, so it captures no step.
 - A shortcut recorded *before* the user enabled the conflicting OS shortcut will silently stop firing once the OS claims the combo.
 
 There's no in-app workaround; intercepting system hotkeys requires a system-wide event tap with Accessibility permission, which is out of scope for an in-app shortcut library. If you need global/system-wide hotkeys, see [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts).
-
-### How does this differ from KeyboardShortcuts?
-
-[KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) registers **global** (system-wide) hotkeys. ShortcutField records **in-app** shortcuts that you match yourself via the `.onShortcut()` view modifier or `ShortcutMatcher`. ShortcutField also supports multi-step shortcuts (chord sequences like `⌘K ⌘C`), non-keyboard inputs (mouse buttons, scroll directions, trackpad gestures), and sensitivity-throttled continuous gestures — none of which KeyboardShortcuts covers.
 
 ## Contributing
 
@@ -411,7 +407,7 @@ Issues and pull requests are welcome.
 
 ## Acknowledgments
 
-ShortcutField's key mapping and display logic — see [`DiscreteShortcut+KeyMapping.swift`](Sources/ShortcutField/DiscreteShortcut+KeyMapping.swift) — is adapted from [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) by Sindre Sorhus (MIT license).
+ShortcutField's key mapping and display logic (see [`DiscreteShortcut+KeyMapping.swift`](Sources/ShortcutField/DiscreteShortcut+KeyMapping.swift)) is adapted from [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) by Sindre Sorhus (MIT license).
 
 ## License
 
