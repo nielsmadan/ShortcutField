@@ -21,6 +21,8 @@ private func makeScrollEvent(deltaY: Int32 = 0, deltaX: Int32 = 0) -> NSEvent {
                      wheel1: deltaY,
                      wheel2: deltaX,
                      wheel3: 0)!
+    // A nil-source CGEvent inherits the live modifier-key state; pin it empty.
+    cg.flags = []
     return NSEvent(cgEvent: cg)!
 }
 
@@ -221,6 +223,7 @@ private let scrollDeltaAboveThreshold: Int32 = 10
                          mouseType: .rightMouseDown,
                          mouseCursorPosition: .zero,
                          mouseButton: .right)!
+        cg.flags = []
         let rmDown = NSEvent(cgEvent: cg)!
         _ = field.handleEvent(rmDown)
         field.finalizeRecording()
@@ -473,6 +476,7 @@ private let scrollDeltaAboveThreshold: Int32 = 10
                          mouseType: .rightMouseDown,
                          mouseCursorPosition: .zero,
                          mouseButton: .right)!
+        cg.flags = []
         let rmDown = NSEvent(cgEvent: cg)!
         _ = dispatcher.handleEvent(rmDown)
 

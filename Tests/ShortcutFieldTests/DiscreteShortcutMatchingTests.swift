@@ -180,6 +180,8 @@ private func makeKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = []
                          wheel1: deltaY,
                          wheel2: 0,
                          wheel3: 0)!
+        // A nil-source CGEvent inherits the live modifier-key state; pin it empty.
+        cg.flags = []
         return NSEvent(cgEvent: cg)!
     }
 

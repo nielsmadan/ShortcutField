@@ -108,6 +108,8 @@ import Testing
                          wheel1: deltaY,
                          wheel2: deltaX,
                          wheel3: 0)!
+        // A nil-source CGEvent inherits the live modifier-key state; pin it empty.
+        cg.flags = []
         return NSEvent(cgEvent: cg)!
     }
 
