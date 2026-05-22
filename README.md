@@ -370,7 +370,20 @@ Both `ShortcutRecorderField` and `ContinuousShortcutRecorderField` share these b
 
 When using `.onShortcut()` with multi-step shortcuts, intermediate key events propagate through the responder chain. If nothing else handles them, macOS plays the system alert sound.
 
-To suppress the beep only during active sequence input (while still allowing it for random unhandled keys), check `ShortcutTracking.isActive` in a `noResponder(for:)` override on your window:
+To suppress the beep only during active sequence input (while still allowing it for random unhandled keys), apply the `suppressShortcutBeep()` modifier to any view in your scene:
+
+```swift
+import ShortcutField
+
+WindowGroup {
+    ContentView()
+        .suppressShortcutBeep()
+}
+```
+
+This is the recommended path for SwiftUI hosts, which don't own the `WindowGroup` window's class. It installs a one-time `noResponder(for:)` override on the hosting window's class, gated on `ShortcutTracking.isActive`.
+
+If you're an AppKit host that owns its `NSWindow` subclass, override `noResponder(for:)` directly instead:
 
 ```swift
 import ShortcutField
