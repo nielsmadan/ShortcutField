@@ -13,29 +13,11 @@ import Carbon.HIToolbox
 /// by this recorder — use ``ShortcutRecorderField`` for those.
 ///
 /// For SwiftUI, use ``ContinuousShortcutRecorderView`` instead.
-public final class ContinuousShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, NSTextViewDelegate,
-    ActiveShortcutRecorder
+public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField, NSSearchFieldDelegate,
+    NSTextViewDelegate, ActiveShortcutRecorder
 {
-    override public class var cellClass: AnyClass? {
-        get { CenteredSearchFieldCell.self }
-        set { super.cellClass = newValue }
-    }
-
-    /// Minimum intrinsic width. SwiftUI's `.frame(width:)` overrides this; the
-    /// floor only matters when no explicit frame is set. Defaults to 160.
-    public var minimumWidth: CGFloat = 160 {
-        didSet { invalidateIntrinsicContentSize() }
-    }
-
-    private var bezeledHeight: CGFloat = 0
-    private nonisolated(unsafe) var eventMonitor: Any?
-    private var cancelButton: NSButtonCell?
     private var chevronButton: NSButton?
-    private var canBecomeKey = false
-    private var isStartingRecording = false
     private var scrollCaptured = false
-
-    private var gestures = GestureAccumulator()
 
     /// Sensitivity carried forward across kind changes so a re-record doesn't
     /// zero the user's chosen sensitivity. Internal: `ContinuousShortcutRecorderView`
@@ -45,8 +27,6 @@ public final class ContinuousShortcutRecorderField: NSSearchField, NSSearchField
 
     /// Whether this field is currently recording.
     public private(set) var isRecording = false
-
-    override public var canBecomeKeyView: Bool { canBecomeKey }
 
     /// The currently recorded continuous shortcut, or nil if cleared.
     public var shortcut: ContinuousShortcut? {
@@ -73,11 +53,6 @@ public final class ContinuousShortcutRecorderField: NSSearchField, NSSearchField
     /// The placeholder text shown during recording.
     public var recordingPlaceholder: String = "Scroll / pinch / rotate\u{2026}"
 
-    /// The text color for the shortcut display. Nil uses the system default.
-    public var fieldTextColor: NSColor? {
-        didSet { textColor = fieldTextColor }
-    }
-
     private var showsCancelButton: Bool {
         get { (cell as? NSSearchFieldCell)?.cancelButtonCell != nil }
         set {
@@ -87,15 +62,8 @@ public final class ContinuousShortcutRecorderField: NSSearchField, NSSearchField
         }
     }
 
-    deinit {
-        ShortcutRecordingState.endOnDeinit(for: self)
-        if let eventMonitor {
-            NSEvent.removeMonitor(eventMonitor)
-        }
-    }
-
     override public init(frame _: NSRect) {
-        super.init(frame: NSRect(x: 0, y: 0, width: minimumWidth, height: 24))
+        super.init(frame: NSRect(x: 0, y: 0, width: 160, height: 24))
         setup()
     }
 
@@ -121,7 +89,7 @@ public final class ContinuousShortcutRecorderField: NSSearchField, NSSearchField
         setContentHuggingPriority(.defaultLow, for: .horizontal)
 
         cancelButton = (cell as? NSSearchFieldCell)?.cancelButtonCell
-        bezeledHeight = super.intrinsicContentSize.height
+        captureBezeledHeight()
         configureChevronButton()
         updateDisplay()
     }
@@ -155,25 +123,11 @@ public final class ContinuousShortcutRecorderField: NSSearchField, NSSearchField
         menu.popUp(positioning: nil, at: location, in: sender)
     }
 
-    override public var intrinsicContentSize: NSSize {
-        NSSize(width: minimumWidth, height: bezeledHeight)
-    }
-
     override public func viewWillMove(toWindow newWindow: NSWindow?) {
         if newWindow == nil {
             endRecording()
         }
         super.viewWillMove(toWindow: newWindow)
-    }
-
-    override public func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        guard window != nil else { return }
-
-        canBecomeKey = false
-        DispatchQueue.main.async { [weak self] in
-            self?.canBecomeKey = true
-        }
     }
 
     private func updateDisplay() {
@@ -225,10 +179,6 @@ public final class ContinuousShortcutRecorderField: NSSearchField, NSSearchField
         placeholderString = defaultPlaceholder
         showsCancelButton = shortcut != nil
         chevronButton?.isEnabled = true
-    }
-
-    private func blur() {
-        window?.makeFirstResponder(nil)
     }
 
     func forceEndRecordingSession() {
@@ -331,11 +281,7 @@ public final class ContinuousShortcutRecorderField: NSSearchField, NSSearchField
         // doesn't capture mouse buttons, and inside left-click is reserved for UI focus).
         if event.type == .leftMouseDown {
             let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
-            let clickPoint = convert(event.locationInWindow, from: nil)
-            let clickMargin: CGFloat = 3.0
-            let isInsideField = bounds.insetBy(dx: -clickMargin, dy: -clickMargin).contains(clickPoint)
-
-            if !isInsideField, modifiers.isEmpty {
+            if !isInsideField(event), modifiers.isEmpty {
                 endRecording()
                 blur()
                 return event

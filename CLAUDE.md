@@ -18,25 +18,32 @@ just tag-release-minor  # Tag and push a minor release
 
 ShortcutField is a Swift package providing in-app shortcut recording for macOS apps. The design splits two concerns into distinct types:
 
-- **`Shortcut`** — fire-once umbrella: one or more `Shortcut.Step`s. Single keystrokes, mouse clicks, gestures, and multi-step sequences all collapse into this type. The matcher fires once per full match.
+- **`DiscreteShortcut`** — fire-once binding: one or more `DiscreteShortcut.Step`s. Single keystrokes, mouse clicks, gestures, and multi-step sequences all collapse into this type. The matcher fires once per full match. The `Shortcut` umbrella enum (`.discrete` / `.continuous`) wraps it alongside `ContinuousShortcut` for code that handles either flavor.
 - **`ContinuousShortcut`** — sensitivity-bearing single-step type for throttled continuous fire (scroll-to-zoom etc.). The `kind: ContinuousShortcut.Kind` nested enum restricts it to continuous gestures (scroll / pinch / rotate) at the type level — discrete kinds are unrepresentable.
 
 **Source structure:**
-- `Shortcut.swift` — Fire-once umbrella + nested `Shortcut.Step` (kind + modifiers). Kind covers `.key`, `.mouseButton`, `.scroll`, `.pinchIn/Out`, `.rotateClockwise/CounterClockwise`, `.smartMagnify`. Codable, Equatable, Hashable, Sendable.
-- `Shortcut+Matching.swift` — `Shortcut.Step.matches(NSEvent)`, `matches(KeyPress)`, `GestureEventShape` test seam.
-- `Shortcut+DisplayString.swift` — Human-readable display strings (`⌘K`, `Tab`, `Left Click`, `Scroll Up`, `⌘Pinch In`, …); `Shortcut.displayString` joins steps.
-- `Shortcut+KeyMapping.swift` — UCKeyTranslate, special-key names, `NSEvent.ModifierFlags.symbolicRepresentation`.
+- `Shortcut.swift` — `Shortcut` umbrella enum: `.discrete(DiscreteShortcut)` / `.continuous(ContinuousShortcut)`, with a `kind` discriminator and forwarded `displayString`. Codable, Hashable, Sendable.
+- `DiscreteShortcut.swift` — Fire-once type: one or more `DiscreteShortcut.Step`s (kind + modifiers). Kind covers `.key`, `.mouseButton`, `.scroll`, `.pinchIn/Out`, `.rotateClockwise/CounterClockwise`, `.smartMagnify`. Codable, Equatable, Hashable, Sendable.
+- `DiscreteShortcut+Matching.swift` — `DiscreteShortcut.Step.matches(NSEvent)`, `matches(KeyPress)`, `GestureEventShape` test seam.
+- `DiscreteShortcut+DisplayString.swift` — Human-readable display strings (`⌘K`, `Tab`, `Left Click`, `Scroll Up`, `⌘Pinch In`, …); `displayString` joins steps.
+- `DiscreteShortcut+KeyMapping.swift` — UCKeyTranslate, special-key names, `NSEvent.ModifierFlags.symbolicRepresentation`.
 - `ContinuousShortcut.swift` — Sensitivity-bearing single-step type. Nested `ContinuousShortcut.Kind` exposes only continuous cases (scroll / pinch / rotate). Codable, Equatable, Hashable, Sendable.
-- `ShortcutRecorderView.swift` — SwiftUI recorder (NSViewRepresentable) for `Shortcut`.
-- `ShortcutRecorderField.swift` — AppKit `NSSearchField` subclass for `Shortcut`. Multi-step capture with 1-second idle timeout; bare left-click anywhere (no modifiers) finalizes.
+- `Syntax/ShortcutASCII.swift` — ASCII text syntax: `Shortcut(ascii:)` parser and `.ascii` serialization; `ExpressibleByStringLiteral`.
+- `Matching/ShortcutMatcher.swift` — Public matcher facade; dispatches to `SequenceMatcher` (discrete) or `ContinuousMatcher` (continuous).
+- `Matching/SequenceMatcher.swift` — Multi-step discrete sequence matcher with per-step idle timeout.
+- `Matching/ContinuousMatcher.swift` — Single continuous-shortcut matcher applying the sensitivity throttle.
+- `Matching/ShortcutEventDispatcher.swift` — Shared `NSEvent` local-monitor fan-out used by `.onShortcut`.
+- `Matching/ShortcutMatchResult.swift` — Matcher result enum (`.fired`, `.continuousFired`, `.advanced`, `.ignored`).
+- `Matching/ShortcutTracking.swift` — Public `ShortcutTracking.isActive` flag for in-progress multi-step matches; bumped automatically by `SequenceMatcher`.
+- `BaseShortcutRecorderField.swift` — Shared `NSSearchField` base for the two recorder fields (cell class, sizing, key-view eligibility, event-monitor storage, click hit-test).
+- `ShortcutRecorderView.swift` — SwiftUI recorder (NSViewRepresentable) for `DiscreteShortcut`.
+- `ShortcutRecorderField.swift` — AppKit `NSSearchField` subclass for `DiscreteShortcut`. Multi-step capture with 1-second idle timeout; bare left-click anywhere (no modifiers) finalizes.
 - `ContinuousShortcutRecorderView.swift` — SwiftUI recorder with sensitivity slider for `ContinuousShortcut`.
 - `ContinuousShortcutRecorderField.swift` — AppKit recorder for `ContinuousShortcut`.
 - `ContinuousShortcutRecorderField+Menu.swift` — chevron menu picker for continuous kinds (scroll / pinch / rotate).
-- `OnShortcutModifier.swift` — `.onShortcut()` fire-once dispatcher; `ShortcutMatcher`, `ShortcutEventDispatcher`.
+- `OnShortcutModifier.swift` — `.onShortcut()` dispatcher; fires once for discrete shortcuts, throttled-continuous for continuous.
 - `SuppressShortcutBeep.swift` — `.suppressShortcutBeep()` view modifier; installs a `noResponder(for:)` override gated on `ShortcutTracking.isActive`.
-- `Matching/ShortcutTracking.swift` — public `ShortcutTracking.isActive` flag for in-progress multi-step matches; bumped automatically by `SequenceMatcher`.
-- `OnContinuousShortcutModifier.swift` — `.onContinuousShortcut()` throttled-continuous dispatcher.
-- `ThrottleState.swift` — Internal: shared throttle state for `OnContinuousShortcutModifier`.
+- `ThrottleState.swift` — Internal: shared throttle state for continuous-shortcut firing.
 - `GestureAccumulator.swift` — Internal: per-burst threshold detection for pinch / rotate / scroll, shared between both recorder fields.
 - `SensitivitySliderRepresentable.swift` — internal slider helper used by `ContinuousShortcutRecorderView`.
 - `SensitivityMode.swift` — sensitivity mode + position enums.

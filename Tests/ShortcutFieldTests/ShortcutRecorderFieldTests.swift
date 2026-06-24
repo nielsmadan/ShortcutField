@@ -168,6 +168,20 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         #expect(!callbackCalled)
     }
 
+    @MainActor
+    @Test func recorderField_capturingStepArmsAndDisarmsIdleTimeout() {
+        let field = ShortcutRecorderField()
+        field.startRecording()
+        #expect(field.timeoutTask == nil)
+
+        _ = field.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_K), modifiers: .command))
+        // A captured step arms the idle timeout that auto-finalizes recording.
+        #expect(field.timeoutTask != nil)
+
+        field.endRecording()
+        #expect(field.timeoutTask == nil)
+    }
+
     // MARK: - Tab / multi-step recording
 
     @MainActor

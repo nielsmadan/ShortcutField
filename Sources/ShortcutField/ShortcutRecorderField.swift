@@ -110,29 +110,13 @@ class CenteredSearchFieldCell: NSSearchFieldCell {
 ///
 /// For SwiftUI, use ``ShortcutRecorderView`` instead. For sensitivity-bearing
 /// continuous shortcuts (scroll-to-zoom etc.), use ``ContinuousShortcutRecorderField``.
-public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, NSTextViewDelegate,
+public final class ShortcutRecorderField: BaseShortcutRecorderField, NSSearchFieldDelegate, NSTextViewDelegate,
     ActiveShortcutRecorder
 {
-    override public class var cellClass: AnyClass? {
-        get { CenteredSearchFieldCell.self }
-        set { super.cellClass = newValue }
-    }
-
-    /// Minimum intrinsic width. SwiftUI's `.frame(width:)` overrides this; the
-    /// floor only matters when no explicit frame is set. Defaults to 160.
-    public var minimumWidth: CGFloat = 160 {
-        didSet { invalidateIntrinsicContentSize() }
-    }
-
-    private var bezeledHeight: CGFloat = 0
-    private nonisolated(unsafe) var eventMonitor: Any?
-    private var cancelButton: NSButtonCell?
-    private var canBecomeKey = false
-    private var isStartingRecording = false
     private var recordedSteps: [DiscreteShortcut.Step] = []
-    private var timeoutTask: Task<Void, Never>?
-
-    private var gestures = GestureAccumulator()
+    /// Internal (not `private`) so tests can observe whether the idle timeout
+    /// is armed.
+    var timeoutTask: Task<Void, Never>?
     /// Whether the current scroll burst has already been captured as a step.
     private var scrollCaptured: Bool = false
     /// Whether the current pinch gesture has already been captured as a step.
@@ -142,12 +126,12 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
     /// Same as `pinchCaptured`, but for rotate gestures.
     private var rotateCaptured: Bool = false
 
-    private let recordingTimeout: TimeInterval = 1.0
+    /// Idle interval after the last captured step before recording finalizes.
+    /// Internal (not `private`) so tests can shrink it.
+    var recordingTimeout: TimeInterval = 1.0
 
     /// Whether this field is currently recording a shortcut.
     public private(set) var isRecording = false
-
-    override public var canBecomeKeyView: Bool { canBecomeKey }
 
     /// The currently recorded shortcut, or nil if cleared.
     public var shortcut: DiscreteShortcut? {
@@ -171,26 +155,13 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
     /// The placeholder text shown during recording.
     public var recordingPlaceholder: String = "Record shortcut\u{2026}"
 
-    /// The text color for the shortcut display. Nil uses the system default.
-    public var fieldTextColor: NSColor? {
-        didSet { textColor = fieldTextColor }
-    }
-
     private var showsCancelButton: Bool {
         get { (cell as? NSSearchFieldCell)?.cancelButtonCell != nil }
         set { (cell as? NSSearchFieldCell)?.cancelButtonCell = newValue ? cancelButton : nil }
     }
 
-    deinit {
-        ShortcutRecordingState.endOnDeinit(for: self)
-        // timeoutTask uses [weak self] so it's safe to let it fire after dealloc.
-        if let eventMonitor {
-            NSEvent.removeMonitor(eventMonitor)
-        }
-    }
-
     override public init(frame _: NSRect) {
-        super.init(frame: NSRect(x: 0, y: 0, width: minimumWidth, height: 24))
+        super.init(frame: NSRect(x: 0, y: 0, width: 160, height: 24))
         setup()
     }
 
@@ -216,12 +187,8 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
         setContentHuggingPriority(.defaultLow, for: .horizontal)
 
         cancelButton = (cell as? NSSearchFieldCell)?.cancelButtonCell
-        bezeledHeight = super.intrinsicContentSize.height
+        captureBezeledHeight()
         updateDisplay()
-    }
-
-    override public var intrinsicContentSize: NSSize {
-        NSSize(width: minimumWidth, height: bezeledHeight)
     }
 
     override public func viewWillMove(toWindow newWindow: NSWindow?) {
@@ -230,16 +197,6 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
             endRecording()
         }
         super.viewWillMove(toWindow: newWindow)
-    }
-
-    override public func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        guard window != nil else { return }
-
-        canBecomeKey = false
-        DispatchQueue.main.async { [weak self] in
-            self?.canBecomeKey = true
-        }
     }
 
     private func updateDisplay() {
@@ -328,10 +285,6 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
                 finalizeRecording()
             } catch {}
         }
-    }
-
-    private func blur() {
-        window?.makeFirstResponder(nil)
     }
 
     // MARK: - NSSearchFieldDelegate
@@ -473,15 +426,13 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
             return nil
         }
 
-        let clickPoint = convert(event.locationInWindow, from: nil)
-        let clickMargin: CGFloat = 3.0
-        let isInsideField = bounds.insetBy(dx: -clickMargin, dy: -clickMargin).contains(clickPoint)
+        let inside = isInsideField(event)
 
         finalizeRecording()
         // Pass the event through if the click was outside the field, so other UI
         // (buttons, links, etc.) still receives the click. Inside-field clicks are
         // consumed since they're targeting the recorder itself.
-        return isInsideField ? nil : event
+        return inside ? nil : event
     }
 
     private func handleKeyEvent(_ event: NSEvent) -> NSEvent? {
@@ -518,10 +469,7 @@ public final class ShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, 
             // Bare left-click is reserved for UI / finalize — pass outside clicks
             // through so the target sees both down and up; mouseUp handler commits.
             if modifiers.isEmpty {
-                let clickPoint = convert(event.locationInWindow, from: nil)
-                let clickMargin: CGFloat = 3.0
-                let isInsideField = bounds.insetBy(dx: -clickMargin, dy: -clickMargin).contains(clickPoint)
-                return isInsideField ? nil : event
+                return isInsideField(event) ? nil : event
             }
 
             let step = DiscreteShortcut.Step(kind: .mouseButton(number: event.buttonNumber), modifiers: modifiers)
