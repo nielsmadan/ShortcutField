@@ -70,6 +70,7 @@ final class ContinuousMatcher {
     func handle(shape: ContinuousEventShape) -> ShortcutMatchResult {
         // Phase-end: reset throttle so the next physical gesture starts fresh.
         let isContinuousType = shape.type == .magnify || shape.type == .rotate
+            || shape.type == .scrollWheel
         if isContinuousType, shape.phase == .ended || shape.phase == .cancelled {
             if Self.eventTypeMatchesKind(shape.type, shortcut.kind) {
                 throttle.reset()
@@ -134,6 +135,7 @@ final class ContinuousMatcher {
         switch (eventType, kind) {
         case (.magnify, .pinchIn), (.magnify, .pinchOut): true
         case (.rotate, .rotateClockwise), (.rotate, .rotateCounterClockwise): true
+        case (.scrollWheel, .scroll): true
         default: false
         }
     }

@@ -100,4 +100,20 @@ struct ContinuousMatcherTests {
         _ = matcher.handle(shape: endShape)
         #expect(matcher.handle(shape: matchingShape) == .continuousFired(magnitude: 5.0))
     }
+
+    @Test("scroll phase-end resets throttle so the next scroll burst fires again")
+    func scrollPhaseEndResetsThrottle() {
+        let matcher = ContinuousMatcher(
+            ContinuousShortcut(kind: .scroll(direction: .down), modifiers: [], sensitivity: 0.0)
+        )
+        let matchingShape = ContinuousEventShape(type: .scrollWheel, scrollDeltaY: -2.0)
+        let endShape = ContinuousEventShape(type: .scrollWheel, phase: .ended)
+
+        if case .continuousFired = matcher.handle(shape: matchingShape) {} else {
+            Issue.record("expected first event to fire")
+        }
+        // Without a phase-end reset the next burst's first event is throttle-suppressed.
+        _ = matcher.handle(shape: endShape)
+        #expect(matcher.handle(shape: matchingShape) == .continuousFired(magnitude: -2.0))
+    }
 }
