@@ -24,11 +24,20 @@ struct OnShortcutModifierTests {
     @MainActor
     final class ShortcutModel: ObservableObject {
         @Published var shortcut: DiscreteShortcut?
+        @Published var tag = 0
     }
 
     @MainActor
     final class ActionCounter {
         var count = 0
+    }
+
+    /// Records the most recent `tag` an action closure fired with, plus how many
+    /// times the harness body has been evaluated.
+    @MainActor
+    final class TagRecorder {
+        var firedTag = -1
+        var renderCount = 0
     }
 
     private struct Harness: View {
@@ -39,6 +48,22 @@ struct OnShortcutModifierTests {
             Text("shortcut-host")
                 .onShortcut(model.shortcut.map(Shortcut.discrete)) {
                     counter.count += 1
+                }
+        }
+    }
+
+    /// The action closure captures `tag` by value from each body evaluation, so
+    /// a stale registered closure would keep firing the original tag.
+    private struct StaleActionHarness: View {
+        @ObservedObject var model: ShortcutModel
+        let recorder: TagRecorder
+
+        var body: some View {
+            recorder.renderCount += 1
+            let tag = model.tag
+            return Text("stale-action-host")
+                .onShortcut(model.shortcut.map(Shortcut.discrete)) {
+                    recorder.firedTag = tag
                 }
         }
     }
@@ -107,6 +132,43 @@ struct OnShortcutModifierTests {
         // A non-matching event does not fire it.
         _ = dispatcher.handleEvent(keyDown(kVK_ANSI_A, .command))
         #expect(counter.count == 1)
+    }
+
+    @Test("the action closure is refreshed when the view re-renders without a shortcut change")
+    func actionClosureRefreshesOnRerender() {
+        let dispatcher = ShortcutEventDispatcher.shared
+        let baseline = dispatcher.handlerCount
+
+        let model = ShortcutModel()
+        let recorder = TagRecorder()
+        let window = NSWindow(
+            contentRect: NSRect(x: -10000, y: -10000, width: 80, height: 40),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = NSHostingView(rootView: StaleActionHarness(model: model, recorder: recorder))
+        window.orderFront(nil)
+        defer {
+            window.orderOut(nil)
+            window.contentView = nil
+            pump { dispatcher.handlerCount == baseline }
+        }
+
+        model.shortcut = DiscreteShortcut(keyCode: UInt16(kVK_ANSI_S), modifiers: .command)
+        #expect(pump { dispatcher.handlerCount == baseline + 1 })
+
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_S, .command))
+        #expect(recorder.firedTag == 0)
+
+        // Changing `tag` (not `shortcut`) re-renders the body without re-running
+        // `install()`. The fired action must still see the new tag.
+        let rendersBefore = recorder.renderCount
+        model.tag = 42
+        #expect(pump { recorder.renderCount > rendersBefore })
+
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_S, .command))
+        #expect(recorder.firedTag == 42)
     }
 
     @Test("unmounting the view unregisters its handler")

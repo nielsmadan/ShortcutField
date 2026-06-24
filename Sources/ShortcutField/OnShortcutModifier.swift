@@ -1,6 +1,19 @@
 import AppKit
 import SwiftUI
 
+/// Holds the latest `onShortcut` action. The dispatcher handler is registered
+/// once (on appear / shortcut change) and captures this box, not the action
+/// directly — so a re-rendered modifier carrying a fresh closure stays current
+/// without forcing a re-registration.
+///
+/// `@MainActor` makes the main-thread invariant explicit: `body` writes the
+/// action, the dispatcher reads it, and both run on the main actor.
+@MainActor
+private final class ActionBox {
+    var action: () -> Void = {}
+    nonisolated init() {}
+}
+
 /// View modifier backing `.onShortcut`.
 struct OnShortcutModifier: ViewModifier {
     let shortcut: Shortcut?
@@ -8,9 +21,11 @@ struct OnShortcutModifier: ViewModifier {
 
     @State private var matcher: ShortcutMatcher?
     @State private var listenerID = UUID()
+    @State private var actionBox = ActionBox()
 
     func body(content: Content) -> some View {
-        content
+        actionBox.action = action
+        return content
             .onAppear { install(shortcut) }
             .onDisappear { teardown() }
             .onChange(of: shortcut) { newValue in
@@ -27,11 +42,12 @@ struct OnShortcutModifier: ViewModifier {
         guard let shortcut else { return }
         let m = ShortcutMatcher(shortcut)
         matcher = m
+        let box = actionBox
         ShortcutEventDispatcher.shared.register(id: listenerID) { event in
             let result = m.handle(event)
             switch result {
             case .fired, .continuousFired:
-                action()
+                box.action()
             case .advanced, .ignored:
                 break
             }
