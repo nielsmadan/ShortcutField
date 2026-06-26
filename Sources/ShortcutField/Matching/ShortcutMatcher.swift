@@ -25,6 +25,7 @@ public final class ShortcutMatcher {
         }
     }
 
+    /// Create a matcher for a discrete or continuous shortcut.
     public init(_ shortcut: Shortcut) {
         switch shortcut {
         case let .discrete(discrete):

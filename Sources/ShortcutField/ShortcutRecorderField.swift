@@ -170,6 +170,7 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField, NSSearchFie
         fatalError("init(coder:) is not supported")
     }
 
+    /// Create a recorder field at the default size.
     public convenience init() {
         self.init(frame: .zero)
     }
