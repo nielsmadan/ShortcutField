@@ -17,6 +17,26 @@ lint-fix *files:
 format *files:
     @swiftformat {{ if files == "" { "." } else { files } }}
 
+# Build DocC docs and fail on any diagnostic (e.g. unresolved symbol links).
+# `xcodebuild docbuild` exits 0 even on warnings, so inspect the diagnostics file.
+docs:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    rm -rf .build/docc
+    xcodebuild docbuild -scheme ShortcutField -destination 'platform=macOS' -derivedDataPath .build/docc
+    DIAG=$(find .build/docc -name '*-diagnostics.json' | head -1)
+    if [ -z "$DIAG" ]; then
+        echo "error: no DocC diagnostics file found — docc did not run" >&2
+        exit 1
+    fi
+    COUNT=$(python3 -c "import json; print(len(json.load(open('$DIAG'))['diagnostics']))")
+    if [ "$COUNT" -ne 0 ]; then
+        echo "error: DocC reported $COUNT diagnostic(s):" >&2
+        python3 -c "import json; [print('  -', x.get('summary', '')) for x in json.load(open('$DIAG'))['diagnostics']]" >&2
+        exit 1
+    fi
+    echo "DocC: no diagnostics."
+
 example:
     @xcodebuild -project Example/ShortcutFieldExample.xcodeproj \
         -scheme ShortcutFieldExample -configuration Debug \
@@ -59,6 +79,12 @@ tag-release bump:
             *) echo "Error: bump must be patch, minor, or major"; exit 1 ;;
         esac
         VERSION="$MAJOR.$MINOR.$PATCH"
+    fi
+    # Keep the README install snippet in sync; commit it so the tag includes it.
+    sed -i '' -E "s|(ShortcutField\", from: \")[0-9]+\.[0-9]+\.[0-9]+|\1${VERSION}|" README.md
+    if ! git diff --quiet README.md; then
+        git add README.md
+        git commit -m "chore: bump README install version to $VERSION"
     fi
     echo "Tagging v$VERSION..."
     git tag "v$VERSION" && git push origin main "v$VERSION" && \

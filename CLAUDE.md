@@ -7,6 +7,7 @@ just build    # Build the package
 just test     # Run tests
 just lint     # Run SwiftLint
 just format   # Run SwiftFormat
+just docs     # Build DocC docs, fail on any diagnostic (unresolved links, etc.)
 just lint-fix  # Auto-fix SwiftLint violations
 just example   # Build & run the example app
 just clean     # Remove build directory

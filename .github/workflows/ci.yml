@@ -32,3 +32,15 @@ jobs:
 
       - name: Lint
         run: swiftlint .
+
+  docs:
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install just
+        run: brew install just
+
+      - name: Build documentation
+        run: just docs
