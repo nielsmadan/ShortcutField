@@ -37,7 +37,7 @@ Add ShortcutField to your project via Swift Package Manager:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/nielsmadan/ShortcutField", from: "2.2.2")
+    .package(url: "https://github.com/nielsmadan/ShortcutField", from: "2.2.3")
 ]
 ```
 
