@@ -27,7 +27,47 @@ public class BaseShortcutRecorderField: NSSearchField {
 
     /// The text color for the shortcut display. Nil uses the system default.
     public var fieldTextColor: NSColor? {
-        didSet { textColor = fieldTextColor }
+        didSet {
+            textColor = fieldTextColor
+            // In `.compact` style the color is baked into the attributed value, so a
+            // plain `textColor` change wouldn't repaint it — re-render to pick it up.
+            refreshDisplay()
+        }
+    }
+
+    /// How the recorded shortcut is rendered in the field. Defaults to `.text`.
+    /// In `.compact` style, gestures/scroll show SF Symbols and mouse clicks show
+    /// short abbreviations, with the full text meaning surfaced as the field's
+    /// tooltip. Changing it mid-recording is ignored until recording finalizes.
+    public var labelStyle: ShortcutLabelStyle = .text {
+        didSet {
+            guard labelStyle != oldValue else { return }
+            refreshDisplay()
+        }
+    }
+
+    /// Re-render the committed shortcut using the current `labelStyle`. Overridden
+    /// by each concrete field (which no-ops while recording, so an in-progress live
+    /// preview isn't clobbered); the base implementation does nothing.
+    func refreshDisplay() {}
+
+    /// Font used to size inline symbol attachments; falls back to the system font.
+    var displayFont: NSFont { font ?? .systemFont(ofSize: NSFont.systemFontSize) }
+
+    /// Stamp the field's `alignment` onto an attributed value. Unlike `stringValue`,
+    /// an attributed string carries its own paragraph style and ignores the control's
+    /// alignment, so the icon/text would otherwise render left-aligned.
+    func aligned(_ attributed: NSAttributedString) -> NSAttributedString {
+        let mutable = NSMutableAttributedString(attributedString: attributed)
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = alignment
+        // Our paragraph style replaces the cell's default, so restore tail truncation
+        // that the plain-string path would otherwise get for free on overflow.
+        paragraph.lineBreakMode = .byTruncatingTail
+        mutable.addAttribute(
+            .paragraphStyle, value: paragraph, range: NSRange(location: 0, length: mutable.length)
+        )
+        return mutable
     }
 
     var bezeledHeight: CGFloat = 0

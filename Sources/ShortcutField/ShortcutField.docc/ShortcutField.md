@@ -19,6 +19,11 @@ Record with the SwiftUI views (``ShortcutRecorderView``,
 display with `displayString`. Special keys that SwiftUI's focus system normally
 intercepts — Tab, Escape — work throughout.
 
+For a compact display, opt into ``ShortcutLabelStyle/compact``: pass
+`.shortcutLabelStyle(.compact)` to a recorder view, or drop a read-only ``ShortcutLabel``
+into a legend. Gestures and scroll render as SF Symbols, mouse clicks as short
+abbreviations, and each carries a hover tooltip with its full text meaning.
+
 For full usage guides, the VS Code-style text syntax, and behavior notes, see
 the [README](https://github.com/nielsmadan/ShortcutField) and the bundled
 `Example/` app.
@@ -35,6 +40,12 @@ the [README](https://github.com/nielsmadan/ShortcutField) and the bundled
 
 - ``ShortcutRecorderView``
 - ``ContinuousShortcutRecorderView``
+
+### Display
+
+- ``ShortcutLabel``
+- ``ShortcutLabelStyle``
+- ``ShortcutDisplayElement``
 
 ### Recording (AppKit)
 

@@ -66,6 +66,74 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     }
 
     @MainActor
+    @Test func recorderField_compactStyle_gestureShowsAttachmentAndTooltip() {
+        let field = ShortcutRecorderField()
+        field.labelStyle = .compact
+        field.shortcut = DiscreteShortcut(kind: .rotateClockwise, modifiers: [])
+        var hasAttachment = false
+        let attributed = field.attributedStringValue
+        attributed.enumerateAttribute(.attachment, in: NSRange(
+            location: 0,
+            length: attributed.length
+        )) { value, _, stop in
+            if value != nil { hasAttachment = true; stop.pointee = true }
+        }
+        #expect(hasAttachment)
+        // Full text meaning available on hover.
+        #expect(field.toolTip == "Rotate CW")
+    }
+
+    @MainActor
+    @Test func recorderField_compactStyle_attributedValueIsCenteredAndTruncating() {
+        let field = ShortcutRecorderField()
+        field.labelStyle = .compact
+        field.shortcut = DiscreteShortcut(kind: .rotateClockwise, modifiers: [])
+        let attributed = field.attributedStringValue
+        #expect(attributed.length > 0)
+        let paragraph = attributed.attribute(
+            .paragraphStyle, at: 0, effectiveRange: nil
+        ) as? NSParagraphStyle
+        // aligned(_:) must stamp the field's center alignment (attributed strings ignore
+        // the control's `alignment`) and restore tail truncation the plain path gets free.
+        #expect(paragraph?.alignment == field.alignment)
+        #expect(paragraph?.alignment == .center)
+        #expect(paragraph?.lineBreakMode == .byTruncatingTail)
+    }
+
+    @MainActor
+    @Test func recorderField_compactStyle_colorChangeRepaintsAttributedValue() {
+        let field = ShortcutRecorderField()
+        field.labelStyle = .compact
+        field.shortcut = DiscreteShortcut(kind: .mouseButton(number: 1), modifiers: [])
+        field.fieldTextColor = .systemRed
+        let color = field.attributedStringValue.attribute(
+            .foregroundColor, at: 0, effectiveRange: nil
+        ) as? NSColor
+        #expect(color == .systemRed)
+    }
+
+    @MainActor
+    @Test func recorderField_startRecording_clearsStaleTooltip() {
+        let field = ShortcutRecorderField()
+        field.labelStyle = .compact
+        field.shortcut = DiscreteShortcut(kind: .rotateClockwise, modifiers: [])
+        #expect(field.toolTip == "Rotate CW")
+        field.startRecording()
+        #expect(field.toolTip == nil)
+    }
+
+    @MainActor
+    @Test func recorderField_compactStyle_switchingBackToTextRestoresString() {
+        let field = ShortcutRecorderField()
+        let shortcut = DiscreteShortcut(kind: .rotateClockwise, modifiers: .command)
+        field.shortcut = shortcut
+        field.labelStyle = .compact
+        field.labelStyle = .text
+        #expect(field.stringValue == shortcut.displayString)
+        #expect(field.toolTip == nil)
+    }
+
+    @MainActor
     @Test func recorderField_clearShortcut_clearsDisplay() {
         let field = ShortcutRecorderField()
         field.shortcut = DiscreteShortcut(keyCode: UInt16(kVK_Tab), modifiers: .command)

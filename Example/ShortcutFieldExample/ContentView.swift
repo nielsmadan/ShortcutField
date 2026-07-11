@@ -51,6 +51,9 @@ struct WorkbenchTab: View {
     @State private var contBMatchCount = 0
     @State private var contBLastMatched = false
 
+    // Display
+    @State private var labelStyle: ShortcutLabelStyle = .compact
+
     var body: some View {
         HStack(spacing: 0) {
             ScrollView {
@@ -59,7 +62,8 @@ struct WorkbenchTab: View {
                     width: $selectedWidthA,
                     placeholder: $placeholderTextA,
                     sensitivityMode: $selectedSensitivityModeA,
-                    sensitivityPosition: $selectedSensitivityPositionA
+                    sensitivityPosition: $selectedSensitivityPositionA,
+                    labelStyle: $labelStyle
                 )
                 .padding(.horizontal, 28)
                 .padding(.vertical, 20)
@@ -115,12 +119,13 @@ struct WorkbenchTab: View {
             HStack(alignment: .top, spacing: 16) {
                 fieldColumn {
                     makeRecorder($shortcutA, textColor: selectedTextColorA.color,
-                                 placeholder: placeholderTextA)
+                                 placeholder: placeholderTextA, labelStyle: labelStyle)
                         .frame(width: selectedWidthA.value)
 
                     if let shortcutA {
-                        Text(shortcutA.displayString)
-                            .font(.title.monospaced())
+                        // Legend: in .compact mode, hover an icon/abbreviation for its meaning.
+                        ShortcutLabel(shortcutA, style: labelStyle)
+                            .font(.title)
                             .foregroundStyle(.secondary)
                     } else {
                         Text("No shortcut")
@@ -130,12 +135,12 @@ struct WorkbenchTab: View {
 
                 fieldColumn {
                     makeRecorder($shortcutB, textColor: selectedTextColorB.color,
-                                 placeholder: placeholderTextB)
+                                 placeholder: placeholderTextB, labelStyle: labelStyle)
                         .frame(width: selectedWidthB.value)
 
                     if let shortcutB {
-                        Text(shortcutB.displayString)
-                            .font(.title.monospaced())
+                        ShortcutLabel(shortcutB, style: labelStyle)
+                            .font(.title)
                             .foregroundStyle(.secondary)
                     } else {
                         Text("No shortcut")
@@ -165,15 +170,16 @@ struct WorkbenchTab: View {
                                            textColor: selectedTextColorA.color,
                                            placeholder: "Record Continuous",
                                            sensitivityMode: selectedSensitivityModeA,
-                                           sensitivityPosition: selectedSensitivityPositionA)
+                                           sensitivityPosition: selectedSensitivityPositionA,
+                                           labelStyle: labelStyle)
                         .frame(width: continuousFrameWidth(
                             base: selectedWidthA.value,
                             position: selectedSensitivityPositionA
                         ))
 
                     if let continuousA {
-                        Text(continuousA.displayString)
-                            .font(.title.monospaced())
+                        ShortcutLabel(continuousA, style: labelStyle)
+                            .font(.title)
                             .foregroundStyle(.secondary)
                     } else {
                         Text("No continuous")
@@ -186,15 +192,16 @@ struct WorkbenchTab: View {
                                            textColor: selectedTextColorB.color,
                                            placeholder: "Record Continuous",
                                            sensitivityMode: selectedSensitivityModeB,
-                                           sensitivityPosition: selectedSensitivityPositionB)
+                                           sensitivityPosition: selectedSensitivityPositionB,
+                                           labelStyle: labelStyle)
                         .frame(width: continuousFrameWidth(
                             base: selectedWidthB.value,
                             position: selectedSensitivityPositionB
                         ))
 
                     if let continuousB {
-                        Text(continuousB.displayString)
-                            .font(.title.monospaced())
+                        ShortcutLabel(continuousB, style: labelStyle)
+                            .font(.title)
                             .foregroundStyle(.secondary)
                     } else {
                         Text("No continuous")
@@ -268,10 +275,12 @@ struct WorkbenchTab: View {
 
     private func makeRecorder(_ shortcut: Binding<DiscreteShortcut?>,
                               textColor: Color?,
-                              placeholder: String) -> some View
+                              placeholder: String,
+                              labelStyle: ShortcutLabelStyle = .text) -> some View
     {
         var view = ShortcutRecorderView(shortcut)
             .placeholder(placeholder)
+            .shortcutLabelStyle(labelStyle)
         if let textColor { view = view.textColor(textColor) }
         return view
     }
@@ -281,12 +290,14 @@ struct WorkbenchTab: View {
         textColor: Color?,
         placeholder: String,
         sensitivityMode: SensitivityMode,
-        sensitivityPosition: SensitivityPosition
+        sensitivityPosition: SensitivityPosition,
+        labelStyle: ShortcutLabelStyle = .text
     ) -> some View {
         var view = ContinuousShortcutRecorderView(shortcut)
             .placeholder(placeholder)
             .sensitivityMode(sensitivityMode)
             .sensitivityPosition(sensitivityPosition)
+            .shortcutLabelStyle(labelStyle)
         if let textColor { view = view.textColor(textColor) }
         return view
     }
@@ -298,9 +309,24 @@ struct WorkbenchTab: View {
         width: Binding<NamedWidth>,
         placeholder: Binding<String>,
         sensitivityMode: Binding<SensitivityMode>,
-        sensitivityPosition: Binding<SensitivityPosition>
+        sensitivityPosition: Binding<SensitivityPosition>,
+        labelStyle: Binding<ShortcutLabelStyle>? = nil
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
+            if let labelStyle {
+                Group {
+                    Text("Label style")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Picker("", selection: labelStyle) {
+                        Text("Text").tag(ShortcutLabelStyle.text)
+                        Text("Compact").tag(ShortcutLabelStyle.compact)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                }
+            }
+
             Group {
                 Text("Text color")
                     .font(.caption)

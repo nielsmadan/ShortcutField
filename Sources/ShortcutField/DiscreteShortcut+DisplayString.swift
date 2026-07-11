@@ -10,17 +10,24 @@ public extension DiscreteShortcut.Step {
     /// Examples: `⌘K`, `Tab`, `↑`, `⌃Right Click`, `⇧Scroll Up`, `⌘Pinch In`,
     /// `⌃⌥Smart Magnify`.
     var displayString: String {
-        modifiers.symbolicRepresentation + kindDisplayString
+        modifiers.symbolicRepresentation + kind.displayLabel
     }
+}
 
-    private var kindDisplayString: String {
-        switch kind {
+extension DiscreteShortcut.Kind {
+    /// Human-readable text label for the kind alone (no modifier prefix).
+    ///
+    /// Examples: `K`, `Tab`, `Right Click`, `Scroll Up`, `Pinch In`, `Rotate CW`.
+    /// This is the canonical text meaning reused by the icon/segment rendering
+    /// (as tooltips and accessibility descriptions).
+    var displayLabel: String {
+        switch self {
         case let .key(keyCode):
-            keyDisplayString(keyCode: keyCode)
+            Self.keyDisplayString(keyCode: keyCode)
         case let .mouseButton(number):
-            mouseButtonDisplayString(number: number)
+            Self.mouseButtonDisplayString(number: number)
         case let .scroll(direction):
-            scrollDisplayString(direction: direction)
+            Self.scrollDisplayString(direction: direction)
         case .pinchIn: "Pinch In"
         case .pinchOut: "Pinch Out"
         case .rotateClockwise: "Rotate CW"
@@ -29,7 +36,7 @@ public extension DiscreteShortcut.Step {
         }
     }
 
-    private func keyDisplayString(keyCode: UInt16) -> String {
+    private static func keyDisplayString(keyCode: UInt16) -> String {
         if let specialKeyString = DiscreteShortcut.specialKeyString(keyCode: keyCode) {
             return specialKeyString
         }
@@ -39,7 +46,7 @@ public extension DiscreteShortcut.Step {
         return "?"
     }
 
-    private func mouseButtonDisplayString(number: Int) -> String {
+    private static func mouseButtonDisplayString(number: Int) -> String {
         switch number {
         case 0: "Left Click"
         case 1: "Right Click"
@@ -48,7 +55,7 @@ public extension DiscreteShortcut.Step {
         }
     }
 
-    private func scrollDisplayString(direction: DiscreteShortcut.ScrollDirection) -> String {
+    private static func scrollDisplayString(direction: DiscreteShortcut.ScrollDirection) -> String {
         switch direction {
         case .up: "Scroll Up"
         case .down: "Scroll Down"

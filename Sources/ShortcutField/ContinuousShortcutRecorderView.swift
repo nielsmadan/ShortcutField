@@ -22,6 +22,7 @@ public struct ContinuousShortcutRecorderView: View {
     private var recordingPlaceholderText: String = "Scroll / pinch / rotate\u{2026}"
     private var textColorValue: NSColor?
     private var minimumWidthValue: CGFloat?
+    private var labelStyleValue: ShortcutLabelStyle = .text
     private var sensitivityModeValue: SensitivityMode = .discrete
     private var sensitivityPositionValue: SensitivityPosition = .below
 
@@ -74,7 +75,8 @@ public struct ContinuousShortcutRecorderView: View {
             placeholderText: placeholderText,
             recordingPlaceholderText: recordingPlaceholderText,
             textColorValue: textColorValue,
-            minimumWidthValue: minimumWidthValue
+            minimumWidthValue: minimumWidthValue,
+            labelStyleValue: labelStyleValue
         )
     }
 
@@ -126,6 +128,7 @@ private struct FieldRepresentable: NSViewRepresentable {
     var recordingPlaceholderText: String
     var textColorValue: NSColor?
     var minimumWidthValue: CGFloat?
+    var labelStyleValue: ShortcutLabelStyle
 
     func makeNSView(context: Context) -> ContinuousShortcutRecorderField {
         let field = ContinuousShortcutRecorderField()
@@ -134,6 +137,7 @@ private struct FieldRepresentable: NSViewRepresentable {
         field.defaultPlaceholder = placeholderText
         field.recordingPlaceholder = recordingPlaceholderText
         field.fieldTextColor = textColorValue
+        field.labelStyle = labelStyleValue
         if let minimumWidthValue { field.minimumWidth = minimumWidthValue }
         field.isEnabled = context.environment.isEnabled
         field.onShortcutChange = { newValue in
@@ -153,6 +157,7 @@ private struct FieldRepresentable: NSViewRepresentable {
         nsView.defaultPlaceholder = placeholderText
         nsView.recordingPlaceholder = recordingPlaceholderText
         nsView.fieldTextColor = textColorValue
+        nsView.labelStyle = labelStyleValue
         if let minimumWidthValue { nsView.minimumWidth = minimumWidthValue }
         nsView.isEnabled = context.environment.isEnabled
     }
@@ -201,6 +206,18 @@ public extension ContinuousShortcutRecorderView {
     func sensitivityPosition(_ position: SensitivityPosition) -> ContinuousShortcutRecorderView {
         var view = self
         view.sensitivityPositionValue = position
+        return view
+    }
+
+    /// Choose how the recorded shortcut is displayed: verbose ``ShortcutLabelStyle/text``
+    /// (default) or compact ``ShortcutLabelStyle/compact`` (SF Symbols, with the full text
+    /// as the field's tooltip). Also styles the chevron kind-picker menu.
+    ///
+    /// Named `shortcutLabelStyle` (not `labelStyle`) to avoid colliding with SwiftUI's
+    /// generic `View.labelStyle(_:)`.
+    func shortcutLabelStyle(_ style: ShortcutLabelStyle) -> ContinuousShortcutRecorderView {
+        var view = self
+        view.labelStyleValue = style
         return view
     }
 }

@@ -119,7 +119,7 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField, N
     }
 
     @objc private func showShortcutPickerMenu(_ sender: NSButton) {
-        let menu = Self.makeContinuousShortcutMenu(target: self)
+        let menu = Self.makeContinuousShortcutMenu(target: self, labelStyle: labelStyle)
         let location = NSPoint(x: 0, y: sender.bounds.height + 2)
         menu.popUp(positioning: nil, at: location, in: sender)
     }
@@ -133,16 +133,33 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField, N
 
     private func updateDisplay() {
         if let shortcut {
-            stringValue = shortcut.displayString
+            switch labelStyle {
+            case .text:
+                stringValue = shortcut.displayString
+                toolTip = nil
+            case .compact:
+                attributedStringValue = aligned(shortcut.attributedDisplayString(
+                    style: .compact, font: displayFont, color: fieldTextColor
+                ))
+                toolTip = shortcut.displayString
+            }
             showsCancelButton = true
         } else {
             stringValue = ""
+            toolTip = nil
             showsCancelButton = false
         }
     }
 
+    override func refreshDisplay() {
+        guard !isRecording else { return }
+        updateDisplay()
+    }
+
     func startRecording() {
         guard !isRecording else { return }
+        // Drop any committed-shortcut tooltip during recording (see ShortcutRecorderField).
+        toolTip = nil
         isStartingRecording = true
         isRecording = true
         scrollCaptured = false

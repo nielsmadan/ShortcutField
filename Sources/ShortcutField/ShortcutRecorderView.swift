@@ -24,6 +24,7 @@ public struct ShortcutRecorderView: View {
     private var recordingPlaceholderText: String = "Record shortcut\u{2026}"
     private var textColorValue: NSColor?
     private var minimumWidthValue: CGFloat?
+    private var labelStyleValue: ShortcutLabelStyle = .text
 
     /// Create a shortcut recorder bound to the given shortcut value.
     public init(_ shortcut: Binding<DiscreteShortcut?>) {
@@ -38,7 +39,8 @@ public struct ShortcutRecorderView: View {
             placeholderText: placeholderText,
             recordingPlaceholderText: recordingPlaceholderText,
             textColorValue: textColorValue,
-            minimumWidthValue: minimumWidthValue
+            minimumWidthValue: minimumWidthValue,
+            labelStyleValue: labelStyleValue
         )
         .opacity(isEnabled ? 1.0 : 0.5)
     }
@@ -51,6 +53,7 @@ private struct FieldRepresentable: NSViewRepresentable {
     var recordingPlaceholderText: String
     var textColorValue: NSColor?
     var minimumWidthValue: CGFloat?
+    var labelStyleValue: ShortcutLabelStyle
 
     func makeNSView(context: Context) -> ShortcutRecorderField {
         let field = ShortcutRecorderField()
@@ -58,6 +61,7 @@ private struct FieldRepresentable: NSViewRepresentable {
         field.defaultPlaceholder = placeholderText
         field.recordingPlaceholder = recordingPlaceholderText
         field.fieldTextColor = textColorValue
+        field.labelStyle = labelStyleValue
         if let minimumWidthValue { field.minimumWidth = minimumWidthValue }
         field.isEnabled = context.environment.isEnabled
         field.onShortcutChange = { newShortcut in
@@ -77,6 +81,7 @@ private struct FieldRepresentable: NSViewRepresentable {
         nsView.defaultPlaceholder = placeholderText
         nsView.recordingPlaceholder = recordingPlaceholderText
         nsView.fieldTextColor = textColorValue
+        nsView.labelStyle = labelStyleValue
         if let minimumWidthValue { nsView.minimumWidth = minimumWidthValue }
         nsView.isEnabled = context.environment.isEnabled
     }
@@ -111,6 +116,18 @@ public extension ShortcutRecorderView {
     func minimumWidth(_ width: CGFloat) -> ShortcutRecorderView {
         var view = self
         view.minimumWidthValue = width
+        return view
+    }
+
+    /// Choose how the recorded shortcut is displayed: verbose ``ShortcutLabelStyle/text``
+    /// (default) or compact ``ShortcutLabelStyle/compact`` (SF Symbols for gestures/scroll,
+    /// short abbreviations for mouse clicks, with the full text as the field's tooltip).
+    ///
+    /// Named `shortcutLabelStyle` (not `labelStyle`) to avoid colliding with SwiftUI's
+    /// generic `View.labelStyle(_:)`.
+    func shortcutLabelStyle(_ style: ShortcutLabelStyle) -> ShortcutRecorderView {
+        var view = self
+        view.labelStyleValue = style
         return view
     }
 }

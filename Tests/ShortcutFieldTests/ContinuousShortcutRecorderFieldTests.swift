@@ -42,6 +42,32 @@ import Testing
         field.shortcut = ContinuousShortcut(kind: .pinchIn, modifiers: .command)
         #expect(callCount == 0)
     }
+
+    @MainActor
+    @Test func recorderField_compactStyle_showsAttachmentAndTooltip() {
+        let field = ContinuousShortcutRecorderField()
+        field.labelStyle = .compact
+        field.shortcut = ContinuousShortcut(kind: .rotateClockwise, modifiers: [])
+        var hasAttachment = false
+        let attributed = field.attributedStringValue
+        attributed.enumerateAttribute(
+            .attachment, in: NSRange(location: 0, length: attributed.length)
+        ) { value, _, stop in
+            if value != nil { hasAttachment = true; stop.pointee = true }
+        }
+        #expect(hasAttachment)
+        #expect(field.toolTip == "Rotate CW")
+    }
+
+    @MainActor
+    @Test func recorderField_compactStyle_clearShortcutClearsTooltip() {
+        let field = ContinuousShortcutRecorderField()
+        field.labelStyle = .compact
+        field.shortcut = ContinuousShortcut(kind: .rotateClockwise, modifiers: [])
+        field.shortcut = nil
+        #expect(field.toolTip == nil)
+        #expect(field.stringValue == "")
+    }
 }
 
 // MARK: - Menu
@@ -134,6 +160,33 @@ import Testing
         field.menuPicked(rotateCWItem)
         #expect(field.shortcut?.kind == .rotateClockwise)
         #expect(field.shortcut?.sensitivity == 0.5)
+    }
+
+    @Test func menu_textStyle_hasNoImages() {
+        let menu = ContinuousShortcutRecorderField.makeContinuousShortcutMenu(target: nil, labelStyle: .text)
+        #expect(collectMenuLeafItems(menu).allSatisfy { $0.image == nil })
+    }
+
+    @Test func menu_compactStyle_setsImages() {
+        let menu = ContinuousShortcutRecorderField.makeContinuousShortcutMenu(target: nil, labelStyle: .compact)
+        let leaves = collectMenuLeafItems(menu)
+        // Every continuous kind has a symbol, so every leaf item gets an image.
+        #expect(!leaves.isEmpty)
+        #expect(leaves.allSatisfy { $0.image != nil })
+        // Titles are retained alongside the icon.
+        #expect(leaves.contains { $0.title == "Rotate CW" })
+    }
+
+    private func collectMenuLeafItems(_ menu: NSMenu) -> [NSMenuItem] {
+        var items: [NSMenuItem] = []
+        for item in menu.items {
+            if let submenu = item.submenu {
+                items.append(contentsOf: collectMenuLeafItems(submenu))
+            } else if !item.isSeparatorItem, !item.title.isEmpty {
+                items.append(item)
+            }
+        }
+        return items
     }
 
     private func collectMenuTitles(_ menu: NSMenu) -> [String] {

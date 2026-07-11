@@ -202,16 +202,34 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField, NSSearchFie
 
     private func updateDisplay() {
         if let shortcut {
-            stringValue = shortcut.displayString
+            switch labelStyle {
+            case .text:
+                stringValue = shortcut.displayString
+                toolTip = nil
+            case .compact:
+                attributedStringValue = aligned(shortcut.attributedDisplayString(
+                    style: .compact, font: displayFont, color: fieldTextColor
+                ))
+                toolTip = shortcut.displayString
+            }
             showsCancelButton = true
         } else {
             stringValue = ""
+            toolTip = nil
             showsCancelButton = false
         }
     }
 
+    override func refreshDisplay() {
+        guard !isRecording else { return }
+        updateDisplay()
+    }
+
     func startRecording() {
         guard !isRecording else { return }
+        // Drop any committed-shortcut tooltip so the in-progress preview doesn't
+        // show a stale full-text meaning from the previous shortcut.
+        toolTip = nil
 
         isStartingRecording = true
         isRecording = true
@@ -564,7 +582,17 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField, NSSearchFie
     /// or by the gesture's `.ended` / `.cancelled` phase.
     private func appendStep(_ step: DiscreteShortcut.Step) {
         recordedSteps.append(step)
-        stringValue = recordedSteps.map(\.displayString).joined(separator: " ") + " …"
+        switch labelStyle {
+        case .text:
+            stringValue = recordedSteps.map(\.displayString).joined(separator: " ") + " …"
+        case .compact:
+            let elements = recordedSteps.enumerated().flatMap { index, step in
+                (index == 0 ? [] : [ShortcutDisplayElement.text(" ")]) + step.displayElements(style: .compact)
+            } + [ShortcutDisplayElement.text(" …")]
+            attributedStringValue = aligned(
+                shortcutAttributedString(from: elements, font: displayFont, color: fieldTextColor)
+            )
+        }
         resetTimeout()
         gestures.resetAll()
     }
