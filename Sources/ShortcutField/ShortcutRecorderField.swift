@@ -30,13 +30,19 @@ enum ShortcutRecordingState {
         }
     }
 
-    /// `deinit` is non-isolated under Swift 6 strict concurrency, so we route
-    /// the cleanup through main. The `Set` only stores `ObjectIdentifier`, not
-    /// the recorder itself, so a slightly-delayed remove is harmless.
+    /// `deinit` is non-isolated under Swift 6 strict concurrency. Recorder fields
+    /// are `NSView`s, so they always deallocate on the main thread — remove the
+    /// entry synchronously there so `isAnyRecording` reflects reality the instant a
+    /// field dies. Deferring the removal to a `Task` left the flag briefly stale,
+    /// which raced parallel tests (a dispatcher test could start while a
+    /// just-finished recorder test's flag hadn't yet cleared). Fall back to a queued
+    /// removal on the off chance a field is ever released off the main thread.
     nonisolated static func endOnDeinit(for recorder: AnyObject) {
         let id = ObjectIdentifier(recorder)
-        Task { @MainActor in
-            activeRecorders.remove(id)
+        if Thread.isMainThread {
+            MainActor.assumeIsolated { _ = activeRecorders.remove(id) }
+        } else {
+            Task { @MainActor in activeRecorders.remove(id) }
         }
     }
 

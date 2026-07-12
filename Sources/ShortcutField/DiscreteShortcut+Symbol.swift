@@ -158,7 +158,9 @@ public extension Shortcut {
 ///
 /// `@MainActor`: constructs AppKit image/text objects, which must be main-thread-confined.
 @MainActor
-func shortcutAttributedString(from elements: [ShortcutDisplayElement], font: NSFont, color: NSColor?) -> NSAttributedString {
+func shortcutAttributedString(from elements: [ShortcutDisplayElement], font: NSFont,
+                              color: NSColor?) -> NSAttributedString
+{
     let resolvedColor = color ?? .labelColor
     let textAttributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: resolvedColor]
     let result = NSMutableAttributedString()
