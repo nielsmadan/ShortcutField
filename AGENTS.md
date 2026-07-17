@@ -1,27 +1,82 @@
 # Repository Guidelines
 
+This is the single source of truth for agent instructions in this repository. `CLAUDE.md` imports this file.
+
 ## Project Structure & Module Organization
-`ShortcutField` is a Swift Package for macOS. Library sources live in `Sources/ShortcutField/`; keep public API types small and focused, with related behavior split into extension files such as `DiscreteShortcut+Matching.swift` and `DiscreteShortcut+KeyMapping.swift`. Tests live in `Tests/ShortcutFieldTests/` and mirror the library surface with focused suites like `ShortcutTests.swift` and `ContinuousShortcutTests.swift`. The manual demo app is in `Example/ShortcutFieldExample/`. Architecture and current API are documented in `README.md` and `CLAUDE.md`.
+
+`ShortcutField` is a Swift Package for macOS providing in-app shortcut recording. Library sources live in `Sources/ShortcutField/`; keep public API types small and focused, with related behavior split into extension files such as `DiscreteShortcut+Matching.swift` and `DiscreteShortcut+KeyMapping.swift`. Tests live in `Tests/ShortcutFieldTests/` and mirror the library surface with focused suites like `ShortcutTests.swift` and `ContinuousShortcutTests.swift`. The manual demo app is in `Example/ShortcutFieldExample/`. Architecture and current API are documented in `README.md` and this file.
 
 ## Build, Test, and Development Commands
+
 Use `just` for the common workflow:
 
-- `just build` builds the Swift package with `swift build`.
-- `just test` runs the full test suite with `swift test`.
-- `just lint` checks style with SwiftLint.
-- `just format` formats the repository with SwiftFormat.
-- `just example` builds and launches the example macOS app from `Example/`.
+```bash
+just build    # Build the package (swift build, warnings as errors)
+just test     # Run tests (swift test)
+just lint     # Run SwiftLint (--strict)
+just format   # Run SwiftFormat
+just docs     # Build DocC docs, fail on any diagnostic (unresolved links, etc.)
+just lint-fix  # Auto-fix SwiftLint violations
+just example   # Build & run the example app from Example/
+just clean     # Remove build directory
+just tag-release-patch  # Tag and push a patch release
+just tag-release-minor  # Tag and push a minor release
+just tag-release-major  # Tag and push a major release
+```
 
 Run `just lint-fix` before submitting when SwiftLint can auto-correct issues.
 
+## Architecture
+
+ShortcutField splits two concerns into distinct types:
+
+- **`DiscreteShortcut`** — fire-once binding: one or more `DiscreteShortcut.Step`s. Single keystrokes, mouse clicks, gestures, and multi-step sequences all collapse into this type. The matcher fires once per full match. The `Shortcut` umbrella enum (`.discrete` / `.continuous`) wraps it alongside `ContinuousShortcut` for code that handles either flavor.
+- **`ContinuousShortcut`** — sensitivity-bearing single-step type for throttled continuous fire (scroll-to-zoom etc.). The `kind: ContinuousShortcut.Kind` nested enum restricts it to continuous gestures (scroll / pinch / rotate) at the type level — discrete kinds are unrepresentable.
+
+**Source structure:**
+- `Shortcut.swift` — `Shortcut` umbrella enum: `.discrete(DiscreteShortcut)` / `.continuous(ContinuousShortcut)`, with a `kind` discriminator and forwarded `displayString`. Codable, Hashable, Sendable.
+- `DiscreteShortcut.swift` — Fire-once type: one or more `DiscreteShortcut.Step`s (kind + modifiers). Kind covers `.key`, `.mouseButton`, `.scroll`, `.pinchIn/Out`, `.rotateClockwise/CounterClockwise`, `.smartMagnify`. Codable, Equatable, Hashable, Sendable.
+- `DiscreteShortcut+Matching.swift` — `DiscreteShortcut.Step.matches(NSEvent)`, `matches(KeyPress)`, `GestureEventShape` test seam.
+- `DiscreteShortcut+DisplayString.swift` — Human-readable display strings (`⌘K`, `Tab`, `Left Click`, `Scroll Up`, `⌘Pinch In`, …); `displayString` joins steps.
+- `DiscreteShortcut+KeyMapping.swift` — UCKeyTranslate, special-key names, `NSEvent.ModifierFlags.symbolicRepresentation`.
+- `DiscreteShortcut+Symbol.swift` — SF Symbol name mapping for `DiscreteShortcut.Kind` (gesture/scroll icons; `nil` for keys and mouse buttons).
+- `ContinuousShortcut.swift` — Sensitivity-bearing single-step type. Nested `ContinuousShortcut.Kind` exposes only continuous cases (scroll / pinch / rotate). Codable, Equatable, Hashable, Sendable.
+- `Syntax/ShortcutASCII.swift` — ASCII text syntax: `Shortcut(ascii:)` parser and `.ascii` serialization; `ExpressibleByStringLiteral`.
+- `Matching/ShortcutMatcher.swift` — Public matcher facade; dispatches to `SequenceMatcher` (discrete) or `ContinuousMatcher` (continuous).
+- `Matching/SequenceMatcher.swift` — Multi-step discrete sequence matcher with per-step idle timeout.
+- `Matching/ContinuousMatcher.swift` — Single continuous-shortcut matcher applying the sensitivity throttle.
+- `Matching/ShortcutEventDispatcher.swift` — Shared `NSEvent` local-monitor fan-out used by `.onShortcut`.
+- `Matching/ShortcutMatchResult.swift` — Matcher result enum (`.fired`, `.continuousFired`, `.advanced`, `.ignored`).
+- `Matching/ShortcutTracking.swift` — Public `ShortcutTracking.isActive` flag for in-progress multi-step matches; bumped automatically by `SequenceMatcher`.
+- `BaseShortcutRecorderField.swift` — Shared `NSSearchField` base for the two recorder fields (cell class, sizing, key-view eligibility, event-monitor storage, click hit-test).
+- `ShortcutRecorderView.swift` — SwiftUI recorder (NSViewRepresentable) for `DiscreteShortcut`.
+- `ShortcutRecorderField.swift` — AppKit `NSSearchField` subclass for `DiscreteShortcut`. Multi-step capture with 1-second idle timeout; bare left-click anywhere (no modifiers) finalizes. Also hosts the public `ShortcutRecording` namespace (`isActive` flag) plus the internal `ActiveShortcutRecorder` protocol and `ShortcutRecordingState`.
+- `ContinuousShortcutRecorderView.swift` — SwiftUI recorder with sensitivity slider for `ContinuousShortcut`.
+- `ContinuousShortcutRecorderField.swift` — AppKit recorder for `ContinuousShortcut`.
+- `ContinuousShortcutRecorderField+Menu.swift` — chevron menu picker for continuous kinds (scroll / pinch / rotate).
+- `ShortcutLabel.swift` — Compact, read-only SwiftUI label for a shortcut (icons + hover tooltips, or verbose text); ideal for a shortcut legend.
+- `ShortcutLabelStyle.swift` — `.text` / `.compact` render style enum for display labels.
+- `OnShortcutModifier.swift` — `.onShortcut()` dispatcher; fires once for discrete shortcuts, throttled-continuous for continuous.
+- `SuppressShortcutBeep.swift` — `.suppressShortcutBeep()` view modifier; installs a `noResponder(for:)` override gated on `ShortcutTracking.isActive`.
+- `ThrottleState.swift` — Internal: shared throttle state for continuous-shortcut firing.
+- `GestureAccumulator.swift` — Internal: per-burst threshold detection for pinch / rotate / scroll, shared between both recorder fields.
+- `SensitivitySliderRepresentable.swift` — internal slider helper used by `ContinuousShortcutRecorderView`.
+- `SensitivityMode.swift` — sensitivity mode + position enums.
+- `ShortcutField.docc/` — DocC catalog (`just docs`).
+- `Example/` — Standalone Xcode project with workbench and gallery tabs for manual testing.
+
 ## Coding Style & Naming Conventions
-This package targets Swift 6.2 and macOS 13+. Follow the existing style: 4-space indentation, 120-character line width, and `Sendable`-safe code for new types and concurrency-sensitive changes. Use UpperCamelCase for types (`ShortcutRecorderView`), lowerCamelCase for properties and methods (`displayString`), and keep file names aligned with the primary type or extension they contain.
+
+This package targets Swift 6.2 (strict concurrency — all new types must be `Sendable`-safe) and macOS 13+. Follow the existing style: 4-space indentation and 120-character line width, enforced by SwiftLint and SwiftFormat. Use UpperCamelCase for types (`ShortcutRecorderView`), lowerCamelCase for properties and methods (`displayString`), and keep file names aligned with the primary type or extension they contain.
 
 ## Testing Guidelines
+
 Tests use the Swift Testing framework, not XCTest. Prefer `@Test` and `#expect` and keep one responsibility per test file or suite. Name tests after observable behavior, for example `DiscreteShortcutMatchingTests.swift` or `ShortcutRecorderFieldTests.swift`. Run `just test` locally before opening a PR; add or update tests for every public API or matching/recording behavior change.
 
 ## Commit & Pull Request Guidelines
+
 Recent history uses short conventional prefixes — only `feat:`, `fix:`, and `chore:`. Keep commit subjects imperative and scoped, for example `fix: handle tab matching in recorder`. Pull requests should include a clear summary, linked issue or plan when relevant, and screenshots or screen recordings for UI changes in `Example/`. Mention any lint, format, or test commands you ran.
 
 ## Agent Notes
+
 Do not overwrite unrelated user changes in the working tree. Prefer minimal, targeted edits and update docs or the example app when public behavior changes.
