@@ -1,0 +1,19 @@
+{
+  "permission": {
+    "bash": {
+      "just build *": "allow",
+      "just clean *": "allow",
+      "just docs *": "allow",
+      "just example *": "allow",
+      "just format *": "allow",
+      "just lint *": "allow",
+      "just lint-fix *": "allow",
+      "just test *": "allow",
+      "just tag-release *": "deny",
+      "just tag-release-major *": "deny",
+      "just tag-release-minor *": "deny",
+      "just tag-release-patch *": "deny"
+    },
+    "mcp": {}
+  }
+}
