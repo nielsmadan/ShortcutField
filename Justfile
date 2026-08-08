@@ -47,17 +47,18 @@ clean:
     @rm -rf .build
     @echo "Build directory cleaned."
 
-# Usage: just tag-release-patch, just tag-release-minor, just tag-release-major
-tag-release-patch:
-    @just tag-release patch
+# Usage: just tag-release-patch ["Tag message"], likewise for -minor and -major.
+# The message defaults to "Release vX.Y.Z".
+tag-release-patch message="":
+    @just tag-release patch "{{message}}"
 
-tag-release-minor:
-    @just tag-release minor
+tag-release-minor message="":
+    @just tag-release minor "{{message}}"
 
-tag-release-major:
-    @just tag-release major
+tag-release-major message="":
+    @just tag-release major "{{message}}"
 
-tag-release bump:
+tag-release bump message="":
     #!/usr/bin/env bash
     set -euo pipefail
     LATEST_TAG=$(git tag --sort=-v:refname | head -1 | sed 's/^v//')
@@ -86,6 +87,12 @@ tag-release bump:
         git add README.md
         git commit -m "chore: bump README install version to $VERSION"
     fi
+    TAG_MESSAGE="{{message}}"
+    if [ -z "$TAG_MESSAGE" ]; then
+        TAG_MESSAGE="Release v$VERSION"
+    fi
     echo "Tagging v$VERSION..."
-    git tag "v$VERSION" && git push origin main "v$VERSION" && \
+    # -a because tag.gpgsign makes the tag signed, and a signed tag needs a
+    # message or git opens an editor mid-recipe.
+    git tag -a "v$VERSION" -m "$TAG_MESSAGE" && git push origin main "v$VERSION" && \
     echo "Tagged and pushed v$VERSION"

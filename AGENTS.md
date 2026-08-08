@@ -19,9 +19,9 @@ just docs     # Build DocC docs, fail on any diagnostic (unresolved links, etc.)
 just lint-fix  # Auto-fix SwiftLint violations
 just example   # Build & run the example app from Example/
 just clean     # Remove build directory
-just tag-release-patch  # Tag and push a patch release
-just tag-release-minor  # Tag and push a minor release
-just tag-release-major  # Tag and push a major release
+just tag-release-patch ["Tag message"]  # Tag and push a patch release
+just tag-release-minor ["Tag message"]  # Tag and push a minor release
+just tag-release-major ["Tag message"]  # Tag and push a major release
 ```
 
 Run `just lint-fix` before submitting when SwiftLint can auto-correct issues.
