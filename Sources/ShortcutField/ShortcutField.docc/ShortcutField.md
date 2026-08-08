@@ -64,6 +64,7 @@ the [README](https://github.com/nielsmadan/ShortcutField) and the bundled
 ### Suppressing the system beep
 
 - ``SwiftUICore/View/suppressShortcutBeep()``
+- ``ShortcutTracking/installBeepSuppression()``
 
 ### Configuration
 

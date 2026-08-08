@@ -381,9 +381,17 @@ WindowGroup {
 }
 ```
 
-This is the recommended path for SwiftUI hosts, which don't own the `WindowGroup` window's class. It installs a one-time `noResponder(for:)` override on the hosting window's class, gated on `ShortcutTracking.isActive`.
+This is the recommended path for SwiftUI hosts, which don't own the `WindowGroup` window's class. It installs a one-time `noResponder(for:)` override gated on `ShortcutTracking.isActive`.
 
-If you're an AppKit host that owns its `NSWindow` subclass, override `noResponder(for:)` directly instead:
+When there's no view to hang the modifier off — an AppKit host, or a launch path that runs before any window exists — call the equivalent directly:
+
+```swift
+ShortcutTracking.installBeepSuppression()
+```
+
+It's idempotent, so it's safe on every launch path. This patches `NSResponder`, which covers the stock `NSWindow`.
+
+If you're an AppKit host that owns its `NSWindow` subclass, override `noResponder(for:)` directly instead — your override would otherwise shadow the one above:
 
 ```swift
 import ShortcutField

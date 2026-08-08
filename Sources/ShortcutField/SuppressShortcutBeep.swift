@@ -7,12 +7,30 @@ public extension View {
     /// an in-progress multi-step shortcut match (see ``ShortcutTracking/isActive``).
     ///
     /// Apply this to a SwiftUI view whose hosting window you don't control —
-    /// e.g. a `WindowGroup` scene. It installs a one-time, class-level
-    /// `noResponder(for:)` override (an Objective-C runtime swizzle) on the
-    /// hosting window's class. AppKit hosts that own their `NSWindow` subclass
-    /// should override `noResponder(for:)` directly instead.
+    /// e.g. a `WindowGroup` scene. It installs a one-time `noResponder(for:)`
+    /// override (an Objective-C runtime swizzle); since only `NSResponder`
+    /// implements that selector, the override lands there and applies
+    /// process-wide. AppKit hosts that own their `NSWindow` subclass should
+    /// override `noResponder(for:)` directly instead.
+    ///
+    /// Prefer ``ShortcutTracking/installBeepSuppression()`` when there is no
+    /// view to hang this off.
     func suppressShortcutBeep() -> some View {
         background(BeepSuppressor())
+    }
+}
+
+public extension ShortcutTracking {
+    /// Installs the same beep suppression as ``SwiftUICore/View/suppressShortcutBeep()``
+    /// without needing a view or a window. Idempotent — safe to call on every
+    /// launch path.
+    ///
+    /// This patches `NSResponder`, so an `NSWindow` subclass that overrides
+    /// `noResponder(for:)` shadows it; those hosts should use the modifier or
+    /// override `noResponder(for:)` directly.
+    @MainActor
+    static func installBeepSuppression() {
+        BeepSuppressor.installOverride(on: NSResponder.self)
     }
 }
 
