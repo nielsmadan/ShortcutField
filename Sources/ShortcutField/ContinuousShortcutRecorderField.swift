@@ -21,8 +21,8 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField, N
 
     /// Sensitivity carried forward across kind changes so a re-record doesn't
     /// zero the user's chosen sensitivity. Internal: `ContinuousShortcutRecorderView`
-    /// writes the SwiftUI view's @State value here on every render so the field
-    /// always uses the user's last-set value when constructing a new shortcut.
+    /// writes the SwiftUI slider value here on every non-recording update so the
+    /// field always uses the user's last-set value when constructing a new shortcut.
     var lastSensitivity: Double = 0.0
 
     /// Whether this field is currently recording.
@@ -158,7 +158,7 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField, N
 
     func startRecording() {
         guard !isRecording else { return }
-        // Drop any committed-shortcut tooltip during recording (see ShortcutRecorderField).
+        // Drop the committed tooltip so the live preview doesn't show a stale meaning.
         toolTip = nil
         isStartingRecording = true
         isRecording = true
@@ -290,7 +290,6 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField, N
             return nil
         }
 
-        // Other key events are dropped — this recorder only captures continuous gestures.
         return nil
     }
 
@@ -366,8 +365,6 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField, N
         onShortcutChange?(new)
     }
 
-    /// Internal entry point for the menu picker. Sets the shortcut, ends recording,
-    /// blurs the field — same teardown sequence as live-recording finalize.
     func handleMenuPickedKind(_ kind: ContinuousShortcut.Kind, modifiers: NSEvent.ModifierFlags) {
         applyKind(kind, modifiers: modifiers)
         endRecording()

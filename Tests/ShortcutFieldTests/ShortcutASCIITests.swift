@@ -99,7 +99,6 @@ struct ShortcutASCIITests {
 
     @Test("key<N> numeric fallback round-trips")
     func keyNFallbackRoundTrip() throws {
-        // A keycode not in any table should round-trip via key<N>
         let highCode = DiscreteShortcut(keyCode: 200, modifiers: .command)
         let ascii = highCode.ascii
         #expect(ascii == "cmd+key200")

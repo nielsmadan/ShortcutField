@@ -120,16 +120,13 @@ struct OnShortcutModifierTests {
         RunLoop.current.run(until: Date().addingTimeInterval(0.25))
         #expect(dispatcher.handlerCount == baseline)
 
-        // Recording a shortcut must register a handler. The macOS-13
-        // `onChange(of:perform:)` stale-`self` bug failed exactly here.
+        // This is where the macOS-13 stale-`self` bug failed.
         model.shortcut = DiscreteShortcut(keyCode: UInt16(kVK_ANSI_S), modifiers: .command)
         #expect(pump { dispatcher.handlerCount == baseline + 1 })
 
-        // The registered handler matches the bound shortcut and fires the action.
         _ = dispatcher.handleEvent(keyDown(kVK_ANSI_S, .command))
         #expect(counter.count == 1)
 
-        // A non-matching event does not fire it.
         _ = dispatcher.handleEvent(keyDown(kVK_ANSI_A, .command))
         #expect(counter.count == 1)
     }

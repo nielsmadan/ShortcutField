@@ -69,6 +69,22 @@ ShortcutField splits two concerns into distinct types:
 
 This package targets Swift 6.2 (strict concurrency — all new types must be `Sendable`-safe) and macOS 13+. Follow the existing style: 4-space indentation and 120-character line width, enforced by SwiftLint and SwiftFormat. Use UpperCamelCase for types (`ShortcutRecorderView`), lowerCamelCase for properties and methods (`displayString`), and keep file names aligned with the primary type or extension they contain.
 
+## Comments & Documentation
+
+Write a comment only when a reader of the code cannot recover the information from it. Names and signatures are the documentation; a comment that restates them is noise.
+
+**`///` vs `//`.** Use `///` when the information belongs to callers, `//` when it belongs to whoever edits the body. `///` feeds Xcode Quick Help and autocomplete at *every* access level, so an internal helper with a real precondition, a nil-return rule, or a unit still deserves one — the payoff is the editor, not the docs site. DocC publishes only `public`/`open` symbols, so an internal `///` never renders anywhere.
+
+**The test is the caller, not the access level.** Ask whether someone calling this needs the information at the call site. If yes, `///` it regardless of access level. If no, delete it regardless of how public the symbol is. Things that pass: units and ranges (`|magnification|` vs. degrees vs. scroll units, per-event vs. cumulative), preconditions ("the ` @N` suffix must already be stripped"), nil semantics, framework traps (attributed strings ignore the control's `alignment`), and hazards (`event.phase` throws on key events). Things that fail: any sentence recoverable from the signature.
+
+**Access level is easy to misjudge.** Members of a `public extension` are public by default; members of a `public class` or `struct` are *internal* by default. When it matters, check the built symbol graph under `.build/docc` rather than reading the modifier.
+
+**Duplication.** One authoritative explanation per constraint, nearest the code that depends on it. Repeat it only where each site is independently hazardous. The exception is published DocC pages: those are read in isolation, so a public symbol should carry its own explanation even if a sibling page states the same thing.
+
+**Never comment on what is not there** — no notes about removed code, rejected alternatives, or deliberate absences; that belongs in the commit message. Never invent a rationale you cannot verify: if a constant's origin is unknown, document its observable effect and leave the origin alone. Keep `TODO`/`FIXME` tied to a concrete action plus a blocker or issue reference, and preserve functional directives (`swiftlint:disable`) and legal headers.
+
+When a symbol seems to need a comment to be understandable, first check whether it should exist. An identity function or a misleading name is better deleted or renamed than explained.
+
 ## Testing Guidelines
 
 Tests use the Swift Testing framework, not XCTest. Prefer `@Test` and `#expect` and keep one responsibility per test file or suite. Name tests after observable behavior, for example `DiscreteShortcutMatchingTests.swift` or `ShortcutRecorderFieldTests.swift`. Run `just test` locally before opening a PR; add or update tests for every public API or matching/recording behavior change.

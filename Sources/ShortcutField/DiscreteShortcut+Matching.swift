@@ -89,14 +89,12 @@ extension DiscreteShortcut.Step {
 // MARK: - Scroll direction helper
 
 extension DiscreteShortcut {
-    /// Determine the discrete scroll direction from a scroll wheel event.
-    /// Returns nil if the scroll deltas are below the noise threshold.
     static func scrollDirection(from event: NSEvent) -> ScrollDirection? {
         scrollDirection(dx: Double(event.scrollingDeltaX), dy: Double(event.scrollingDeltaY))
     }
 
     /// Core scroll-direction logic shared by discrete and continuous matching.
-    /// Returns nil if the dominant axis delta is below the noise threshold (0.5).
+    /// Returns nil if the dominant axis delta is below the noise threshold.
     static func scrollDirection(dx: Double, dy: Double) -> ScrollDirection? {
         let threshold = 0.5
         if abs(dy) >= abs(dx) {

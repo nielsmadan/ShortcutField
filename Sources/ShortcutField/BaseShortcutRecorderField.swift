@@ -8,11 +8,8 @@ import AppKit
 /// the click hit-test. Recording lifecycle, delegate callbacks, and event
 /// handling differ between the two and stay in the subclasses.
 ///
-/// This type is `public` only because Swift requires a public class's
-/// superclass to also be public. It is `public` (not `open`), so external
-/// code cannot subclass it, and its existence and shape are not part of the
-/// package's API contract — refer to ``ShortcutRecorderField`` /
-/// ``ContinuousShortcutRecorderField`` directly.
+/// It is `public` only because a public class's superclass must be public,
+/// and `public` rather than `open` so external code cannot subclass it.
 public class BaseShortcutRecorderField: NSSearchField {
     override public class var cellClass: AnyClass? {
         get { CenteredSearchFieldCell.self }
@@ -47,8 +44,8 @@ public class BaseShortcutRecorderField: NSSearchField {
     }
 
     /// Re-render the committed shortcut using the current `labelStyle`. Overridden
-    /// by each concrete field (which no-ops while recording, so an in-progress live
-    /// preview isn't clobbered); the base implementation does nothing.
+    /// by each concrete field, which no-ops while recording so an in-progress live
+    /// preview isn't clobbered.
     func refreshDisplay() {}
 
     /// Font used to size inline symbol attachments; falls back to the system font.

@@ -2,10 +2,6 @@ import AppKit
 
 extension ContinuousShortcutRecorderField {
     /// Builds the chevron-button menu used to pick a continuous shortcut kind.
-    /// Internal: also called by tests to verify menu contents.
-    ///
-    /// The menu lists Pinch, Rotate, and Scroll. Smart Magnify and discrete kinds
-    /// (key, mouseButton) are excluded — they're not valid for ContinuousShortcut.
     static func makeContinuousShortcutMenu(target: AnyObject?, labelStyle: ShortcutLabelStyle = .text) -> NSMenu {
         let root = NSMenu()
 
@@ -46,7 +42,7 @@ extension ContinuousShortcutRecorderField {
             keyEquivalent: ""
         )
         // In compact style, show the SF Symbol alongside the text label so the picker
-        // matches the field. All continuous kinds have a symbol, so this is never nil.
+        // matches the field.
         if labelStyle == .compact, let symbolName = kind.asDiscreteKind.symbolName {
             item.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: displayLabel)
         }

@@ -41,7 +41,8 @@ final class ThrottleState {
         )
     }
 
-    /// Cooldown in seconds for a sensitivity value in (0, 1).
+    /// Cooldown in seconds for a sensitivity value in (0, 1): zero at 1.0, rising
+    /// linearly to one second at 0.25.
     nonisolated static func cooldownSeconds(for sensitivity: Double) -> Double {
         max(0, (1.0 - sensitivity) / 0.75)
     }
@@ -61,6 +62,7 @@ final class ThrottleState {
         if sensitivity <= 0.0 {
             let fire = !state.suppressed
             state.suppressed = true
+            // Zero sensitivity caps repeats at one fire per 350 ms.
             return ThrottleDecision(shouldFire: fire, rearmAfter: .milliseconds(350))
         }
 

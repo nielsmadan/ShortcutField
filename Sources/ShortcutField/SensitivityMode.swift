@@ -8,7 +8,6 @@ public enum SensitivityMode: Sendable, Hashable {
     /// User adjusts sensitivity via a continuous 0.0-1.0 slider.
     case continuous
 
-    /// The five discrete tick-mark values.
     static let discreteValues: [Double] = [0.0, 0.25, 0.5, 0.75, 1.0]
 
     /// Returns the discrete tick-mark index (0-4) closest to the given sensitivity value.

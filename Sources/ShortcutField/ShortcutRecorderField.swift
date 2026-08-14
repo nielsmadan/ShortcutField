@@ -30,13 +30,10 @@ enum ShortcutRecordingState {
         }
     }
 
-    /// `deinit` is non-isolated under Swift 6 strict concurrency. Recorder fields
-    /// are `NSView`s, so they always deallocate on the main thread — remove the
-    /// entry synchronously there so `isAnyRecording` reflects reality the instant a
-    /// field dies. Deferring the removal to a `Task` left the flag briefly stale,
-    /// which raced parallel tests (a dispatcher test could start while a
-    /// just-finished recorder test's flag hadn't yet cleared). Fall back to a queued
-    /// removal on the off chance a field is ever released off the main thread.
+    /// `deinit` is non-isolated under Swift 6 strict concurrency. Recorder fields are
+    /// `NSView`s and deallocate on the main thread, so remove the entry synchronously
+    /// there — a deferred removal leaves `isAnyRecording` briefly stale and races
+    /// parallel tests. The `Task` path is a fallback for off-main release.
     nonisolated static func endOnDeinit(for recorder: AnyObject) {
         let id = ObjectIdentifier(recorder)
         if Thread.isMainThread {
@@ -129,7 +126,6 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField, NSSearchFie
     /// Cleared on the gesture's `.ended`/`.cancelled` phase or when a non-`.magnify`
     /// event arrives, so the next physical pinch can record a fresh step.
     private var pinchCaptured: Bool = false
-    /// Same as `pinchCaptured`, but for rotate gestures.
     private var rotateCaptured: Bool = false
 
     /// Idle interval after the last captured step before recording finalizes.
@@ -409,11 +405,10 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField, NSSearchFie
     func handleEvent(_ event: NSEvent) -> NSEvent? {
         guard isRecording else { return event }
 
-        // A non-scroll event ends any in-progress scroll burst.
+        // A different event type ends any in-progress gesture burst.
         if event.type != .scrollWheel {
             scrollCaptured = false
         }
-        // Same idea for pinch / rotate — defensive against missed `.ended` events.
         if event.type != .magnify {
             pinchCaptured = false
         }
@@ -559,7 +554,6 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField, NSSearchFie
 
         switch event.type {
         case .magnify:
-            // Suppress further captures within the same physical pinch.
             if pinchCaptured { return nil }
             if let kind = gestures.consumeMagnify(Double(event.magnification)) {
                 appendStep(DiscreteShortcut.Step(kind: kind, modifiers: modifiers))
@@ -582,10 +576,6 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField, NSSearchFie
         }
     }
 
-    /// `scrollCaptured` / `pinchCaptured` / `rotateCaptured` are intentionally NOT
-    /// reset here — a single physical gesture burst should produce at most one step.
-    /// Each flag is cleared by either a non-matching event type (see `handleEvent`)
-    /// or by the gesture's `.ended` / `.cancelled` phase.
     private func appendStep(_ step: DiscreteShortcut.Step) {
         recordedSteps.append(step)
         switch labelStyle {

@@ -21,7 +21,7 @@ public struct DiscreteShortcut: Sendable, Equatable, Hashable {
 
         /// Build a step of any kind.
         public init(kind: Kind, modifiers: NSEvent.ModifierFlags) {
-            self.kind = Self.normalizeKind(kind)
+            self.kind = kind
             self.modifiers = DiscreteShortcut.canonicalModifiers(modifiers)
         }
 
@@ -29,8 +29,6 @@ public struct DiscreteShortcut: Sendable, Equatable, Hashable {
         public init(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) {
             self.init(kind: .key(keyCode: keyCode), modifiers: modifiers)
         }
-
-        static func normalizeKind(_ kind: Kind) -> Kind { kind }
     }
 
     /// The kind of input a step represents.
@@ -83,8 +81,7 @@ public struct DiscreteShortcut: Sendable, Equatable, Hashable {
     // MARK: - Helpers
 
     /// Whether this kind can fire repeatedly during a single gesture and benefits
-    /// from sensitivity throttling. True for `.scroll`, `.pinchIn/Out`, and
-    /// `.rotateClockwise/CounterClockwise`; false for discrete kinds.
+    /// from sensitivity throttling.
     static func isContinuous(_ kind: Kind) -> Bool {
         switch kind {
         case .scroll, .pinchIn, .pinchOut, .rotateClockwise, .rotateCounterClockwise:
@@ -99,8 +96,7 @@ public struct DiscreteShortcut: Sendable, Equatable, Hashable {
     /// The four modifier flags that participate in shortcut matching.
     static let canonicalModifierMask: NSEvent.ModifierFlags = [.shift, .control, .option, .command]
 
-    /// Mask raw `NSEvent.modifierFlags` to the canonical set
-    /// (`.shift`, `.control`, `.option`, `.command`).
+    /// Mask raw `NSEvent.modifierFlags` down to ``canonicalModifierMask``.
     ///
     /// Strips Caps Lock, numeric pad, function key, and any non-device-independent
     /// flags so recorders, matchers, and UI compare modifiers consistently.
@@ -225,7 +221,7 @@ extension DiscreteShortcut.Step: Codable {
 
     public init(from decoder: any Decoder) throws {
         let kindContainer = try decoder.container(keyedBy: DiscreteShortcut.Kind.CodingKeys.self)
-        kind = try Self.normalizeKind(DiscreteShortcut.Kind(from: kindContainer))
+        kind = try DiscreteShortcut.Kind(from: kindContainer)
 
         let modifiersContainer = try decoder.container(keyedBy: CodingKeys.self)
         let rawModifiers = try modifiersContainer.decode(UInt.self, forKey: .modifiers)

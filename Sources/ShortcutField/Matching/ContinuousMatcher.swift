@@ -82,15 +82,11 @@ final class ContinuousMatcher {
 
         var fired = false
         throttle.handleEvent { fired = true }
-        // A matched event is consumed even when the sensitivity throttle
-        // suppresses this fire — otherwise a low-sensitivity binding would let
-        // the gesture also reach the view beneath it. `.advanced` carries the
-        // "consume, don't fire" semantics; `.ignored` would pass the event through.
+        // Consume even when throttled, so the gesture doesn't reach the view beneath.
         guard fired else { return .advanced(consumeEvent: true) }
         return .continuousFired(magnitude: magnitude(of: shape))
     }
 
-    /// Whether the shape matches this shortcut's kind + modifiers.
     private func matches(_ shape: ContinuousEventShape) -> Bool {
         let mods = DiscreteShortcut.canonicalModifiers(shape.modifierFlags)
         guard mods == shortcut.modifiers else { return false }

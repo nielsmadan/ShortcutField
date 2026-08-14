@@ -68,6 +68,3 @@ import Testing
     let flags: NSEvent.ModifierFlags = []
     #expect(flags.symbolicRepresentation == "")
 }
-
-// keyToCharacter tests live in `DiscreteShortcutDisplayStringTests` (its serialized suite
-// also covers display-string round-trips that internally call UCKeyTranslate).

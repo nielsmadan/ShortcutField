@@ -2,8 +2,8 @@ import AppKit
 
 /// A sensitivity-bearing shortcut for throttled continuous fire.
 ///
-/// Use `ContinuousShortcut` when the dev wants the bound action to fire repeatedly
-/// during a single physical gesture (e.g. scroll-to-zoom), with the user-tunable
+/// Use `ContinuousShortcut` when the bound action should fire repeatedly during a
+/// single physical gesture (e.g. scroll-to-zoom), with the user-tunable
 /// `sensitivity` controlling the throttle rate.
 ///
 /// The kind is restricted at the type level to continuous gestures (`scroll`,

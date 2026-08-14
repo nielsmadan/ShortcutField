@@ -38,10 +38,7 @@ final class SequenceMatcher {
         self.stepTimeout = stepTimeout
     }
 
-    // Drop the tracking contribution if the matcher is deallocated mid-sequence —
-    // `reset()` may never be called. `SequenceMatcher` is @MainActor and only
-    // released from main-actor code, so the decrement runs synchronously here;
-    // an `isolated deinit` would instead defer it to a queued job.
+    // Released only from main-actor code; `reset()` may never be called mid-sequence.
     deinit {
         MainActor.assumeIsolated {
             if isTracking { ShortcutTracking.activeCount -= 1 }
@@ -61,7 +58,7 @@ final class SequenceMatcher {
         let step = shortcut.steps[currentStep]
         guard step.matches(event) else {
             // Continuous-gesture bursts emit many sub-threshold or wrong-direction
-            // events; treat those as non-resetting. Discrete kinds reset on miss.
+            // events; treat those as non-resetting.
             if !Self.isContinuousEventType(event.type) {
                 reset()
             }
@@ -88,9 +85,7 @@ final class SequenceMatcher {
         return .advanced(consumeEvent: consumeEvent)
     }
 
-    /// Early-return guard for events that shouldn't reach the match step:
-    /// phase-end clears for in-progress continuous gestures, momentum scroll
-    /// passthrough, and active-gesture suppression once a step has fired.
+    /// Events that must not reach the step matcher.
     private func preempt(_ event: NSEvent) -> ShortcutMatchResult? {
         if Self.isContinuousEventType(event.type),
            event.phase == .ended || event.phase == .cancelled

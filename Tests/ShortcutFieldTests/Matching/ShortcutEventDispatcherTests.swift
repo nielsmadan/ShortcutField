@@ -32,7 +32,7 @@ struct ShortcutEventDispatcherTests {
 
         dispatcher.unregister(id: id)
         _ = dispatcher.handleEvent(keyDown(kVK_ANSI_S, .command))
-        #expect(received == 1) // no further delivery
+        #expect(received == 1)
     }
 
     @Test("a .fired result consumes the event")
@@ -74,6 +74,6 @@ struct ShortcutEventDispatcherTests {
             dispatcher.unregister(id: secondID)
         }
         _ = dispatcher.handleEvent(keyDown(kVK_ANSI_S, .command))
-        #expect(order == [2, 1]) // newest registration (second) runs first
+        #expect(order == [2, 1])
     }
 }

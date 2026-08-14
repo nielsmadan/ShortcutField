@@ -43,7 +43,6 @@ extension DiscreteShortcut.Kind {
         return (short, displayLabel)
     }
 
-    /// The single element this kind renders as, for the given style.
     func displayElement(style: ShortcutLabelStyle) -> ShortcutDisplayElement {
         guard style == .compact else { return .text(displayLabel) }
         if let symbolName {

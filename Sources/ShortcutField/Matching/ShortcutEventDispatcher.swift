@@ -21,10 +21,6 @@ public final class ShortcutEventDispatcher {
     public static let shared = ShortcutEventDispatcher()
 
     /// A closure that inspects an `NSEvent` and returns a ``ShortcutMatchResult``.
-    ///
-    /// The dispatcher consumes the event (passes `nil` back to the system) if any
-    /// registered handler returns `.fired`, `.continuousFired`, or
-    /// `.advanced(consumeEvent: true)`; otherwise the event passes through.
     public typealias Handler = (NSEvent) -> ShortcutMatchResult
 
     // `internal` (not `public`) so @testable import can create isolated instances

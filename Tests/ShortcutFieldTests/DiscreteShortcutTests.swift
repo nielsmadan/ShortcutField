@@ -160,8 +160,6 @@ import Testing
     }
 
     @Test func shortcut_decodeOldFlatShape_throwsDecodingError() {
-        // The decoder requires the `steps` envelope and must cleanly reject bare
-        // `{type, keyCode, modifiers}` shapes.
         let cmd = NSEvent.ModifierFlags.command.rawValue
         let json = #"{"type":"key","keyCode":38,"modifiers":\#(cmd)}"#
         #expect(throws: DecodingError.self) {
@@ -199,8 +197,7 @@ import Testing
 
 // MARK: - Display string
 
-// UCKeyTranslate is not thread-safe — keep these in the serialized display-string
-// suite (see DiscreteShortcutDisplayStringTests.swift) rather than free top-level tests.
+// UCKeyTranslate is not thread-safe; this suite must stay serialized.
 
 @MainActor
 @Suite(.serialized) struct DiscreteShortcutDisplayStringStructuralTests {

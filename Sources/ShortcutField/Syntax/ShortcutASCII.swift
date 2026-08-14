@@ -23,7 +23,6 @@ private enum ASCIIToken {
         ("cmd", .command),
     ]
 
-    /// Special key name ↔ virtual keycode.
     static let specialKeys: [(name: String, keyCode: Int)] = [
         ("tab", kVK_Tab),
         ("return", kVK_Return),
@@ -44,7 +43,6 @@ private enum ASCIIToken {
         ("f9", kVK_F9), ("f10", kVK_F10), ("f11", kVK_F11), ("f12", kVK_F12),
     ]
 
-    /// Letter/digit name ↔ ANSI virtual keycode.
     static let ansiKeys: [(name: String, keyCode: Int)] = [
         ("a", kVK_ANSI_A), ("b", kVK_ANSI_B), ("c", kVK_ANSI_C), ("d", kVK_ANSI_D),
         ("e", kVK_ANSI_E), ("f", kVK_ANSI_F), ("g", kVK_ANSI_G), ("h", kVK_ANSI_H),
@@ -58,7 +56,6 @@ private enum ASCIIToken {
         ("8", kVK_ANSI_8), ("9", kVK_ANSI_9),
     ]
 
-    /// Standard ANSI punctuation key name ↔ virtual keycode.
     static let punctuationKeys: [(name: String, keyCode: Int)] = [
         ("minus", kVK_ANSI_Minus),
         ("equal", kVK_ANSI_Equal),
@@ -73,7 +70,6 @@ private enum ASCIIToken {
         ("grave", kVK_ANSI_Grave),
     ]
 
-    /// Mouse-button name ↔ button number.
     static let mouseButtons: [(name: String, number: Int)] = [
         ("left-click", 0),
         ("right-click", 1),
@@ -82,7 +78,6 @@ private enum ASCIIToken {
         ("button5", 4),
     ]
 
-    /// Scroll-direction name ↔ direction.
     static let scrollDirections: [(name: String, direction: DiscreteShortcut.ScrollDirection)] = [
         ("scroll-up", .up),
         ("scroll-down", .down),
@@ -146,8 +141,7 @@ extension DiscreteShortcut.Step {
         case "rotate-counterclockwise": return .rotateCounterClockwise
         case "smart-magnify": return .smartMagnify
         default:
-            // A token shaped like a gesture (e.g. "pinch-sideways") gets the
-            // gesture-specific error rather than the misleading `.unknownKey`.
+            // Gesture-shaped tokens get .unknownGesture, not the misleading .unknownKey.
             if ["pinch-", "rotate-", "scroll-", "smart-"].contains(where: token.hasPrefix) {
                 throw ShortcutParsingError.unknownGesture(token)
             }
@@ -201,7 +195,6 @@ public extension DiscreteShortcut {
         let trimmed = ascii.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { throw ShortcutParsingError.empty }
         // ` @N` is the sensitivity delimiter — same rule as `Shortcut(ascii:)`.
-        // A discrete shortcut never carries sensitivity, so reject it here.
         if trimmed.range(of: " @") != nil {
             throw ShortcutParsingError.sensitivityOnDiscrete
         }

@@ -5,16 +5,12 @@ import SwiftUI
 /// once (on appear / shortcut change) and captures this box, not the action
 /// directly — so a re-rendered modifier carrying a fresh closure stays current
 /// without forcing a re-registration.
-///
-/// `@MainActor` makes the main-thread invariant explicit: `body` writes the
-/// action, the dispatcher reads it, and both run on the main actor.
 @MainActor
 private final class ActionBox {
     var action: () -> Void = {}
     nonisolated init() {}
 }
 
-/// View modifier backing `.onShortcut`.
 struct OnShortcutModifier: ViewModifier {
     let shortcut: Shortcut?
     let action: () -> Void

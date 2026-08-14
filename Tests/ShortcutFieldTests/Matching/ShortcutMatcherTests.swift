@@ -33,19 +33,14 @@ struct ShortcutMatcherTests {
         let matcher = ShortcutMatcher(
             .continuous(ContinuousShortcut(kind: .pinchOut, modifiers: .command, sensitivity: 1.0))
         )
-        // Key-down events are not gestures; ContinuousMatcher should ignore them.
         #expect(matcher.handle(keyDown(kVK_ANSI_S, .command)) == .ignored)
-        // reset() must not crash for the continuous backing.
         matcher.reset()
     }
 
     @Test("continuous shortcut fires through the unified matcher")
     func continuousFires() {
-        // Gesture NSEvents cannot be synthesized, so we use the internal
-        // handle(shape:) test seam on ShortcutMatcher to exercise the
-        // .continuous routing path end-to-end. ContinuousMatcherTests covers
-        // the matching mechanics; this test confirms ShortcutMatcher wires the
-        // continuous backing correctly (routing, not mechanics).
+        // Gesture NSEvents can't be synthesized; use the internal handle(shape:) seam
+        // to check that ShortcutMatcher routes to the continuous backing.
         let matcher = ShortcutMatcher(
             .continuous(ContinuousShortcut(kind: .pinchOut, modifiers: [], sensitivity: 1.0))
         )
@@ -61,7 +56,6 @@ struct ShortcutMatcherTests {
         ])))
         _ = matcher.handle(keyDown(kVK_ANSI_K, .command)) // advance
         matcher.reset()
-        // After reset, the second step alone should not fire.
         #expect(matcher.handle(keyDown(kVK_ANSI_C, .command)) == .ignored)
     }
 
@@ -129,7 +123,6 @@ struct ShortcutMatcherTests {
     @Test("handing off to another shortcut's first step keeps ShortcutTracking.isActive raised")
     func handoffToAnotherShortcutKeepsTrackingRaised() {
         let baseline = ShortcutTracking.isActive
-        // Chord A: ⌘K ⌘C    Shortcut B: ⌘X ⌘Y
         let chordA = ShortcutMatcher(.discrete(DiscreteShortcut(steps: [
             .init(keyCode: UInt16(kVK_ANSI_K), modifiers: .command),
             .init(keyCode: UInt16(kVK_ANSI_C), modifiers: .command),
@@ -138,13 +131,13 @@ struct ShortcutMatcherTests {
             .init(keyCode: UInt16(kVK_ANSI_X), modifiers: .command),
             .init(keyCode: UInt16(kVK_ANSI_Y), modifiers: .command),
         ])))
-        _ = chordA.handle(keyDown(kVK_ANSI_K, .command)) // advances chord A
+        _ = chordA.handle(keyDown(kVK_ANSI_K, .command))
         _ = chordB.handle(keyDown(kVK_ANSI_K, .command))
         #expect(ShortcutTracking.isActive == true)
         _ = chordA.handle(keyDown(kVK_ANSI_X, .command)) // resets chord A, advances chord B
         _ = chordB.handle(keyDown(kVK_ANSI_X, .command))
         #expect(ShortcutTracking.isActive == true)
-        _ = chordA.handle(keyDown(kVK_ANSI_Y, .command)) // completes chord B
+        _ = chordA.handle(keyDown(kVK_ANSI_Y, .command))
         _ = chordB.handle(keyDown(kVK_ANSI_Y, .command))
         #expect(ShortcutTracking.isActive == baseline)
     }

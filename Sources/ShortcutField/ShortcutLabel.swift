@@ -38,9 +38,7 @@ public struct ShortcutLabel: View {
                 view(for: element)
             }
         }
-        // Read the whole label as one unit (e.g. "⌘Rotate CW") rather than letting
-        // VoiceOver announce the modifier, icon, and abbreviation as separate nodes.
-        // Per-element `.help` (pointer hover) is unaffected — it's not in the a11y tree.
+        // Announce the label as one unit, not modifier/icon/abbreviation nodes.
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: accessibilityText))
     }

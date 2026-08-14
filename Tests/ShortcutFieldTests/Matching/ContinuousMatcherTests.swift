@@ -34,7 +34,6 @@ struct ContinuousMatcherTests {
         if case .continuousFired = matcher.handle(shape: shape) {} else {
             Issue.record("expected first event to fire")
         }
-        // A matched-but-throttled event is still consumed, not passed through.
         #expect(matcher.handle(shape: shape) == .advanced(consumeEvent: true))
     }
 

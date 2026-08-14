@@ -19,39 +19,33 @@ struct ContentView: View {
 // MARK: - Workbench
 
 struct WorkbenchTab: View {
-    // Inputs
     @State private var shortcutA: DiscreteShortcut?
     @State private var shortcutB: DiscreteShortcut?
     @State private var continuousA: ContinuousShortcut?
     @State private var continuousB: ContinuousShortcut?
 
-    // Controls A
     @State private var selectedTextColorA: NamedColor = .default
     @State private var selectedWidthA: NamedWidth = .medium
     @State private var placeholderTextA: String = "Record Shortcut"
     @State private var selectedSensitivityModeA: SensitivityMode = .discrete
     @State private var selectedSensitivityPositionA: SensitivityPosition = .below
 
-    // Controls B
     @State private var selectedTextColorB: NamedColor = .default
     @State private var selectedWidthB: NamedWidth = .medium
     @State private var placeholderTextB: String = "Record Shortcut"
     @State private var selectedSensitivityModeB: SensitivityMode = .discrete
     @State private var selectedSensitivityPositionB: SensitivityPosition = .below
 
-    // Counters: Shortcut
     @State private var matchCountA = 0
     @State private var lastMatchedA = false
     @State private var matchCountB = 0
     @State private var lastMatchedB = false
 
-    // Counters: ContinuousShortcut
     @State private var contAMatchCount = 0
     @State private var contALastMatched = false
     @State private var contBMatchCount = 0
     @State private var contBLastMatched = false
 
-    // Display
     @State private var labelStyle: ShortcutLabelStyle = .compact
 
     var body: some View {

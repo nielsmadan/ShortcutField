@@ -170,10 +170,8 @@ import Testing
     @Test func menu_compactStyle_setsImages() {
         let menu = ContinuousShortcutRecorderField.makeContinuousShortcutMenu(target: nil, labelStyle: .compact)
         let leaves = collectMenuLeafItems(menu)
-        // Every continuous kind has a symbol, so every leaf item gets an image.
         #expect(!leaves.isEmpty)
         #expect(leaves.allSatisfy { $0.image != nil })
-        // Titles are retained alongside the icon.
         #expect(leaves.contains { $0.title == "Rotate CW" })
     }
 

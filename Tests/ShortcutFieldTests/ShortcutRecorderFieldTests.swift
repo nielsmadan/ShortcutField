@@ -13,7 +13,7 @@ private func makeKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = []
 ///
 /// `CGEvent` doesn't expose `phase`, `magnification`, or `rotation`, so trackpad-burst
 /// scroll suppression and gesture sequences (`.magnify` / `.rotate`) cannot be driven
-/// through the matcher in tests. Those paths remain visually verified only.
+/// through the matcher in tests.
 private func makeScrollEvent(deltaY: Int32 = 0, deltaX: Int32 = 0) -> NSEvent {
     let cg = CGEvent(scrollWheelEvent2Source: nil,
                      units: .pixel,
@@ -26,7 +26,7 @@ private func makeScrollEvent(deltaY: Int32 = 0, deltaX: Int32 = 0) -> NSEvent {
     return NSEvent(cgEvent: cg)!
 }
 
-/// Above the recording threshold (`DiscreteShortcut.scrollRecordingThreshold = 5.0`).
+/// Above ``DiscreteShortcut/scrollRecordingThreshold``.
 private let scrollDeltaAboveThreshold: Int32 = 10
 
 // NSSearchField instantiation can crash when run in parallel in headless CI.
@@ -79,7 +79,6 @@ private let scrollDeltaAboveThreshold: Int32 = 10
             if value != nil { hasAttachment = true; stop.pointee = true }
         }
         #expect(hasAttachment)
-        // Full text meaning available on hover.
         #expect(field.toolTip == "Rotate CW")
     }
 
@@ -243,7 +242,6 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         #expect(field.timeoutTask == nil)
 
         _ = field.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_K), modifiers: .command))
-        // A captured step arms the idle timeout that auto-finalizes recording.
         #expect(field.timeoutTask != nil)
 
         field.endRecording()

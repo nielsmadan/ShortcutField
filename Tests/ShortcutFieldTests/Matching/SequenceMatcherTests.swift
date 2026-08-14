@@ -6,7 +6,6 @@ import Testing
 @MainActor
 @Suite("SequenceMatcher")
 struct SequenceMatcherTests {
-    /// Build a key-down NSEvent for the given keycode + modifiers.
     private func keyDown(_ keyCode: Int, _ modifiers: NSEvent.ModifierFlags = []) -> NSEvent {
         let cg = CGEvent(
             keyboardEventSource: nil,
@@ -60,7 +59,6 @@ struct SequenceMatcherTests {
             ])
         )
         #expect(matcher.handle(keyDown(kVK_ANSI_K, .command)) == .advanced(consumeEvent: false))
-        // A non-matching event resets the in-progress sequence.
         #expect(matcher.handle(keyDown(kVK_ANSI_X, .command)) == .ignored)
         // Back at step 0: the first step advances again rather than firing.
         #expect(matcher.handle(keyDown(kVK_ANSI_K, .command)) == .advanced(consumeEvent: false))
@@ -80,8 +78,7 @@ struct SequenceMatcherTests {
         #expect(ShortcutTracking.isActive == true)
         // Await the timeout task itself rather than racing a wall-clock sleep.
         await matcher.pendingTimeoutTask?.value
-        // The timeout fired and reset the matcher: step 2 alone no longer fires,
-        // and tracking ends so a later unrelated key is not beep-suppressed.
+        // Tracking must end too, or a later unrelated key stays beep-suppressed.
         #expect(matcher.handle(keyDown(kVK_ANSI_C, .command)) == .ignored)
         #expect(ShortcutTracking.isActive == baseline)
     }
@@ -110,8 +107,8 @@ struct SequenceMatcherTests {
                 .init(keyCode: UInt16(kVK_ANSI_C), modifiers: .command),
             ])
         )
-        _ = matcher.handle(keyDown(kVK_ANSI_K, .command)) // advances → tracking true
-        _ = matcher.handle(keyDown(kVK_ANSI_C, .command)) // completes → tracking false
+        _ = matcher.handle(keyDown(kVK_ANSI_K, .command))
+        _ = matcher.handle(keyDown(kVK_ANSI_C, .command))
         #expect(states == [true, false])
     }
 }

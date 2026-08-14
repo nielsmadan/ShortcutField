@@ -6,7 +6,7 @@ import Testing
 
 @Test func gestureAccumulator_magnify_belowThreshold_returnsNil() {
     var acc = GestureAccumulator()
-    let result = acc.consumeMagnify(0.01) // well below 0.05 recording threshold
+    let result = acc.consumeMagnify(0.01) // well below DiscreteShortcut.magnifyRecordingThreshold
     #expect(result == nil)
     #expect(acc.pinch == 0.01)
 }
@@ -42,7 +42,7 @@ import Testing
 
 @Test func gestureAccumulator_rotate_belowThreshold_returnsNil() {
     var acc = GestureAccumulator()
-    let result = acc.consumeRotate(0.5) // below 3.0 degrees recording threshold
+    let result = acc.consumeRotate(0.5) // below DiscreteShortcut.rotateRecordingThreshold
     #expect(result == nil)
 }
 
@@ -114,7 +114,7 @@ import Testing
     }
 
     @Test func scrollDirectionAboveRecordingThreshold_belowThreshold_returnsNil() {
-        // Scroll threshold is 5.0; deltaY = 1 is well below.
+        // deltaY = 1 is well below DiscreteShortcut.scrollRecordingThreshold.
         #expect(DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: makeScrollEvent(deltaY: 1)) == nil)
     }
 

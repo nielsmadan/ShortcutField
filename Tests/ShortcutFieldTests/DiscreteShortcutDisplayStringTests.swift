@@ -124,7 +124,7 @@ import Testing
         #expect(s.displayString == "⌃⌥Smart Magnify")
     }
 
-    // MARK: - keyToCharacter (UCKeyTranslate; serialized along with display-string tests)
+    // MARK: - keyToCharacter
 
     @Test func keyToCharacter_knownKeys() {
         #expect(DiscreteShortcut.keyToCharacter(keyCode: 0)?.lowercased() == "a")

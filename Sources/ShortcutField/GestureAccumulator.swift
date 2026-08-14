@@ -9,8 +9,7 @@ struct GestureAccumulator {
     private(set) var rotate: Double = 0
 
     /// Accumulate a `.magnify` event delta, returning the captured kind once the
-    /// cumulative magnification crosses the recording threshold. Returns nil while
-    /// still under threshold.
+    /// cumulative magnification crosses the recording threshold.
     mutating func consumeMagnify(_ delta: Double) -> DiscreteShortcut.Kind? {
         pinch += delta
         guard abs(pinch) >= DiscreteShortcut.magnifyRecordingThreshold else { return nil }
