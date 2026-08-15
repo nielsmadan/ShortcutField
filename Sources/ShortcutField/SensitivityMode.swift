@@ -10,6 +10,15 @@ public enum SensitivityMode: Sendable, Hashable {
 
     static let discreteValues: [Double] = [0.0, 0.25, 0.5, 0.75, 1.0]
 
+    /// The value this mode stores: the nearest tick in `.discrete`, the clamped
+    /// value in `.continuous`.
+    func snap(_ sensitivity: Double) -> Double {
+        switch self {
+        case .discrete: Self.discreteValues[Self.discreteIndex(for: sensitivity)]
+        case .continuous: min(1.0, max(0.0, sensitivity))
+        }
+    }
+
     /// Returns the discrete tick-mark index (0-4) closest to the given sensitivity value.
     static func discreteIndex(for sensitivity: Double) -> Int {
         let clamped = min(1.0, max(0.0, sensitivity))

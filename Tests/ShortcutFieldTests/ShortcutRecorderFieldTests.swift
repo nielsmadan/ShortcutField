@@ -625,6 +625,40 @@ struct ShortcutThrottleTests {
         #expect(SensitivityMode.discreteIndex(for: 0.8) == 3)
     }
 
+    @Test func snap_discreteMode_movesToNearestTick() {
+        #expect(SensitivityMode.discrete.snap(0.3) == 0.25)
+        #expect(SensitivityMode.discrete.snap(0.6) == 0.5)
+        #expect(SensitivityMode.discrete.snap(0.9) == 1.0)
+        #expect(SensitivityMode.discrete.snap(0.25) == 0.25)
+    }
+
+    @Test func snap_continuousMode_clampsWithoutSnapping() {
+        #expect(SensitivityMode.continuous.snap(0.3) == 0.3)
+        #expect(SensitivityMode.continuous.snap(1.4) == 1.0)
+        #expect(SensitivityMode.continuous.snap(-0.2) == 0.0)
+    }
+
+    @Test func snap_discreteMode_clampsOutOfRangeToEndTicks() {
+        #expect(SensitivityMode.discrete.snap(1.4) == 1.0)
+        #expect(SensitivityMode.discrete.snap(-0.2) == 0.0)
+    }
+
+    @Test func snap_nan_degradesToZero() {
+        #expect(SensitivityMode.discrete.snap(.nan) == 0.0)
+        #expect(SensitivityMode.continuous.snap(.nan) == 0.0)
+    }
+
+    @Test func continuousShortcut_init_clampsOutOfRangeSensitivity() {
+        #expect(ContinuousShortcut(kind: .pinchIn, modifiers: [], sensitivity: 1.4).sensitivity == 1.0)
+        #expect(ContinuousShortcut(kind: .pinchIn, modifiers: [], sensitivity: -0.2).sensitivity == 0.0)
+    }
+
+    @Test func ascii_outOfRangeSensitivity_throwsRatherThanClamping() {
+        #expect(throws: (any Error).self) {
+            _ = try Shortcut(ascii: "scroll-up @1.4")
+        }
+    }
+
     @Test func evaluate_maxSensitivity_alwaysFires() {
         let state = ThrottleState()
         state.sensitivity = 1.0

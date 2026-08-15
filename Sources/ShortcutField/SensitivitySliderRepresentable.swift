@@ -26,18 +26,7 @@ struct SensitivitySliderRepresentable: NSViewRepresentable {
         context.coordinator.value = $value
         nsView.allowsTickMarkValuesOnly = snapToTicks
 
-        let desired: Double
-        if snapToTicks {
-            let ticks = SensitivityMode.discreteValues
-            desired = ticks[SensitivityMode.discreteIndex(for: value)]
-            if abs(desired - value) > 0.001 {
-                let binding = $value
-                DispatchQueue.main.async { binding.wrappedValue = desired }
-            }
-        } else {
-            desired = value
-        }
-
+        let desired = snapToTicks ? SensitivityMode.discrete.snap(value) : value
         if abs(nsView.doubleValue - desired) > 0.001 {
             nsView.doubleValue = desired
         }

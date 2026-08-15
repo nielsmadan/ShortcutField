@@ -38,13 +38,26 @@ public struct ContinuousShortcutRecorderView: View {
         // explicit opacity dim so disabled fields are clearly distinguishable.
         layout
             .opacity(isEnabled ? 1.0 : 0.5)
+            .onAppear { adoptSensitivity(from: shortcut) }
             .onChange(of: shortcut) { newValue in
-                // Sync from external/programmatic changes; ignore in-flight changes
-                // we caused ourselves (sensitivity already matches).
-                if let newValue, abs(newValue.sensitivity - sensitivity) > 0.001 {
-                    sensitivity = newValue.sensitivity
-                }
+                adoptSensitivity(from: newValue)
             }
+    }
+
+    /// Take on an externally-set shortcut's sensitivity, snapped to what the current
+    /// mode can represent, and write the snapped value back so the stored shortcut
+    /// matches what the slider shows. Re-entry terminates once both already agree.
+    private func adoptSensitivity(from newValue: ContinuousShortcut?) {
+        guard let newValue else { return }
+        let snapped = sensitivityModeValue.snap(newValue.sensitivity)
+        if abs(snapped - sensitivity) > 0.001 {
+            sensitivity = snapped
+        }
+        if abs(snapped - newValue.sensitivity) > 0.001 {
+            shortcut = ContinuousShortcut(
+                kind: newValue.kind, modifiers: newValue.modifiers, sensitivity: snapped
+            )
+        }
     }
 
     @ViewBuilder
@@ -108,12 +121,13 @@ public struct ContinuousShortcutRecorderView: View {
         Binding(
             get: { sensitivity },
             set: { newValue in
-                sensitivity = newValue
+                let snapped = sensitivityModeValue.snap(newValue)
+                sensitivity = snapped
                 if let s = shortcut {
                     shortcut = ContinuousShortcut(
                         kind: s.kind,
                         modifiers: s.modifiers,
-                        sensitivity: newValue
+                        sensitivity: snapped
                     )
                 }
             }
