@@ -68,6 +68,26 @@ import Testing
         #expect(field.toolTip == nil)
         #expect(field.stringValue == "")
     }
+
+    @MainActor
+    @Test func recorderField_compactStyle_cancelledRecordingRestoresTooltip() {
+        let field = ContinuousShortcutRecorderField()
+        field.labelStyle = .compact
+        field.shortcut = ContinuousShortcut(kind: .rotateClockwise, modifiers: [])
+        #expect(field.toolTip == "Rotate CW")
+
+        field.startRecording()
+        #expect(field.toolTip == nil)
+
+        let escape = CGEvent(
+            keyboardEventSource: nil, virtualKey: UInt16(kVK_Escape), keyDown: true
+        )!
+        _ = field.handleEvent(NSEvent(cgEvent: escape)!)
+
+        #expect(!field.isRecording)
+        #expect(field.shortcut != nil)
+        #expect(field.toolTip == "Rotate CW")
+    }
 }
 
 // MARK: - Menu

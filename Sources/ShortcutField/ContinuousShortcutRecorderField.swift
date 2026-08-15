@@ -197,6 +197,7 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField, N
         placeholderString = defaultPlaceholder
         showsCancelButton = shortcut != nil
         chevronButton?.isEnabled = true
+        updateDisplay()
     }
 
     func forceEndRecordingSession() {
