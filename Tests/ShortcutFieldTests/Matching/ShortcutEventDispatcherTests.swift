@@ -10,12 +10,6 @@ import Testing
 @MainActor
 @Suite("ShortcutEventDispatcher")
 struct ShortcutEventDispatcherTests {
-    private func keyDown(_ keyCode: Int, _ modifiers: NSEvent.ModifierFlags = []) -> NSEvent {
-        let cg = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(keyCode), keyDown: true)!
-        cg.flags = CGEventFlags(rawValue: UInt64(modifiers.rawValue))
-        return NSEvent(cgEvent: cg)!
-    }
-
     @Test("a registered handler receives events; unregister stops delivery")
     func registerUnregister() {
         let dispatcher = ShortcutEventDispatcher()

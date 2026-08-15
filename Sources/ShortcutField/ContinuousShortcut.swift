@@ -58,8 +58,13 @@ public struct ContinuousShortcut: Sendable, Equatable, Hashable {
     public init(kind: Kind, modifiers: NSEvent.ModifierFlags, sensitivity: Double = 0.0) {
         self.kind = kind
         self.modifiers = DiscreteShortcut.canonicalModifiers(modifiers)
-        self.sensitivity = min(1.0, max(0.0, sensitivity))
+        self.sensitivity = sensitivity.clampedToUnitInterval
     }
+}
+
+extension Double {
+    /// The `0.0...1.0` range every sensitivity value is held to.
+    var clampedToUnitInterval: Double { min(1.0, max(0.0, self)) }
 }
 
 // MARK: - Codable
@@ -86,7 +91,7 @@ extension ContinuousShortcut: Codable {
         modifiers = DiscreteShortcut.canonicalModifiers(NSEvent.ModifierFlags(rawValue: rawModifiers))
 
         let rawSensitivity = try container.decodeIfPresent(Double.self, forKey: .sensitivity) ?? 0.0
-        sensitivity = min(1.0, max(0.0, rawSensitivity))
+        sensitivity = rawSensitivity.clampedToUnitInterval
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -113,10 +118,17 @@ public extension ContinuousShortcut {
 
 // MARK: - Matching
 
+extension ContinuousShortcut {
+    /// This shortcut as the equivalent single discrete step.
+    var asDiscreteStep: DiscreteShortcut.Step {
+        DiscreteShortcut.Step(kind: kind.asDiscreteKind, modifiers: modifiers)
+    }
+}
+
 public extension ContinuousShortcut {
     /// Match against an NSEvent.
     func matches(_ event: NSEvent) -> Bool {
-        DiscreteShortcut.Step(kind: kind.asDiscreteKind, modifiers: modifiers).matches(event)
+        asDiscreteStep.matches(event)
     }
 }
 
@@ -125,6 +137,6 @@ public extension ContinuousShortcut {
 public extension ContinuousShortcut {
     /// Human-readable representation. Same format as a single-step `DiscreteShortcut`.
     var displayString: String {
-        DiscreteShortcut.Step(kind: kind.asDiscreteKind, modifiers: modifiers).displayString
+        asDiscreteStep.displayString
     }
 }

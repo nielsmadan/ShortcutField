@@ -10,7 +10,7 @@ struct ContinuousMatcherTests {
         let matcher = ContinuousMatcher(
             ContinuousShortcut(kind: .pinchOut, modifiers: [], sensitivity: 1.0)
         )
-        let shape = ContinuousEventShape(type: .magnify, magnification: 0.3)
+        let shape = ShortcutEventShape(type: .magnify, magnification: 0.3)
         let result = matcher.handle(shape: shape)
         #expect(result == .continuousFired(magnitude: 0.3))
     }
@@ -21,7 +21,7 @@ struct ContinuousMatcherTests {
             ContinuousShortcut(kind: .pinchOut, modifiers: [], sensitivity: 1.0)
         )
         // pinchIn-direction magnification (negative) does not match pinchOut
-        let shape = ContinuousEventShape(type: .magnify, magnification: -0.3)
+        let shape = ShortcutEventShape(type: .magnify, magnification: -0.3)
         #expect(matcher.handle(shape: shape) == .ignored)
     }
 
@@ -30,7 +30,7 @@ struct ContinuousMatcherTests {
         let matcher = ContinuousMatcher(
             ContinuousShortcut(kind: .pinchOut, modifiers: [], sensitivity: 0.0)
         )
-        let shape = ContinuousEventShape(type: .magnify, magnification: 0.1)
+        let shape = ShortcutEventShape(type: .magnify, magnification: 0.1)
         if case .continuousFired = matcher.handle(shape: shape) {} else {
             Issue.record("expected first event to fire")
         }
@@ -45,7 +45,7 @@ struct ContinuousMatcherTests {
             ContinuousShortcut(kind: .scroll(direction: .down), modifiers: [], sensitivity: 1.0)
         )
         // dy < 0 → .down (dy > 0 is .up per the axis-dominance logic)
-        let shape = ContinuousEventShape(type: .scrollWheel, scrollDeltaY: -2.0)
+        let shape = ShortcutEventShape(type: .scrollWheel, scrollDeltaY: -2.0)
         #expect(matcher.handle(shape: shape) == .continuousFired(magnitude: -2.0))
     }
 
@@ -55,7 +55,7 @@ struct ContinuousMatcherTests {
             ContinuousShortcut(kind: .scroll(direction: .right), modifiers: [], sensitivity: 1.0)
         )
         // dx < 0 → .right (dx > 0 is .left); magnitude comes from scrollDeltaX.
-        let shape = ContinuousEventShape(type: .scrollWheel, scrollDeltaX: -2.0)
+        let shape = ShortcutEventShape(type: .scrollWheel, scrollDeltaX: -2.0)
         #expect(matcher.handle(shape: shape) == .continuousFired(magnitude: -2.0))
     }
 
@@ -64,7 +64,7 @@ struct ContinuousMatcherTests {
         let matcher = ContinuousMatcher(
             ContinuousShortcut(kind: .scroll(direction: .down), modifiers: [], sensitivity: 1.0)
         )
-        let shape = ContinuousEventShape(type: .scrollWheel, scrollDeltaY: 0.1)
+        let shape = ShortcutEventShape(type: .scrollWheel, scrollDeltaY: 0.1)
         #expect(matcher.handle(shape: shape) == .ignored)
     }
 
@@ -75,8 +75,8 @@ struct ContinuousMatcherTests {
         let matcher = ContinuousMatcher(
             ContinuousShortcut(kind: .pinchOut, modifiers: [], sensitivity: 0.0)
         )
-        let matchingShape = ContinuousEventShape(type: .magnify, magnification: 0.1)
-        let endShape = ContinuousEventShape(type: .magnify, phase: .ended)
+        let matchingShape = ShortcutEventShape(type: .magnify, magnification: 0.1)
+        let endShape = ShortcutEventShape(type: .magnify, phase: .ended)
 
         if case .continuousFired = matcher.handle(shape: matchingShape) {} else {
             Issue.record("expected first event to fire")
@@ -90,8 +90,8 @@ struct ContinuousMatcherTests {
         let matcher = ContinuousMatcher(
             ContinuousShortcut(kind: .rotateCounterClockwise, modifiers: [], sensitivity: 0.0)
         )
-        let matchingShape = ContinuousEventShape(type: .rotate, rotation: 5.0)
-        let endShape = ContinuousEventShape(type: .rotate, phase: .ended)
+        let matchingShape = ShortcutEventShape(type: .rotate, rotation: 5.0)
+        let endShape = ShortcutEventShape(type: .rotate, phase: .ended)
 
         if case .continuousFired = matcher.handle(shape: matchingShape) {} else {
             Issue.record("expected first event to fire")
@@ -105,8 +105,8 @@ struct ContinuousMatcherTests {
         let matcher = ContinuousMatcher(
             ContinuousShortcut(kind: .scroll(direction: .down), modifiers: [], sensitivity: 0.0)
         )
-        let matchingShape = ContinuousEventShape(type: .scrollWheel, scrollDeltaY: -2.0)
-        let endShape = ContinuousEventShape(type: .scrollWheel, phase: .ended)
+        let matchingShape = ShortcutEventShape(type: .scrollWheel, scrollDeltaY: -2.0)
+        let endShape = ShortcutEventShape(type: .scrollWheel, phase: .ended)
 
         if case .continuousFired = matcher.handle(shape: matchingShape) {} else {
             Issue.record("expected first event to fire")

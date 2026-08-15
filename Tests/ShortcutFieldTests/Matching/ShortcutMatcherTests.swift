@@ -6,12 +6,6 @@ import Testing
 @MainActor
 @Suite("ShortcutMatcher")
 struct ShortcutMatcherTests {
-    private func keyDown(_ keyCode: Int, _ modifiers: NSEvent.ModifierFlags = []) -> NSEvent {
-        let cg = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(keyCode), keyDown: true)!
-        cg.flags = CGEventFlags(rawValue: UInt64(modifiers.rawValue))
-        return NSEvent(cgEvent: cg)!
-    }
-
     @Test("discrete shortcut fires through the unified matcher")
     func discreteFires() {
         let matcher = ShortcutMatcher(
@@ -44,7 +38,7 @@ struct ShortcutMatcherTests {
         let matcher = ShortcutMatcher(
             .continuous(ContinuousShortcut(kind: .pinchOut, modifiers: [], sensitivity: 1.0))
         )
-        let shape = ContinuousEventShape(type: .magnify, magnification: 0.3)
+        let shape = ShortcutEventShape(type: .magnify, magnification: 0.3)
         #expect(matcher.handle(shape: shape) == .continuousFired(magnitude: 0.3))
     }
 
@@ -149,7 +143,7 @@ struct ShortcutMatcherTests {
         let matcher = ShortcutMatcher(
             .continuous(ContinuousShortcut(kind: .pinchOut, modifiers: [], sensitivity: 1.0))
         )
-        _ = matcher.handle(shape: ContinuousEventShape(type: .magnify, magnification: 0.3))
+        _ = matcher.handle(shape: ShortcutEventShape(type: .magnify, magnification: 0.3))
         #expect(ShortcutTracking.isActive == baseline)
     }
 }

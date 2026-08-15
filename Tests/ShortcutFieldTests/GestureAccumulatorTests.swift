@@ -101,37 +101,25 @@ import Testing
 // `.serialized` alone only serializes tests within the suite, not across suites.
 @MainActor
 @Suite(.serialized) struct ScrollDirectionThresholdTests {
-    private func makeScrollEvent(deltaY: Int32 = 0, deltaX: Int32 = 0) -> NSEvent {
-        let cg = CGEvent(scrollWheelEvent2Source: nil,
-                         units: .pixel,
-                         wheelCount: 2,
-                         wheel1: deltaY,
-                         wheel2: deltaX,
-                         wheel3: 0)!
-        // A nil-source CGEvent inherits the live modifier-key state; pin it empty.
-        cg.flags = []
-        return NSEvent(cgEvent: cg)!
-    }
-
     @Test func scrollDirectionAboveRecordingThreshold_belowThreshold_returnsNil() {
         // deltaY = 1 is well below DiscreteShortcut.scrollRecordingThreshold.
-        #expect(DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: makeScrollEvent(deltaY: 1)) == nil)
+        #expect(DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: scrollEvent(deltaY: 1)) == nil)
     }
 
     @Test func scrollDirectionAboveRecordingThreshold_positiveY_returnsUp() {
-        #expect(DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: makeScrollEvent(deltaY: 10)) == .up)
+        #expect(DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: scrollEvent(deltaY: 10)) == .up)
     }
 
     @Test func scrollDirectionAboveRecordingThreshold_negativeY_returnsDown() {
-        #expect(DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: makeScrollEvent(deltaY: -10)) == .down)
+        #expect(DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: scrollEvent(deltaY: -10)) == .down)
     }
 
     @Test func scrollDirectionAboveRecordingThreshold_positiveX_returnsLeft() {
         // CGEvent's wheel2 (X axis) sign and direction map to .left for positive.
-        #expect(DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: makeScrollEvent(deltaX: 10)) == .left)
+        #expect(DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: scrollEvent(deltaX: 10)) == .left)
     }
 
     @Test func scrollDirectionAboveRecordingThreshold_negativeX_returnsRight() {
-        #expect(DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: makeScrollEvent(deltaX: -10)) == .right)
+        #expect(DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: scrollEvent(deltaX: -10)) == .right)
     }
 }

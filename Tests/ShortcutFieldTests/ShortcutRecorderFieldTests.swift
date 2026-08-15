@@ -3,29 +3,6 @@ import Carbon.HIToolbox
 @testable import ShortcutField
 import Testing
 
-private func makeKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = []) -> NSEvent {
-    let event = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true)!
-    event.flags = CGEventFlags(rawValue: UInt64(modifiers.rawValue))
-    return NSEvent(cgEvent: event)!
-}
-
-/// Synthesize a scroll-wheel `NSEvent` with no phase information (mouse-wheel-style).
-///
-/// `CGEvent` doesn't expose `phase`, `magnification`, or `rotation`, so trackpad-burst
-/// scroll suppression and gesture sequences (`.magnify` / `.rotate`) cannot be driven
-/// through the matcher in tests.
-private func makeScrollEvent(deltaY: Int32 = 0, deltaX: Int32 = 0) -> NSEvent {
-    let cg = CGEvent(scrollWheelEvent2Source: nil,
-                     units: .pixel,
-                     wheelCount: 2,
-                     wheel1: deltaY,
-                     wheel2: deltaX,
-                     wheel3: 0)!
-    // A nil-source CGEvent inherits the live modifier-key state; pin it empty.
-    cg.flags = []
-    return NSEvent(cgEvent: cg)!
-}
-
 /// Above ``DiscreteShortcut/scrollRecordingThreshold``.
 private let scrollDeltaAboveThreshold: Int32 = 10
 
@@ -42,6 +19,23 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         #expect(field.shortcut == nil)
         #expect(!field.isRecording)
         #expect(field.frame.width >= 130)
+    }
+
+    @MainActor
+    @Test func recorderField_defaultPlaceholders() {
+        let field = ShortcutRecorderField()
+        #expect(field.defaultPlaceholder == "Record Shortcut")
+        #expect(field.recordingPlaceholder == "Record shortcut\u{2026}")
+        #expect(field.placeholderString == "Record Shortcut")
+    }
+
+    @MainActor
+    @Test func recorderField_recordingSwapsPlaceholderAndRestoresIt() {
+        let field = ShortcutRecorderField()
+        field.startRecording()
+        #expect(field.placeholderString == "Record shortcut\u{2026}")
+        field.endRecording()
+        #expect(field.placeholderString == "Record Shortcut")
     }
 
     @MainActor
@@ -241,7 +235,7 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         field.startRecording()
         #expect(field.timeoutTask == nil)
 
-        _ = field.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_K), modifiers: .command))
+        _ = field.handleEvent(keyDown(kVK_ANSI_K, .command))
         #expect(field.timeoutTask != nil)
 
         field.endRecording()
@@ -254,8 +248,8 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     @Test func recorderField_resigningFirstResponderFinalizesRecordedSteps() {
         let field = ShortcutRecorderField()
         field.startRecording()
-        _ = field.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_Tab)))
-        _ = field.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_T)))
+        _ = field.handleEvent(keyDown(kVK_Tab))
+        _ = field.handleEvent(keyDown(kVK_ANSI_T))
 
         field.finalizeRecording()
 
@@ -273,13 +267,13 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         field.startRecording()
 
         #expect(field.handleCommand(#selector(NSResponder.insertTab(_:)),
-                                    event: makeKeyEvent(keyCode: UInt16(kVK_Tab))))
+                                    event: keyDown(kVK_Tab)))
         #expect(field.handleCommand(#selector(NSResponder.insertTab(_:)),
-                                    event: makeKeyEvent(keyCode: UInt16(kVK_Tab))))
+                                    event: keyDown(kVK_Tab)))
         #expect(field.handleCommand(#selector(NSResponder.insertText(_:)),
-                                    event: makeKeyEvent(keyCode: UInt16(kVK_ANSI_T))) == false)
+                                    event: keyDown(kVK_ANSI_T)) == false)
 
-        _ = field.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_T)))
+        _ = field.handleEvent(keyDown(kVK_ANSI_T))
         field.finalizeRecording()
 
         let expected = DiscreteShortcut(steps: [
@@ -297,7 +291,7 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         let field = ShortcutRecorderField()
         field.startRecording()
 
-        _ = field.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_A)))
+        _ = field.handleEvent(keyDown(kVK_ANSI_A))
 
         let cg = CGEvent(mouseEventSource: nil,
                          mouseType: .rightMouseDown,
@@ -377,9 +371,9 @@ private let scrollDeltaAboveThreshold: Int32 = 10
             dispatcher.unregister(id: idQ)
         }
 
-        #expect(dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_Tab))) == nil)
-        #expect(dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_Tab))) == nil)
-        #expect(dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_T))) == nil)
+        #expect(dispatcher.handleEvent(keyDown(kVK_Tab)) == nil)
+        #expect(dispatcher.handleEvent(keyDown(kVK_Tab)) == nil)
+        #expect(dispatcher.handleEvent(keyDown(kVK_ANSI_T)) == nil)
 
         #expect(tCount == 1)
         #expect(qCount == 0)
@@ -416,16 +410,16 @@ private let scrollDeltaAboveThreshold: Int32 = 10
             dispatcher.unregister(id: idQ)
         }
 
-        _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_Tab)))
-        _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_Tab)))
-        _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_Q)))
+        _ = dispatcher.handleEvent(keyDown(kVK_Tab))
+        _ = dispatcher.handleEvent(keyDown(kVK_Tab))
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_Q))
         #expect(qCount == 1)
         #expect(tCount == 0)
 
         // T variant after Q matched — must not be blocked by stale state.
-        _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_Tab)))
-        _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_Tab)))
-        _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_T)))
+        _ = dispatcher.handleEvent(keyDown(kVK_Tab))
+        _ = dispatcher.handleEvent(keyDown(kVK_Tab))
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_T))
         #expect(tCount == 1)
         #expect(qCount == 1)
     }
@@ -451,9 +445,9 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         ShortcutRecordingState.beginTestRecording(for: token)
         defer { ShortcutRecordingState.endTestRecording(for: token) }
 
-        #expect(dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_Tab))) != nil)
-        #expect(dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_Tab))) != nil)
-        #expect(dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_T))) != nil)
+        #expect(dispatcher.handleEvent(keyDown(kVK_Tab)) != nil)
+        #expect(dispatcher.handleEvent(keyDown(kVK_Tab)) != nil)
+        #expect(dispatcher.handleEvent(keyDown(kVK_ANSI_T)) != nil)
         #expect(fireCount == 0)
     }
 
@@ -469,8 +463,8 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
         defer { dispatcher.unregister(id: listenerID) }
 
-        _ = dispatcher.handleEvent(makeScrollEvent(deltaY: scrollDeltaAboveThreshold))
-        _ = dispatcher.handleEvent(makeScrollEvent(deltaY: scrollDeltaAboveThreshold))
+        _ = dispatcher.handleEvent(scrollEvent(deltaY: scrollDeltaAboveThreshold))
+        _ = dispatcher.handleEvent(scrollEvent(deltaY: scrollDeltaAboveThreshold))
 
         #expect(fireCount == 2, "expected each mouse-wheel notch to fire the matcher")
     }
@@ -489,8 +483,8 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
         defer { dispatcher.unregister(id: listenerID) }
 
-        _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_A)))
-        _ = dispatcher.handleEvent(makeScrollEvent(deltaY: scrollDeltaAboveThreshold))
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_A))
+        _ = dispatcher.handleEvent(scrollEvent(deltaY: scrollDeltaAboveThreshold))
 
         #expect(fireCount == 1, "expected sequence [A, Scroll Up] to fire once")
     }
@@ -509,9 +503,9 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
         defer { dispatcher.unregister(id: listenerID) }
 
-        _ = dispatcher.handleEvent(makeScrollEvent(deltaY: scrollDeltaAboveThreshold))
-        _ = dispatcher.handleEvent(makeScrollEvent(deltaY: scrollDeltaAboveThreshold))
-        _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_A)))
+        _ = dispatcher.handleEvent(scrollEvent(deltaY: scrollDeltaAboveThreshold))
+        _ = dispatcher.handleEvent(scrollEvent(deltaY: scrollDeltaAboveThreshold))
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_A))
 
         #expect(fireCount == 1, "expected [Scroll Up, A] to survive an extra scroll event")
     }
@@ -530,8 +524,8 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
         defer { dispatcher.unregister(id: listenerID) }
 
-        _ = dispatcher.handleEvent(makeScrollEvent(deltaY: -scrollDeltaAboveThreshold))
-        _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_A)))
+        _ = dispatcher.handleEvent(scrollEvent(deltaY: -scrollDeltaAboveThreshold))
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_A))
 
         #expect(fireCount == 0, "wrong-direction scroll must not advance the matcher")
     }
@@ -550,7 +544,7 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
         defer { dispatcher.unregister(id: listenerID) }
 
-        _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_A)))
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_A))
 
         let cg = CGEvent(mouseEventSource: nil,
                          mouseType: .rightMouseDown,
@@ -573,15 +567,15 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         let shortcut = DiscreteShortcut(keyCode: UInt16(kVK_ANSI_A), modifiers: [])
         matcher.configure(shortcut: shortcut)
 
-        _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_A)))
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_A))
         #expect(fireCount == 0)
 
         dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
-        _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_A)))
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_A))
         #expect(fireCount == 1)
 
         dispatcher.unregister(id: listenerID)
-        _ = dispatcher.handleEvent(makeKeyEvent(keyCode: UInt16(kVK_ANSI_A)))
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_A))
         #expect(fireCount == 1)
     }
 }

@@ -17,6 +17,23 @@ import Testing
     }
 
     @MainActor
+    @Test func recorderField_defaultPlaceholders() {
+        let field = ContinuousShortcutRecorderField()
+        #expect(field.defaultPlaceholder == "Record Continuous")
+        #expect(field.recordingPlaceholder == "Scroll / pinch / rotate\u{2026}")
+        #expect(field.placeholderString == "Record Continuous")
+    }
+
+    @MainActor
+    @Test func recorderField_recordingSwapsPlaceholderAndRestoresIt() {
+        let field = ContinuousShortcutRecorderField()
+        field.startRecording()
+        #expect(field.placeholderString == "Scroll / pinch / rotate\u{2026}")
+        field.endRecording()
+        #expect(field.placeholderString == "Record Continuous")
+    }
+
+    @MainActor
     @Test func recorderField_setShortcut_updatesDisplay() {
         let field = ContinuousShortcutRecorderField()
         let cs = ContinuousShortcut(kind: .pinchIn, modifiers: .command, sensitivity: 0.5)

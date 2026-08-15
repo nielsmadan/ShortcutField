@@ -2,35 +2,6 @@ import AppKit
 import Carbon.HIToolbox
 import SwiftUI
 
-/// Internal shape used by the matcher so unit tests can synthesize gesture events
-/// without needing to construct real `NSEvent` gesture instances. Keyboard / mouse
-/// events can be constructed directly via `CGEvent`, so this is gesture-only.
-struct GestureEventShape: Equatable {
-    var type: NSEvent.EventType
-    var modifierFlags: NSEvent.ModifierFlags
-    var magnification: Double
-    var rotation: Double // degrees
-
-    init(
-        type: NSEvent.EventType,
-        modifierFlags: NSEvent.ModifierFlags = [],
-        magnification: Double = 0,
-        rotation: Double = 0
-    ) {
-        self.type = type
-        self.modifierFlags = modifierFlags
-        self.magnification = magnification
-        self.rotation = rotation
-    }
-
-    init(_ event: NSEvent) {
-        type = event.type
-        modifierFlags = event.modifierFlags
-        magnification = (event.type == .magnify) ? Double(event.magnification) : 0
-        rotation = (event.type == .rotate) ? Double(event.rotation) : 0
-    }
-}
-
 // MARK: - Step Matching
 
 public extension DiscreteShortcut.Step {
@@ -49,38 +20,40 @@ public extension DiscreteShortcut.Step {
                 return false
             }
             return event.buttonNumber == number
-        case let .scroll(direction):
-            guard event.type == .scrollWheel else { return false }
-            return DiscreteShortcut.scrollDirection(from: event) == direction
-        case .pinchIn, .pinchOut, .rotateClockwise, .rotateCounterClockwise, .smartMagnify:
-            return matchesGesture(GestureEventShape(event))
+        case .scroll, .pinchIn, .pinchOut, .rotateClockwise, .rotateCounterClockwise, .smartMagnify:
+            return matches(ShortcutEventShape(event))
         }
     }
 }
 
 extension DiscreteShortcut.Step {
-    /// Match this step against a synthesized gesture event shape — used by tests
-    /// and by `matches(_ event: NSEvent)` for gesture kinds.
-    func matchesGesture(_ event: GestureEventShape) -> Bool {
-        let eventMods = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
+    /// The single definition of the scroll and gesture thresholds, shared by
+    /// `matches(_ event: NSEvent)` and `ContinuousMatcher`.
+    func matches(_ shape: ShortcutEventShape) -> Bool {
+        let eventMods = DiscreteShortcut.canonicalModifiers(shape.modifierFlags)
         guard eventMods == modifiers else { return false }
 
         switch kind {
+        case let .scroll(direction):
+            guard shape.type == .scrollWheel else { return false }
+            return DiscreteShortcut.scrollDirection(
+                dx: shape.scrollDeltaX, dy: shape.scrollDeltaY
+            ) == direction
         case .pinchIn:
-            guard event.type == .magnify else { return false }
-            return event.magnification < -DiscreteShortcut.magnifyEventThreshold
+            guard shape.type == .magnify else { return false }
+            return shape.magnification < -DiscreteShortcut.magnifyEventThreshold
         case .pinchOut:
-            guard event.type == .magnify else { return false }
-            return event.magnification > DiscreteShortcut.magnifyEventThreshold
+            guard shape.type == .magnify else { return false }
+            return shape.magnification > DiscreteShortcut.magnifyEventThreshold
         case .rotateCounterClockwise:
-            guard event.type == .rotate else { return false }
-            return event.rotation > DiscreteShortcut.rotateEventThreshold
+            guard shape.type == .rotate else { return false }
+            return shape.rotation > DiscreteShortcut.rotateEventThreshold
         case .rotateClockwise:
-            guard event.type == .rotate else { return false }
-            return event.rotation < -DiscreteShortcut.rotateEventThreshold
+            guard shape.type == .rotate else { return false }
+            return shape.rotation < -DiscreteShortcut.rotateEventThreshold
         case .smartMagnify:
-            return event.type == .smartMagnify
-        case .key, .mouseButton, .scroll:
+            return shape.type == .smartMagnify
+        case .key, .mouseButton:
             return false
         }
     }

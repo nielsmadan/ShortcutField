@@ -6,16 +6,6 @@ import Testing
 @MainActor
 @Suite("SequenceMatcher")
 struct SequenceMatcherTests {
-    private func keyDown(_ keyCode: Int, _ modifiers: NSEvent.ModifierFlags = []) -> NSEvent {
-        let cg = CGEvent(
-            keyboardEventSource: nil,
-            virtualKey: CGKeyCode(keyCode),
-            keyDown: true
-        )!
-        cg.flags = CGEventFlags(rawValue: UInt64(modifiers.rawValue))
-        return NSEvent(cgEvent: cg)!
-    }
-
     @Test("single-step discrete shortcut fires on its event")
     func singleStepFires() {
         let matcher = SequenceMatcher()

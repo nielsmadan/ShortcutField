@@ -103,7 +103,7 @@ public extension ContinuousShortcut {
     /// Break the shortcut into renderable elements. Same format as a single-step
     /// ``DiscreteShortcut``.
     func displayElements(style: ShortcutLabelStyle) -> [ShortcutDisplayElement] {
-        DiscreteShortcut.Step(kind: kind.asDiscreteKind, modifiers: modifiers).displayElements(style: style)
+        asDiscreteStep.displayElements(style: style)
     }
 }
 

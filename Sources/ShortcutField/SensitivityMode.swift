@@ -15,13 +15,13 @@ public enum SensitivityMode: Sendable, Hashable {
     func snap(_ sensitivity: Double) -> Double {
         switch self {
         case .discrete: Self.discreteValues[Self.discreteIndex(for: sensitivity)]
-        case .continuous: min(1.0, max(0.0, sensitivity))
+        case .continuous: sensitivity.clampedToUnitInterval
         }
     }
 
     /// Returns the discrete tick-mark index (0-4) closest to the given sensitivity value.
     static func discreteIndex(for sensitivity: Double) -> Int {
-        let clamped = min(1.0, max(0.0, sensitivity))
+        let clamped = sensitivity.clampedToUnitInterval
         var bestIndex = 0
         var bestDist = Double.greatestFiniteMagnitude
         for (i, val) in discreteValues.enumerated() {

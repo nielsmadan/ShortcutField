@@ -13,9 +13,7 @@ import Carbon.HIToolbox
 /// by this recorder — use ``ShortcutRecorderField`` for those.
 ///
 /// For SwiftUI, use ``ContinuousShortcutRecorderView`` instead.
-public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField, NSSearchFieldDelegate,
-    NSTextViewDelegate, ActiveShortcutRecorder
-{
+public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField {
     private var chevronButton: NSButton?
     private var scrollCaptured = false
 
@@ -24,9 +22,6 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField, N
     /// writes the SwiftUI slider value here on every non-recording update so the
     /// field always uses the user's last-set value when constructing a new shortcut.
     var lastSensitivity: Double = 0.0
-
-    /// Whether this field is currently recording.
-    public private(set) var isRecording = false
 
     /// The currently recorded continuous shortcut, or nil if cleared.
     public var shortcut: ContinuousShortcut? {
@@ -41,58 +36,46 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField, N
     /// Called when the user records or clears a continuous shortcut.
     public var onShortcutChange: ((ContinuousShortcut?) -> Void)?
 
-    /// The placeholder text shown when not recording and no shortcut is set.
-    public var defaultPlaceholder: String = "Record Continuous" {
-        didSet {
-            if !isRecording {
-                placeholderString = defaultPlaceholder
-            }
-        }
+    override var displayedShortcut: (any ShortcutFieldDisplayable)? { shortcut }
+
+    override class var monitoredEvents: NSEvent.EventTypeMask {
+        [
+            .keyDown,
+            .leftMouseDown,
+            .rightMouseDown,
+            .otherMouseDown,
+            .scrollWheel,
+            .magnify,
+            .rotate,
+        ]
     }
 
-    /// The placeholder text shown during recording.
-    public var recordingPlaceholder: String = "Scroll / pinch / rotate\u{2026}"
-
-    private var showsCancelButton: Bool {
-        get { (cell as? NSSearchFieldCell)?.cancelButtonCell != nil }
-        set {
-            (cell as? NSSearchFieldCell)?.cancelButtonCell = newValue ? cancelButton : nil
-            // Chevron and cancel button share the same trailing slot — never both at once.
-            chevronButton?.isHidden = newValue
-        }
+    override func cancelButtonVisibilityDidChange(_ visible: Bool) {
+        // Chevron and cancel button share the same trailing slot — never both at once.
+        chevronButton?.isHidden = visible
     }
 
-    override public init(frame _: NSRect) {
-        super.init(frame: NSRect(x: 0, y: 0, width: 160, height: 24))
-        setup()
+    override func willStartRecording() {
+        scrollCaptured = false
+        gestures.resetAll()
+        chevronButton?.isEnabled = false
     }
 
-    @available(*, unavailable)
-    required init?(coder _: NSCoder) {
-        fatalError("init(coder:) is not supported")
+    override func willEndRecording() {
+        scrollCaptured = false
+        gestures.resetAll()
+        chevronButton?.isEnabled = true
     }
 
-    /// Create a recorder field at the default size.
-    public convenience init() {
-        self.init(frame: .zero)
+    override func clearCommittedShortcut() {
+        shortcut = nil
+        onShortcutChange?(nil)
     }
 
-    private func setup() {
-        delegate = self
-        placeholderString = defaultPlaceholder
-        alignment = .center
-        (cell as? NSSearchFieldCell)?.searchButtonCell = nil
-        wantsLayer = true
-        // High vertical hugging keeps the field at its intrinsic height (don't
-        // stretch tall). Low horizontal hugging lets `.frame(width:)` expand it
-        // beyond the intrinsic minimumWidth.
-        setContentHuggingPriority(.defaultHigh, for: .vertical)
-        setContentHuggingPriority(.defaultLow, for: .horizontal)
-
-        cancelButton = (cell as? NSSearchFieldCell)?.cancelButtonCell
-        captureBezeledHeight()
+    override func configureAccessories() {
+        defaultPlaceholder = "Record Continuous"
+        recordingPlaceholder = "Scroll / pinch / rotate\u{2026}"
         configureChevronButton()
-        updateDisplay()
     }
 
     private func configureChevronButton() {
@@ -124,140 +107,9 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField, N
         menu.popUp(positioning: nil, at: location, in: sender)
     }
 
-    override public func viewWillMove(toWindow newWindow: NSWindow?) {
-        if newWindow == nil {
-            endRecording()
-        }
-        super.viewWillMove(toWindow: newWindow)
-    }
-
-    private func updateDisplay() {
-        if let shortcut {
-            switch labelStyle {
-            case .text:
-                stringValue = shortcut.displayString
-                toolTip = nil
-            case .compact:
-                attributedStringValue = aligned(shortcut.attributedDisplayString(
-                    style: .compact, font: displayFont, color: fieldTextColor
-                ))
-                toolTip = shortcut.displayString
-            }
-            showsCancelButton = true
-        } else {
-            stringValue = ""
-            toolTip = nil
-            showsCancelButton = false
-        }
-    }
-
-    override func refreshDisplay() {
-        guard !isRecording else { return }
-        updateDisplay()
-    }
-
-    func startRecording() {
-        guard !isRecording else { return }
-        // Drop the committed tooltip so the live preview doesn't show a stale meaning.
-        toolTip = nil
-        isStartingRecording = true
-        isRecording = true
-        scrollCaptured = false
-        gestures.resetAll()
-        ShortcutRecordingState.begin(for: self)
-        placeholderString = recordingPlaceholder
-        showsCancelButton = shortcut != nil
-        chevronButton?.isEnabled = false
-
-        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [
-            .keyDown,
-            .leftMouseDown,
-            .rightMouseDown,
-            .otherMouseDown,
-            .scrollWheel,
-            .magnify,
-            .rotate,
-        ]) { [weak self] event in
-            guard let self, isRecording else { return event }
-            return handleEvent(event)
-        }
-        isStartingRecording = false
-    }
-
-    func endRecording() {
-        guard isRecording else { return }
-        isRecording = false
-        scrollCaptured = false
-        gestures.resetAll()
-        ShortcutRecordingState.end(for: self)
-        if let eventMonitor {
-            NSEvent.removeMonitor(eventMonitor)
-            self.eventMonitor = nil
-        }
-        placeholderString = defaultPlaceholder
-        showsCancelButton = shortcut != nil
-        chevronButton?.isEnabled = true
-        updateDisplay()
-    }
-
-    func forceEndRecordingSession() {
-        endRecording()
-    }
-
-    // MARK: - NSSearchFieldDelegate
-
-    public func controlTextDidEndEditing(_: Notification) {
-        guard !isStartingRecording else { return }
-        endRecording()
-    }
-
-    public func control(_: NSControl, textView _: NSTextView, shouldChangeTextIn _: NSRange,
-                        replacementString _: String?) -> Bool
-    {
-        false
-    }
-
-    public func searchFieldDidEndSearching(_: NSSearchField) {
-        shortcut = nil
-        onShortcutChange?(nil)
-    }
-
-    override public func becomeFirstResponder() -> Bool {
-        guard window != nil else { return false }
-
-        let shouldBecomeFirstResponder = super.becomeFirstResponder()
-        guard shouldBecomeFirstResponder else { return false }
-
-        startRecording()
-
-        DispatchQueue.main.async { [weak self] in
-            if let textView = self?.currentEditor() as? NSTextView {
-                textView.insertionPointColor = .clear
-                textView.delegate = self
-            }
-        }
-
-        return true
-    }
-
-    override public func resignFirstResponder() -> Bool {
-        let shouldResignFirstResponder = super.resignFirstResponder()
-        guard shouldResignFirstResponder else { return false }
-        guard !isStartingRecording else { return true }
-
-        endRecording()
-        return true
-    }
-
-    // MARK: - NSTextViewDelegate
-
-    public func textView(_: NSTextView, shouldChangeTextIn _: NSRange, replacementString _: String?) -> Bool {
-        false
-    }
-
     // MARK: - Event Handling
 
-    func handleEvent(_ event: NSEvent) -> NSEvent? {
+    override func handleEvent(_ event: NSEvent) -> NSEvent? {
         switch event.type {
         case .keyDown:
             handleKeyEvent(event)

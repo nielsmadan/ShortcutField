@@ -113,27 +113,19 @@ class CenteredSearchFieldCell: NSSearchFieldCell {
 ///
 /// For SwiftUI, use ``ShortcutRecorderView`` instead. For sensitivity-bearing
 /// continuous shortcuts (scroll-to-zoom etc.), use ``ContinuousShortcutRecorderField``.
-public final class ShortcutRecorderField: BaseShortcutRecorderField, NSSearchFieldDelegate, NSTextViewDelegate,
-    ActiveShortcutRecorder
-{
+public final class ShortcutRecorderField: BaseShortcutRecorderField {
     private var recordedSteps: [DiscreteShortcut.Step] = []
     /// Internal (not `private`) so tests can observe whether the idle timeout
     /// is armed.
     var timeoutTask: Task<Void, Never>?
-    /// Whether the current scroll burst has already been captured as a step.
-    private var scrollCaptured: Bool = false
-    /// Whether the current pinch gesture has already been captured as a step.
-    /// Cleared on the gesture's `.ended`/`.cancelled` phase or when a non-`.magnify`
-    /// event arrives, so the next physical pinch can record a fresh step.
-    private var pinchCaptured: Bool = false
-    private var rotateCaptured: Bool = false
+    /// Event types whose current burst has already produced a step. Cleared on the
+    /// gesture's `.ended`/`.cancelled` phase or when a different event type arrives,
+    /// so the next physical burst can record a fresh step.
+    private var capturedBurstTypes: Set<NSEvent.EventType> = []
 
     /// Idle interval after the last captured step before recording finalizes.
     /// Internal (not `private`) so tests can shrink it.
     var recordingTimeout: TimeInterval = 1.0
-
-    /// Whether this field is currently recording a shortcut.
-    public private(set) var isRecording = false
 
     /// The currently recorded shortcut, or nil if cleared.
     public var shortcut: DiscreteShortcut? {
@@ -145,103 +137,10 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField, NSSearchFie
     /// Called when the user records or clears a shortcut.
     public var onShortcutChange: ((DiscreteShortcut?) -> Void)?
 
-    /// The placeholder text shown when not recording and no shortcut is set.
-    public var defaultPlaceholder: String = "Record Shortcut" {
-        didSet {
-            if !isRecording {
-                placeholderString = defaultPlaceholder
-            }
-        }
-    }
+    override var displayedShortcut: (any ShortcutFieldDisplayable)? { shortcut }
 
-    /// The placeholder text shown during recording.
-    public var recordingPlaceholder: String = "Record shortcut\u{2026}"
-
-    private var showsCancelButton: Bool {
-        get { (cell as? NSSearchFieldCell)?.cancelButtonCell != nil }
-        set { (cell as? NSSearchFieldCell)?.cancelButtonCell = newValue ? cancelButton : nil }
-    }
-
-    override public init(frame _: NSRect) {
-        super.init(frame: NSRect(x: 0, y: 0, width: 160, height: 24))
-        setup()
-    }
-
-    @available(*, unavailable)
-    required init?(coder _: NSCoder) {
-        fatalError("init(coder:) is not supported")
-    }
-
-    /// Create a recorder field at the default size.
-    public convenience init() {
-        self.init(frame: .zero)
-    }
-
-    private func setup() {
-        delegate = self
-        placeholderString = defaultPlaceholder
-        alignment = .center
-        (cell as? NSSearchFieldCell)?.searchButtonCell = nil
-        wantsLayer = true
-        // High vertical hugging keeps the field at its intrinsic height (don't
-        // stretch tall). Low horizontal hugging lets `.frame(width:)` expand it
-        // beyond the intrinsic minimumWidth.
-        setContentHuggingPriority(.defaultHigh, for: .vertical)
-        setContentHuggingPriority(.defaultLow, for: .horizontal)
-
-        cancelButton = (cell as? NSSearchFieldCell)?.cancelButtonCell
-        captureBezeledHeight()
-        updateDisplay()
-    }
-
-    override public func viewWillMove(toWindow newWindow: NSWindow?) {
-        if newWindow == nil {
-            recordedSteps = []
-            endRecording()
-        }
-        super.viewWillMove(toWindow: newWindow)
-    }
-
-    private func updateDisplay() {
-        if let shortcut {
-            switch labelStyle {
-            case .text:
-                stringValue = shortcut.displayString
-                toolTip = nil
-            case .compact:
-                attributedStringValue = aligned(shortcut.attributedDisplayString(
-                    style: .compact, font: displayFont, color: fieldTextColor
-                ))
-                toolTip = shortcut.displayString
-            }
-            showsCancelButton = true
-        } else {
-            stringValue = ""
-            toolTip = nil
-            showsCancelButton = false
-        }
-    }
-
-    override func refreshDisplay() {
-        guard !isRecording else { return }
-        updateDisplay()
-    }
-
-    func startRecording() {
-        guard !isRecording else { return }
-        // Drop any committed-shortcut tooltip so the in-progress preview doesn't
-        // show a stale full-text meaning from the previous shortcut.
-        toolTip = nil
-
-        isStartingRecording = true
-        isRecording = true
-        ShortcutRecordingState.begin(for: self)
-        recordedSteps = []
-        resetGestureAccumulators()
-        placeholderString = recordingPlaceholder
-        showsCancelButton = shortcut != nil
-
-        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [
+    override class var monitoredEvents: NSEvent.EventTypeMask {
+        [
             .keyDown,
             .leftMouseDown,
             .rightMouseDown,
@@ -252,33 +151,33 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField, NSSearchFie
             .smartMagnify,
             .leftMouseUp,
             .rightMouseUp,
-        ]) { [weak self] event in
-            guard let self, isRecording else { return event }
-            return handleEvent(event)
-        }
-        isStartingRecording = false
+        ]
     }
 
-    func endRecording() {
-        guard isRecording else { return }
-        isRecording = false
+    override func willStartRecording() {
+        recordedSteps = []
         resetGestureAccumulators()
-        ShortcutRecordingState.end(for: self)
+    }
+
+    override func willEndRecording() {
+        resetGestureAccumulators()
         timeoutTask?.cancel()
         timeoutTask = nil
-        if let eventMonitor {
-            NSEvent.removeMonitor(eventMonitor)
-            self.eventMonitor = nil
-        }
-        placeholderString = defaultPlaceholder
-        updateDisplay()
+    }
+
+    override func forceEndRecordingSession() {
+        recordedSteps = []
+        endRecording()
+    }
+
+    override func clearCommittedShortcut() {
+        shortcut = nil
+        onShortcutChange?(nil)
     }
 
     private func resetGestureAccumulators() {
         gestures.resetAll()
-        scrollCaptured = false
-        pinchCaptured = false
-        rotateCaptured = false
+        capturedBurstTypes.removeAll()
     }
 
     func finalizeRecording() {
@@ -292,11 +191,6 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField, NSSearchFie
         blur()
     }
 
-    private func forceEndRecording() {
-        recordedSteps = []
-        endRecording()
-    }
-
     private func resetTimeout() {
         timeoutTask?.cancel()
         timeoutTask = Task { @MainActor [weak self] in
@@ -308,77 +202,24 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField, NSSearchFie
         }
     }
 
-    // MARK: - NSSearchFieldDelegate
-
-    public func controlTextDidEndEditing(_: Notification) {
-        // Guard against reentrant calls from startRecording() — setting placeholderString
-        // can trigger controlTextDidEndEditing synchronously, which would call endRecording()
-        // and set isRecording=false before startRecording() finishes.
-        guard !isStartingRecording else { return }
-
-        // Submit any in-progress steps (e.g. when clicking to another field).
-        // Don't call finalizeRecording() here — its blur() would interfere with
-        // the first-responder transition already in progress.
-        if !recordedSteps.isEmpty {
-            let new = DiscreteShortcut(steps: recordedSteps)
-            shortcut = new
-            onShortcutChange?(new)
-            recordedSteps = []
-        }
-        endRecording()
+    /// Submit any in-progress steps (e.g. when clicking to another field).
+    override func commitInProgressCapture() {
+        guard !recordedSteps.isEmpty else { return }
+        let new = DiscreteShortcut(steps: recordedSteps)
+        shortcut = new
+        onShortcutChange?(new)
+        recordedSteps = []
     }
 
-    public func control(_: NSControl, textView _: NSTextView, shouldChangeTextIn _: NSRange,
-                        replacementString _: String?) -> Bool
-    {
-        false
-    }
-
-    public func searchFieldDidEndSearching(_: NSSearchField) {
-        shortcut = nil
-        onShortcutChange?(nil)
-    }
-
-    override public func becomeFirstResponder() -> Bool {
-        guard window != nil else { return false }
-
-        let shouldBecomeFirstResponder = super.becomeFirstResponder()
-        guard shouldBecomeFirstResponder else { return false }
-
-        startRecording()
-
-        DispatchQueue.main.async { [weak self] in
-            if let textView = self?.currentEditor() as? NSTextView {
-                textView.insertionPointColor = .clear
-                textView.delegate = self
-            }
-        }
-
-        return true
-    }
-
-    override public func resignFirstResponder() -> Bool {
-        let shouldResignFirstResponder = super.resignFirstResponder()
-        guard shouldResignFirstResponder else { return false }
-        guard !isStartingRecording else { return true }
-
-        // controlTextDidEndEditing may have already ended recording during
-        // this first-responder transition — skip if already handled.
-        guard isRecording else { return true }
-
+    override func endRecordingOnResign() {
         if !recordedSteps.isEmpty {
             finalizeRecording()
         } else {
             endRecording()
         }
-        return true
     }
 
     // MARK: - NSTextViewDelegate
-
-    public func textView(_: NSTextView, shouldChangeTextIn _: NSRange, replacementString _: String?) -> Bool {
-        false
-    }
 
     public func textView(_: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
         handleCommand(commandSelector, event: NSApp.currentEvent)
@@ -402,19 +243,11 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField, NSSearchFie
             commandSelector == #selector(NSResponder.deleteForward(_:))
     }
 
-    func handleEvent(_ event: NSEvent) -> NSEvent? {
+    override func handleEvent(_ event: NSEvent) -> NSEvent? {
         guard isRecording else { return event }
 
         // A different event type ends any in-progress gesture burst.
-        if event.type != .scrollWheel {
-            scrollCaptured = false
-        }
-        if event.type != .magnify {
-            pinchCaptured = false
-        }
-        if event.type != .rotate {
-            rotateCaptured = false
-        }
+        capturedBurstTypes.formIntersection([event.type])
 
         switch event.type {
         case .leftMouseUp, .rightMouseUp:
@@ -507,9 +340,9 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField, NSSearchFie
 
         // Fresh scroll burst (trackpad finger touch-down) clears any prior capture flag.
         if event.phase == .began {
-            scrollCaptured = false
+            capturedBurstTypes.remove(.scrollWheel)
         }
-        if scrollCaptured { return nil }
+        if capturedBurstTypes.contains(.scrollWheel) { return nil }
 
         guard let direction = DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: event) else {
             return nil
@@ -519,7 +352,7 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField, NSSearchFie
         // Mouse-wheel notches have no phase — each is a distinct user action and
         // should be capturable as its own step.
         if event.phase != [] {
-            scrollCaptured = true
+            capturedBurstTypes.insert(.scrollWheel)
         }
 
         let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
@@ -536,37 +369,30 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField, NSSearchFie
         let isContinuousType = event.type == .magnify || event.type == .rotate
         if isContinuousType, event.phase == .ended || event.phase == .cancelled {
             gestures.resetAll()
-            pinchCaptured = false
-            rotateCaptured = false
+            capturedBurstTypes.subtract([.magnify, .rotate])
             return nil
         }
 
         // Fresh gesture burst clears any prior capture flag — defensive against
         // missed `.ended` events from the OS.
         if event.type == .magnify, event.phase == .began {
-            pinchCaptured = false
+            capturedBurstTypes.remove(.magnify)
             gestures.resetPinch()
         }
         if event.type == .rotate, event.phase == .began {
-            rotateCaptured = false
+            capturedBurstTypes.remove(.rotate)
             gestures.resetRotate()
         }
 
         switch event.type {
         case .magnify:
-            if pinchCaptured { return nil }
-            if let kind = gestures.consumeMagnify(Double(event.magnification)) {
-                appendStep(DiscreteShortcut.Step(kind: kind, modifiers: modifiers))
-                pinchCaptured = true
+            return captureBurstStep(.magnify, modifiers: modifiers) {
+                gestures.consumeMagnify(Double(event.magnification))
             }
-            return nil
         case .rotate:
-            if rotateCaptured { return nil }
-            if let kind = gestures.consumeRotate(Double(event.rotation)) {
-                appendStep(DiscreteShortcut.Step(kind: kind, modifiers: modifiers))
-                rotateCaptured = true
+            return captureBurstStep(.rotate, modifiers: modifiers) {
+                gestures.consumeRotate(Double(event.rotation))
             }
-            return nil
         case .smartMagnify:
             let step = DiscreteShortcut.Step(kind: .smartMagnify, modifiers: modifiers)
             appendStep(step)
@@ -576,24 +402,34 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField, NSSearchFie
         }
     }
 
+    /// Append one step per physical burst: ignores the event once this burst has
+    /// already produced a step, and only consumes the accumulator until it does.
+    private func captureBurstStep(
+        _ type: NSEvent.EventType,
+        modifiers: NSEvent.ModifierFlags,
+        consume: () -> DiscreteShortcut.Kind?
+    ) -> NSEvent? {
+        guard !capturedBurstTypes.contains(type) else { return nil }
+        if let kind = consume() {
+            appendStep(DiscreteShortcut.Step(kind: kind, modifiers: modifiers))
+            capturedBurstTypes.insert(type)
+        }
+        return nil
+    }
+
     private func appendStep(_ step: DiscreteShortcut.Step) {
         recordedSteps.append(step)
+        let preview = DiscreteShortcut(steps: recordedSteps)
         switch labelStyle {
         case .text:
-            stringValue = recordedSteps.map(\.displayString).joined(separator: " ") + " …"
+            stringValue = preview.displayString + " …"
         case .compact:
-            let elements = recordedSteps.enumerated().flatMap { index, step in
-                (index == 0 ? [] : [ShortcutDisplayElement.text(" ")]) + step.displayElements(style: .compact)
-            } + [ShortcutDisplayElement.text(" …")]
+            let elements = preview.displayElements(style: .compact) + [ShortcutDisplayElement.text(" …")]
             attributedStringValue = aligned(
                 shortcutAttributedString(from: elements, font: displayFont, color: fieldTextColor)
             )
         }
         resetTimeout()
         gestures.resetAll()
-    }
-
-    func forceEndRecordingSession() {
-        forceEndRecording()
     }
 }

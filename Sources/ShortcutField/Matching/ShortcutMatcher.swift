@@ -45,9 +45,9 @@ public final class ShortcutMatcher {
         }
     }
 
-    /// Test seam: feed a pre-extracted `ContinuousEventShape` directly.
+    /// Test seam: feed a pre-extracted `ShortcutEventShape` directly.
     /// Only callable from `@testable` imports; no-op for discrete shortcuts.
-    func handle(shape: ContinuousEventShape) -> ShortcutMatchResult {
+    func handle(shape: ShortcutEventShape) -> ShortcutMatchResult {
         guard case let .continuous(continuous) = backing else { return .ignored }
         return continuous.handle(shape: shape)
     }
