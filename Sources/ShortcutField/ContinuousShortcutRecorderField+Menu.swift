@@ -53,6 +53,6 @@ extension ContinuousShortcutRecorderField {
     @objc func menuPicked(_ sender: NSMenuItem) {
         guard let box = sender.representedObject as? KindBox else { return }
         let modifiers = DiscreteShortcut.canonicalModifiers(NSApp.currentEvent?.modifierFlags ?? [])
-        handleMenuPickedKind(box.kind, modifiers: modifiers)
+        commit(kind: box.kind, modifiers: modifiers)
     }
 }

@@ -169,9 +169,7 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField {
 
         scrollCaptured = true
         let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
-        applyKind(.scroll(direction: direction), modifiers: modifiers)
-        endRecording()
-        blur()
+        commit(kind: .scroll(direction: direction), modifiers: modifiers)
         return nil
     }
 
@@ -197,14 +195,14 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField {
             if let kind = gestures.consumeMagnify(Double(event.magnification)),
                let continuousKind = ContinuousShortcut.Kind(kind)
             {
-                finalize(kind: continuousKind, modifiers: modifiers)
+                commit(kind: continuousKind, modifiers: modifiers)
             }
             return nil
         case .rotate:
             if let kind = gestures.consumeRotate(Double(event.rotation)),
                let continuousKind = ContinuousShortcut.Kind(kind)
             {
-                finalize(kind: continuousKind, modifiers: modifiers)
+                commit(kind: continuousKind, modifiers: modifiers)
             }
             return nil
         default:
@@ -212,20 +210,12 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField {
         }
     }
 
-    private func applyKind(_ kind: ContinuousShortcut.Kind, modifiers: NSEvent.ModifierFlags) {
+    /// Record `kind` as the shortcut and end the session. The single commit path,
+    /// shared by the gesture, scroll, and chevron-menu routes.
+    func commit(kind: ContinuousShortcut.Kind, modifiers: NSEvent.ModifierFlags) {
         let new = ContinuousShortcut(kind: kind, modifiers: modifiers, sensitivity: lastSensitivity)
         shortcut = new
         onShortcutChange?(new)
-    }
-
-    func handleMenuPickedKind(_ kind: ContinuousShortcut.Kind, modifiers: NSEvent.ModifierFlags) {
-        applyKind(kind, modifiers: modifiers)
-        endRecording()
-        blur()
-    }
-
-    private func finalize(kind: ContinuousShortcut.Kind, modifiers: NSEvent.ModifierFlags) {
-        applyKind(kind, modifiers: modifiers)
         endRecording()
         blur()
     }

@@ -1,96 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
 
-@MainActor
-protocol ActiveShortcutRecorder: AnyObject {
-    func forceEndRecordingSession()
-}
-
-@MainActor
-enum ShortcutRecordingState {
-    private static var activeRecorders: Set<ObjectIdentifier> = []
-    private weak static var activeRecorder: (any ActiveShortcutRecorder)?
-
-    static var isAnyRecording: Bool {
-        !activeRecorders.isEmpty
-    }
-
-    static func begin(for recorder: AnyObject & ActiveShortcutRecorder) {
-        if let activeRecorder, activeRecorder !== recorder {
-            activeRecorder.forceEndRecordingSession()
-        }
-        activeRecorders.insert(ObjectIdentifier(recorder))
-        activeRecorder = recorder
-    }
-
-    static func end(for recorder: AnyObject) {
-        activeRecorders.remove(ObjectIdentifier(recorder))
-        if let activeRecorder, activeRecorder === recorder as AnyObject {
-            self.activeRecorder = nil
-        }
-    }
-
-    /// `deinit` is non-isolated under Swift 6 strict concurrency. Recorder fields are
-    /// `NSView`s and deallocate on the main thread, so remove the entry synchronously
-    /// there — a deferred removal leaves `isAnyRecording` briefly stale and races
-    /// parallel tests. The `Task` path is a fallback for off-main release.
-    nonisolated static func endOnDeinit(for recorder: AnyObject) {
-        let id = ObjectIdentifier(recorder)
-        if Thread.isMainThread {
-            MainActor.assumeIsolated { _ = activeRecorders.remove(id) }
-        } else {
-            Task { @MainActor in activeRecorders.remove(id) }
-        }
-    }
-
-    static func beginTestRecording(for recorder: AnyObject) {
-        activeRecorders.insert(ObjectIdentifier(recorder))
-    }
-
-    static func endTestRecording(for recorder: AnyObject) {
-        activeRecorders.remove(ObjectIdentifier(recorder))
-    }
-}
-
-/// `@MainActor` namespace exposing whether any recorder field — fire-once or
-/// continuous — is currently capturing input. Useful for hosts that need to
-/// suppress their own keyboard handling while a shortcut is being recorded.
-public enum ShortcutRecording {
-    @MainActor public static var isActive: Bool { ShortcutRecordingState.isAnyRecording }
-}
-
-/// NSSearchFieldCell subclass that vertically centers text when the bezel
-/// is disabled.
-class CenteredSearchFieldCell: NSSearchFieldCell {
-    override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
-        super.drawInterior(withFrame: centeredFrame(cellFrame), in: controlView)
-    }
-
-    override func edit(withFrame rect: NSRect, in controlView: NSView,
-                       editor textObj: NSText, delegate: Any?, event: NSEvent?)
-    {
-        super.edit(withFrame: centeredFrame(rect), in: controlView, editor: textObj,
-                   delegate: delegate, event: event)
-    }
-
-    override func select(withFrame rect: NSRect, in controlView: NSView,
-                         editor textObj: NSText, delegate: Any?,
-                         start selStart: Int, length selLength: Int)
-    {
-        super.select(withFrame: centeredFrame(rect), in: controlView, editor: textObj,
-                     delegate: delegate, start: selStart, length: selLength)
-    }
-
-    private func centeredFrame(_ frame: NSRect) -> NSRect {
-        guard !isBezeled else { return frame }
-        let minimumHeight = cellSize(forBounds: frame).height
-        var adjusted = frame
-        adjusted.origin.y += (frame.height - minimumHeight) / 2
-        adjusted.size.height = minimumHeight
-        return adjusted
-    }
-}
-
 /// An AppKit control that records a fire-once shortcut: a single input or a
 /// multi-step sequence of any combination of keystrokes, modified left-clicks,
 /// right/middle/other mouse-button clicks, scroll directions, or trackpad
@@ -181,14 +91,19 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
     }
 
     func finalizeRecording() {
-        if !recordedSteps.isEmpty {
-            let new = DiscreteShortcut(steps: recordedSteps)
-            shortcut = new
-            onShortcutChange?(new)
-        }
-        recordedSteps = []
+        commitRecordedSteps()
         endRecording()
         blur()
+    }
+
+    /// Record the captured steps as the shortcut, if any. The single commit path,
+    /// shared by the idle-timeout, click-away, and focus-change routes.
+    private func commitRecordedSteps() {
+        guard !recordedSteps.isEmpty else { return }
+        let new = DiscreteShortcut(steps: recordedSteps)
+        shortcut = new
+        onShortcutChange?(new)
+        recordedSteps = []
     }
 
     private func resetTimeout() {
@@ -202,13 +117,8 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
         }
     }
 
-    /// Submit any in-progress steps (e.g. when clicking to another field).
     override func commitInProgressCapture() {
-        guard !recordedSteps.isEmpty else { return }
-        let new = DiscreteShortcut(steps: recordedSteps)
-        shortcut = new
-        onShortcutChange?(new)
-        recordedSteps = []
+        commitRecordedSteps()
     }
 
     override func endRecordingOnResign() {
