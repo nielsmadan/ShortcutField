@@ -26,9 +26,6 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField {
     /// The currently recorded continuous shortcut, or nil if cleared.
     public var shortcut: ContinuousShortcut? {
         didSet {
-            if let s = shortcut {
-                lastSensitivity = s.sensitivity
-            }
             updateDisplay()
         }
     }
@@ -213,7 +210,10 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField {
     /// Record `kind` as the shortcut and end the session. The single commit path,
     /// shared by the gesture, scroll, and chevron-menu routes.
     func commit(kind: ContinuousShortcut.Kind, modifiers: NSEvent.ModifierFlags) {
-        let new = ContinuousShortcut(kind: kind, modifiers: modifiers, sensitivity: lastSensitivity)
+        // Carry the committed shortcut's sensitivity forward; `lastSensitivity` covers
+        // the case where nothing is bound yet (a slider adjustment before recording).
+        let sensitivity = shortcut?.sensitivity ?? lastSensitivity
+        let new = ContinuousShortcut(kind: kind, modifiers: modifiers, sensitivity: sensitivity)
         shortcut = new
         onShortcutChange?(new)
         endRecording()

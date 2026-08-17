@@ -87,6 +87,31 @@ import Testing
     }
 
     @MainActor
+    @Test func recorderField_commit_carriesCommittedSensitivityForward() {
+        let field = ContinuousShortcutRecorderField()
+        field.shortcut = ContinuousShortcut(kind: .pinchIn, modifiers: [], sensitivity: 0.8)
+        field.commit(kind: .rotateClockwise, modifiers: .command)
+        #expect(field.shortcut?.kind == .rotateClockwise)
+        #expect(field.shortcut?.sensitivity == 0.8)
+    }
+
+    @MainActor
+    @Test func recorderField_commit_usesLastSensitivityWhenNothingBound() {
+        let field = ContinuousShortcutRecorderField()
+        field.lastSensitivity = 0.6
+        field.commit(kind: .rotateClockwise, modifiers: [])
+        #expect(field.shortcut?.sensitivity == 0.6)
+    }
+
+    @MainActor
+    @Test func recorderField_setShortcut_leavesPushedSensitivityIntact() {
+        let field = ContinuousShortcutRecorderField()
+        field.lastSensitivity = 0.6
+        field.shortcut = ContinuousShortcut(kind: .pinchIn, modifiers: [], sensitivity: 0.25)
+        #expect(field.lastSensitivity == 0.6)
+    }
+
+    @MainActor
     @Test func recorderField_compactStyle_cancelledRecordingRestoresTooltip() {
         let field = ContinuousShortcutRecorderField()
         field.labelStyle = .compact
