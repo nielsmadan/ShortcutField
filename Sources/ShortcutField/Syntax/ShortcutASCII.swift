@@ -78,12 +78,22 @@ private enum ASCIIToken {
         ("button5", 4),
     ]
 
-    static let scrollDirections: [(name: String, direction: DiscreteShortcut.ScrollDirection)] = [
-        ("scroll-up", .up),
-        ("scroll-down", .down),
-        ("scroll-left", .left),
-        ("scroll-right", .right),
-    ]
+    static let scrollDirections: [(name: String, direction: DiscreteShortcut.ScrollDirection)] =
+        [DiscreteShortcut.ScrollDirection.up, .down, .left, .right]
+            .map { (name: $0.asciiName, direction: $0) }
+}
+
+extension DiscreteShortcut.ScrollDirection {
+    /// Emitted ascii token. Exhaustive so a new direction fails the build here rather
+    /// than trapping when a shortcut is serialized.
+    var asciiName: String {
+        switch self {
+        case .up: "scroll-up"
+        case .down: "scroll-down"
+        case .left: "scroll-left"
+        case .right: "scroll-right"
+        }
+    }
 }
 
 // MARK: - Step parsing / emitting
@@ -175,7 +185,7 @@ extension DiscreteShortcut.Step {
             return ASCIIToken.mouseButtons.first(where: { $0.number == number })?.name
                 ?? "button\(number + 1)"
         case let .scroll(direction):
-            return ASCIIToken.scrollDirections.first(where: { $0.direction == direction })!.name
+            return direction.asciiName
         case .pinchIn: return "pinch-in"
         case .pinchOut: return "pinch-out"
         case .rotateClockwise: return "rotate-clockwise"

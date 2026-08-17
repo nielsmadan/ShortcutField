@@ -97,6 +97,16 @@ struct ShortcutASCIITests {
         #expect(try DiscreteShortcut(ascii: "cmd+grave").ascii == "cmd+grave")
     }
 
+    @Test("every scroll direction round-trips through ascii")
+    func scrollDirectionsRoundTrip() throws {
+        for direction in [DiscreteShortcut.ScrollDirection.up, .down, .left, .right] {
+            let shortcut = DiscreteShortcut(kind: .scroll(direction: direction), modifiers: .command)
+            let ascii = shortcut.ascii
+            #expect(ascii == "cmd+\(direction.asciiName)")
+            #expect(try DiscreteShortcut(ascii: ascii) == shortcut)
+        }
+    }
+
     @Test("key<N> numeric fallback round-trips")
     func keyNFallbackRoundTrip() throws {
         let highCode = DiscreteShortcut(keyCode: 200, modifiers: .command)
