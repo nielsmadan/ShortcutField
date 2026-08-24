@@ -68,6 +68,12 @@ public extension View {
     /// `sensitivity`. Multi-step discrete shortcuts fire once when the full
     /// sequence completes within the per-step timeout.
     ///
+    /// While an editable text responder has focus, a discrete shortcut whose
+    /// first step is a bare key or a ⇧/⌥-only combination does not fire — the
+    /// keystroke goes to the field instead. Steps carrying ⌘ or ⌃, and keys that
+    /// produce no text (Escape, F1–F20), always fire. Later steps of a multi-step
+    /// shortcut always fire once its first step has matched.
+    ///
     /// - Note: Intermediate key events of a multi-step match propagate through
     ///   the responder chain and may trigger the macOS system alert sound. Check
     ///   ``ShortcutTracking/isActive`` in a `noResponder(for:)` override to

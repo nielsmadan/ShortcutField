@@ -38,6 +38,10 @@ public final class ShortcutMatcher {
     }
 
     /// Feed an `NSEvent`. Returns whether it advanced or completed a match.
+    ///
+    /// A discrete shortcut whose first step is a bare key or a ⇧/⌥-only
+    /// combination returns `.ignored` while an editable text responder has focus,
+    /// even when the event matches the step.
     public func handle(_ event: NSEvent) -> ShortcutMatchResult {
         switch backing {
         case let .discrete(sequence): sequence.handle(event)

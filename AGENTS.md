@@ -47,6 +47,7 @@ ShortcutField splits two concerns into distinct types:
 - `Matching/ContinuousMatcher.swift` — Single continuous-shortcut matcher applying the sensitivity throttle.
 - `Matching/ShortcutEventDispatcher.swift` — Shared `NSEvent` local-monitor fan-out used by `.onShortcut`.
 - `Matching/ShortcutMatchResult.swift` — Matcher result enum (`.fired`, `.continuousFired`, `.advanced`, `.ignored`).
+- `Matching/TextInputFocus.swift` — Internal: focused-responder check behind the text-input gate; `responderOverride` test seam.
 - `Matching/ShortcutTracking.swift` — Public `ShortcutTracking.isActive` flag for in-progress multi-step matches; bumped automatically by `SequenceMatcher`.
 - `BaseShortcutRecorderField.swift` — Shared `NSSearchField` base for the two recorder fields (cell class, sizing, key-view eligibility, event-monitor storage, click hit-test).
 - `ShortcutRecorderView.swift` — SwiftUI recorder (NSViewRepresentable) for `DiscreteShortcut`.

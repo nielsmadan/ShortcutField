@@ -121,6 +121,25 @@ MyView()
 
 For 1-step discrete shortcuts the action fires once on the matching event. For multi-step shortcuts the action fires once when the full sequence completes within the per-step timeout (1 second). For continuous shortcuts it fires on each throttled gesture event.
 
+### Typing takes precedence
+
+While a text-editing responder has focus, shortcuts the user could plausibly have *typed* stay out of the way. The rule is derived from the shortcut's shape — there is nothing to configure:
+
+| Shortcut shape | While a text field has focus |
+|---|---|
+| Carries ⌘ or ⌃ | Fires. `⌘S` must save wherever focus sits. |
+| Escape, or F1–F20 | Fires. These keys produce no text, so typing can't reach them. |
+| Bare key, or ⇧/⌥-only | Suppressed; the keystroke goes to the field. |
+| Mouse, scroll, or gesture | Fires. Not keyboard input. |
+
+So a `K` bound to "open search" no longer eats the `k` in "keyboard", while a bare `F5` still fires wherever the caret is.
+
+Navigation and editing keys — arrows, Home/End, Page Up/Down, Tab, Return, Space, Delete — stay suppressed: each one acts on the text, so the field must keep receiving them.
+
+Multi-step shortcuts are gated on their **first** step only. Once the user has pressed the `⌘K` of `⌘K S`, they have committed to the sequence, so the bare `S` completes it even with the caret in a text field.
+
+"Text-editing" means the first responder is an editable `NSTextView`. Because AppKit installs a text field's *field editor* as first responder, that covers `NSTextField`, `NSSearchField`, `TextEditor`, and SwiftUI's `TextField`. Buttons and other non-text responders don't suppress anything. A `WKWebView` holding a focused `contenteditable` node is **not** detected — that needs an asynchronous JavaScript round trip, and the gate runs synchronously inside the event monitor.
+
 For manual matching, drive a `ShortcutMatcher` yourself or use the `matches()` primitives directly:
 
 ```swift
@@ -333,7 +352,7 @@ SwiftUI recorder for sensitivity-bearing continuous shortcuts. Binds a `Continuo
 
 View modifier that fires an action when a `Shortcut` is performed. Takes the umbrella `Shortcut?`.
 
-For `.discrete` shortcuts the action fires once on completion: immediately for 1-step, after the full sequence for multi-step (intermediate events propagate normally; only focus-intercepted keys like Tab/Escape are consumed mid-sequence). For `.continuous` shortcuts it fires on each throttled gesture event. Multiple shortcuts that share a common prefix (e.g. `A B` and `A T`) work correctly: each tracks independently and the shared dispatcher delivers every event to all active matchers. Matching is automatically disabled while any recorder field is active.
+For `.discrete` shortcuts the action fires once on completion: immediately for 1-step, after the full sequence for multi-step (intermediate events propagate normally; only focus-intercepted keys like Tab/Escape are consumed mid-sequence). For `.continuous` shortcuts it fires on each throttled gesture event. Multiple shortcuts that share a common prefix (e.g. `A B` and `A T`) work correctly: each tracks independently and the shared dispatcher delivers every event to all active matchers. Matching is automatically disabled while any recorder field is active. Bare-key and ⇧/⌥-only shortcuts are suppressed while a text-editing responder has focus (Escape and F1–F20 are exempt) (see [Typing takes precedence](#typing-takes-precedence)).
 
 ### `ShortcutTracking`
 

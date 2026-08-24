@@ -65,6 +65,8 @@ final class SequenceMatcher {
             return .ignored
         }
 
+        if yieldsToTextInput(event: event, step: step) { return .ignored }
+
         let suppressType = suppressionTypeIfContinuous(event: event, step: step)
         let isLast = currentStep == shortcut.steps.count - 1
         if isLast {
@@ -119,6 +121,41 @@ final class SequenceMatcher {
 
     private static func isContinuousEventType(_ type: NSEvent.EventType) -> Bool {
         type == .magnify || type == .rotate || type == .scrollWheel
+    }
+
+    /// Whether a matching keystroke must be surrendered to a focused text editor.
+    ///
+    /// Derived from the step's shape: a step carrying ⌘ or ⌃, or bound to a key
+    /// that produces no text, is not something the user could have typed, so it
+    /// fires wherever focus sits. A bare key, or a ⇧/⌥-only combination, is a
+    /// character the user plausibly meant for the field.
+    ///
+    /// Only consulted at `currentStep == 0`. Pressing the first step of a
+    /// multi-step shortcut commits to the sequence, so later steps — which are
+    /// often bare keys — always fire.
+    private func yieldsToTextInput(event: NSEvent, step: DiscreteShortcut.Step) -> Bool {
+        guard currentStep == 0, event.type == .keyDown else { return false }
+        guard case let .key(keyCode) = step.kind, !Self.producesNoText(keyCode: keyCode) else { return false }
+        guard step.modifiers.isDisjoint(with: [.command, .control]) else { return false }
+        return TextInputFocus.isEditingText
+    }
+
+    /// Keys a user cannot reach by typing, so a bare shortcut bound to one still
+    /// fires while a text field has focus.
+    ///
+    /// Navigation and editing keys (arrows, Home/End, Page Up/Down, Tab, Return,
+    /// Space, Delete) are excluded on purpose: each one acts on the text, so the
+    /// field must keep receiving them.
+    private static func producesNoText(keyCode: UInt16) -> Bool {
+        switch Int(keyCode) {
+        case kVK_Escape,
+             kVK_F1, kVK_F2, kVK_F3, kVK_F4, kVK_F5, kVK_F6, kVK_F7,
+             kVK_F8, kVK_F9, kVK_F10, kVK_F11, kVK_F12, kVK_F13, kVK_F14,
+             kVK_F15, kVK_F16, kVK_F17, kVK_F18, kVK_F19, kVK_F20:
+            true
+        default:
+            false
+        }
     }
 
     func reset() {
