@@ -5,5 +5,3 @@ source of truth shared by every coding agent. The import below pulls it in for
 Claude Code.
 
 @AGENTS.md
-
-Claude-specific rules, if any are ever needed, can go beneath this line.
