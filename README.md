@@ -445,6 +445,25 @@ There's no in-app workaround; intercepting system hotkeys requires a system-wide
 
 Issues and pull requests are welcome.
 
+## Releases
+
+Run `just release` from a clean, current `main` checkout with complete history and matching
+local/origin release tags. It proposes a version, runs `just check` and `just docs`, then asks for
+confirmation. Enter `y` to publish, a version or `patch`/`minor`/`major` to revise the proposal, or
+press Enter to cancel. This tooling requires Python 3.9+ in addition to the development tools.
+
+`just release minor` and `just release 3.0.0` preselect an override through the same prompt.
+`just release --dry-run` reads Git state and previews without checks or publication. `--yes`
+explicitly confirms unattended use; other nonterminal invocations fail. `feat` proposes a minor
+bump, `fix`/`perf` a patch, and breaking changes a major bump (minor during `0.x`). Maintenance-only
+changes require an explicit bump.
+
+After confirmation, the command updates and commits the installation version in this README,
+then atomically pushes `main` and its annotated tag for Swift Package Manager consumers. The
+preview counts existing local commits included in the push. `scripts/release.json` declares the
+checks and preparation. Failures preserve local changes/commits/tags for inspection; public tags
+must not be replaced.
+
 ## Acknowledgments
 
 ShortcutField's key mapping and display logic (see [`DiscreteShortcut+KeyMapping.swift`](Sources/ShortcutField/DiscreteShortcut+KeyMapping.swift)) is adapted from [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) by Sindre Sorhus (MIT license).

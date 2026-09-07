@@ -11,6 +11,9 @@ This is the single source of truth for agent instructions in this repository. `C
 Use `just` for the common workflow:
 
 ```bash
+just setup    # Resolve dependencies, install hooks, and verify the checkout
+just doctor   # Verify tools and hook installation
+just check    # Format check, lint, strict build, and tests
 just build    # Build the package (swift build, warnings as errors)
 just test     # Run tests (swift test)
 just lint     # Run SwiftLint (--strict)
@@ -19,9 +22,9 @@ just docs     # Build DocC docs, fail on any diagnostic (unresolved links, etc.)
 just lint-fix  # Auto-fix SwiftLint violations
 just example   # Build & run the example app from Example/
 just clean     # Remove build directory
-just tag-release-patch ["Tag message"]  # Tag and push a patch release
-just tag-release-minor ["Tag message"]  # Tag and push a minor release
-just tag-release-major ["Tag message"]  # Tag and push a major release
+just release          # Propose, check, confirm or override, and publish a version
+just release minor    # Propose a minor bump through the same confirmation flow
+just release --dry-run # Inspect the release proposal without checks or publication
 ```
 
 Run `just lint-fix` before submitting when SwiftLint can auto-correct issues.

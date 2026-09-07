@@ -2,10 +2,50 @@
 default:
     @just --list
 
+# Prepare this checkout for work: dependencies, hooks, then verify.
+setup:
+    @swift package resolve
+    @lefthook install
+    @just doctor
+
+# Verify the tools and checkout state this repo needs.
+doctor:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    fail=0
+    need() {
+        if command -v "$1" >/dev/null 2>&1; then
+            printf '  ok       %s\n' "$1"
+        else
+            printf '  MISSING  %-12s install: %s\n' "$1" "$2"; fail=1
+        fi
+    }
+    need python3 "brew install python"
+    need swift "xcode-select --install"
+    need swiftformat "brew install swiftformat"
+    need swiftlint "brew install swiftlint"
+    need xcodebuild "install Xcode from the App Store"
+    need lefthook "brew install lefthook"
+    if [ -f "$(git rev-parse --git-path hooks/pre-commit)" ]; then
+        printf '  ok       git hooks\n'
+    else
+        printf '  MISSING  %-12s run: just setup\n' 'git hooks'; fail=1
+    fi
+    [ "$fail" -eq 0 ] && printf 'Everything in place.\n'
+    exit $fail
+
 build:
     @swift build -Xswiftc -warnings-as-errors
 
 test:
+    @swift test
+
+# Format check, lint, strict build and tests. The pre-push gate.
+check:
+    @python3 -B -m unittest discover -s scripts -p 'test_release*.py'
+    @swiftformat --lint .
+    @swiftlint --strict .
+    @swift build -Xswiftc -warnings-as-errors
     @swift test
 
 lint *files:
@@ -47,52 +87,6 @@ clean:
     @rm -rf .build
     @echo "Build directory cleaned."
 
-# Usage: just tag-release-patch ["Tag message"], likewise for -minor and -major.
-# The message defaults to "Release vX.Y.Z".
-tag-release-patch message="":
-    @just tag-release patch "{{message}}"
-
-tag-release-minor message="":
-    @just tag-release minor "{{message}}"
-
-tag-release-major message="":
-    @just tag-release major "{{message}}"
-
-tag-release bump message="":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    LATEST_TAG=$(git tag --sort=-v:refname | head -1 | sed 's/^v//')
-    if [ -z "$LATEST_TAG" ]; then
-        VERSION="0.1.0"
-        case "{{bump}}" in
-            patch) VERSION="0.0.1" ;;
-            minor) VERSION="0.1.0" ;;
-            major) VERSION="1.0.0" ;;
-        esac
-    else
-        MAJOR=$(echo "$LATEST_TAG" | cut -d. -f1)
-        MINOR=$(echo "$LATEST_TAG" | cut -d. -f2)
-        PATCH=$(echo "$LATEST_TAG" | cut -d. -f3)
-        case "{{bump}}" in
-            patch) PATCH=$((PATCH + 1)) ;;
-            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
-            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
-            *) echo "Error: bump must be patch, minor, or major"; exit 1 ;;
-        esac
-        VERSION="$MAJOR.$MINOR.$PATCH"
-    fi
-    # Keep the README install snippet in sync; commit it so the tag includes it.
-    sed -i '' -E "s|(ShortcutField\", from: \")[0-9]+\.[0-9]+\.[0-9]+|\1${VERSION}|" README.md
-    if ! git diff --quiet README.md; then
-        git add README.md
-        git commit -m "chore: bump README install version to $VERSION"
-    fi
-    TAG_MESSAGE="{{message}}"
-    if [ -z "$TAG_MESSAGE" ]; then
-        TAG_MESSAGE="Release v$VERSION"
-    fi
-    echo "Tagging v$VERSION..."
-    # -a because tag.gpgsign makes the tag signed, and a signed tag needs a
-    # message or git opens an editor mid-recipe.
-    git tag -a "v$VERSION" -m "$TAG_MESSAGE" && git push origin main "v$VERSION" && \
-    echo "Tagged and pushed v$VERSION"
+[positional-arguments]
+release *args:
+    python3 scripts/release.py "$@"
