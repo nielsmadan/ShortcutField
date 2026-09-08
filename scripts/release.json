@@ -9,7 +9,7 @@
     ],
     [
       "just",
-      "docs"
+      "build-docs"
     ]
   ],
   "tools": [

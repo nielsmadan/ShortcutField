@@ -59,7 +59,7 @@ format *files:
 
 # Build DocC docs and fail on any diagnostic (e.g. unresolved symbol links).
 # `xcodebuild docbuild` exits 0 even on warnings, so inspect the diagnostics file.
-docs:
+build-docs:
     #!/usr/bin/env bash
     set -euo pipefail
     rm -rf .build/docc

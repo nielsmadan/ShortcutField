@@ -448,7 +448,7 @@ Issues and pull requests are welcome.
 ## Releases
 
 Run `just release` from a clean, current `main` checkout with complete history and matching
-local/origin release tags. It proposes a version, runs `just check` and `just docs`, then asks for
+local/origin release tags. It proposes a version, runs `just check` and `just build-docs`, then asks for
 confirmation. Enter `y` to publish, a version or `patch`/`minor`/`major` to revise the proposal, or
 press Enter to cancel. This tooling requires Python 3.9+ in addition to the development tools.
 

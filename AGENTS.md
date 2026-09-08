@@ -18,7 +18,7 @@ just build    # Build the package (swift build, warnings as errors)
 just test     # Run tests (swift test)
 just lint     # Run SwiftLint (--strict)
 just format   # Run SwiftFormat
-just docs     # Build DocC docs, fail on any diagnostic (unresolved links, etc.)
+just build-docs # Build DocC docs, fail on any diagnostic (unresolved links, etc.)
 just lint-fix  # Auto-fix SwiftLint violations
 just example   # Build & run the example app from Example/
 just clean     # Remove build directory
@@ -66,7 +66,7 @@ ShortcutField splits two concerns into distinct types:
 - `GestureAccumulator.swift` — Internal: per-burst threshold detection for pinch / rotate / scroll, shared between both recorder fields.
 - `SensitivitySliderRepresentable.swift` — internal slider helper used by `ContinuousShortcutRecorderView`.
 - `SensitivityMode.swift` — sensitivity mode + position enums.
-- `ShortcutField.docc/` — DocC catalog (`just docs`).
+- `ShortcutField.docc/` — DocC catalog (`just build-docs`).
 - `Example/` — Standalone Xcode project with workbench and gallery tabs for manual testing.
 
 ## Coding Style & Naming Conventions
