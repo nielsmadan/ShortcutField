@@ -10,7 +10,6 @@ pre-commit:
 
 pre-push:
   commands:
-    build:
-      run: swift build -Xswiftc -warnings-as-errors
-    test:
-      run: swift test
+    check:
+      run: just check
+
