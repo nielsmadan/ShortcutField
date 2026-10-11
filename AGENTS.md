@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-This is the single source of truth for agent instructions in this repository. `CLAUDE.md` imports this file.
+This is the single source of truth for agent instructions in this repository.
 
 ## Project Structure & Module Organization
 
