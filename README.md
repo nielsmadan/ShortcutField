@@ -447,16 +447,19 @@ Issues and pull requests are welcome.
 
 ## Releases
 
-Run `just release` from a clean, current `main` checkout with complete history and matching
-local/origin release tags. It proposes a version, runs `just check` and `just build-docs`, then asks for
+Releases use [curtains](https://github.com/nielsmadan/curtaincall); install it first with
+`brew install nielsmadan/tap/curtaincall`. Run `just release` from a clean `main` checkout with
+complete history. Curtains never fetches: the fetched `origin/main` must be an ancestor of `HEAD`,
+and every `vMAJOR.MINOR.PATCH` tag must exist both locally and on origin and point to the same
+commit. It proposes a version, runs `just check` and `just build-docs`, then asks for
 confirmation. Enter `y` to publish, a version or `patch`/`minor`/`major` to revise the proposal, or
-press Enter to cancel. This tooling requires Python 3.9+ in addition to the development tools.
+press Enter to cancel. The README preparation step requires Python 3.9+.
 
 `just release minor` and `just release 3.0.0` preselect an override through the same prompt.
-`just release --dry-run` reads Git state and previews without checks or publication. `--yes`
-explicitly confirms unattended use; other nonterminal invocations fail. `feat` proposes a minor
-bump, `fix`/`perf` a patch, and breaking changes a major bump (minor during `0.x`). Maintenance-only
-changes require an explicit bump.
+`just release --dry-run` reads Git state and previews without the tool check, checks, preparation
+or publication. `--yes` explicitly confirms unattended use; other nonterminal invocations fail.
+`feat` proposes a minor bump, `fix`/`perf` a patch, and breaking changes a major bump (minor during
+`0.x`). Maintenance-only changes require an explicit bump.
 
 After confirmation, the command updates and commits the installation version in this README,
 then atomically pushes `main` and its annotated tag for Swift Package Manager consumers. The
