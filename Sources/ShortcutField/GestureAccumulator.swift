@@ -24,8 +24,14 @@ struct GestureAccumulator {
         return rotate > 0 ? .rotateCounterClockwise : .rotateClockwise
     }
 
-    mutating func resetPinch() { pinch = 0 }
-    mutating func resetRotate() { rotate = 0 }
+    mutating func resetPinch() {
+        pinch = 0
+    }
+
+    mutating func resetRotate() {
+        rotate = 0
+    }
+
     mutating func resetAll() {
         pinch = 0
         rotate = 0

@@ -23,8 +23,8 @@ public final class ShortcutEventDispatcher {
     /// A closure that inspects an `NSEvent` and returns a ``ShortcutMatchResult``.
     public typealias Handler = (NSEvent) -> ShortcutMatchResult
 
-    // `internal` (not `public`) so @testable import can create isolated instances
-    // in tests, while external consumers have no access to the initializer.
+    /// `internal` (not `public`) so @testable import can create isolated instances
+    /// in tests, while external consumers have no access to the initializer.
     init() {}
 
     private var eventMonitor: Any?
@@ -37,7 +37,9 @@ public final class ShortcutEventDispatcher {
     private var handlerSnapshot: [Handler] = []
 
     /// Test hook: the number of currently-registered handlers.
-    var handlerCount: Int { handlers.count }
+    var handlerCount: Int {
+        handlers.count
+    }
 
     private func rebuildSnapshot() {
         handlerSnapshot = handlers.reversed().map(\.handler)

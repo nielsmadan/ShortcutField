@@ -47,7 +47,9 @@ extension ContinuousShortcutRecorderField {
 
     fileprivate final class KindBox: NSObject {
         let kind: ContinuousShortcut.Kind
-        init(kind: ContinuousShortcut.Kind) { self.kind = kind }
+        init(kind: ContinuousShortcut.Kind) {
+            self.kind = kind
+        }
     }
 
     @objc func menuPicked(_ sender: NSMenuItem) {

@@ -33,7 +33,9 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField {
     /// Called when the user records or clears a continuous shortcut.
     public var onShortcutChange: ((ContinuousShortcut?) -> Void)?
 
-    override var displayedShortcut: (any ShortcutFieldDisplayable)? { shortcut }
+    override var displayedShortcut: (any ShortcutFieldDisplayable)? {
+        shortcut
+    }
 
     override class var monitoredEvents: NSEvent.EventTypeMask {
         [
@@ -159,7 +161,9 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField {
 
     private func handleScrollEvent(_ event: NSEvent) -> NSEvent? {
         guard !scrollCaptured else { return nil }
-        if event.momentumPhase != [] { return nil }
+        if event.momentumPhase != [] {
+            return nil
+        }
         guard let direction = DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: event) else {
             return nil
         }
@@ -183,8 +187,12 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField {
         // residual accumulator could otherwise immediately satisfy the threshold and
         // record the wrong direction.
         if event.phase == .began {
-            if event.type == .magnify { gestures.resetPinch() }
-            if event.type == .rotate { gestures.resetRotate() }
+            if event.type == .magnify {
+                gestures.resetPinch()
+            }
+            if event.type == .rotate {
+                gestures.resetRotate()
+            }
         }
 
         switch event.type {

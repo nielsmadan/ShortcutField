@@ -5,9 +5,9 @@ import Testing
 @MainActor
 @Suite("BeepSuppressor")
 struct BeepSuppressorTests {
-    // Two window classes that inherit `noResponder(for:)` from a shared base, so
-    // `class_getInstanceMethod` resolves both to the same Method — the case that
-    // would stack the swizzle if dedup keyed on the passed class.
+    /// Two window classes that inherit `noResponder(for:)` from a shared base, so
+    /// `class_getInstanceMethod` resolves both to the same Method — the case that
+    /// would stack the swizzle if dedup keyed on the passed class.
     class SharedBaseWindow: NSWindow {
         // Overridden so this class owns its own `noResponder(for:)` Method —
         // the test swizzles that, not the shared `NSWindow` one.
@@ -21,11 +21,11 @@ struct BeepSuppressorTests {
     final class WindowClassB: SharedBaseWindow {}
 
     @Test("installOverride swizzles a shared inherited method exactly once")
-    func swizzlesSharedMethodOnce() {
-        let method = class_getInstanceMethod(
+    func swizzlesSharedMethodOnce() throws {
+        let method = try #require(class_getInstanceMethod(
             SharedBaseWindow.self,
             #selector(NSResponder.noResponder(for:))
-        )!
+        ))
 
         BeepSuppressor.installOverride(on: WindowClassA.self)
         let afterFirstPatch = method_getImplementation(method)

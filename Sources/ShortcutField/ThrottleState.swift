@@ -47,7 +47,7 @@ final class ThrottleState {
         max(0, (1.0 - sensitivity) / 0.75)
     }
 
-    // Mutates state.suppressed / .lastFireInstant as side effects; no I/O, no time reads.
+    /// Mutates state.suppressed / .lastFireInstant as side effects; no I/O, no time reads.
     static func evaluate(
         state: ThrottleState,
         now: ContinuousClock.Instant

@@ -20,6 +20,7 @@ public extension View {
     }
 }
 
+@MainActor
 public extension ShortcutTracking {
     /// Installs the same beep suppression as ``SwiftUICore/View/suppressShortcutBeep()``
     /// without needing a view or a window. Idempotent — safe to call on every
@@ -28,7 +29,6 @@ public extension ShortcutTracking {
     /// This patches `NSResponder`, so an `NSWindow` subclass that overrides
     /// `noResponder(for:)` shadows it; those hosts should use the modifier or
     /// override `noResponder(for:)` directly.
-    @MainActor
     static func installBeepSuppression() {
         BeepSuppressor.installOverride(on: NSResponder.self)
     }
@@ -61,8 +61,8 @@ struct BeepSuppressor: NSViewRepresentable {
     @MainActor
     static func installOverride(on windowClass: AnyClass) {
         let selector = #selector(NSResponder.noResponder(for:))
-        guard let method = class_getInstanceMethod(windowClass, selector) else { return }
-        guard !patchedMethods.contains(method) else { return }
+        guard let method = class_getInstanceMethod(windowClass, selector),
+              !patchedMethods.contains(method) else { return }
         patchedMethods.insert(method)
 
         let originalImp = method_getImplementation(method)

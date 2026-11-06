@@ -78,7 +78,9 @@ public class BaseShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, NS
     var isStartingRecording = false
     var gestures = GestureAccumulator()
 
-    override public var canBecomeKeyView: Bool { canBecomeKey }
+    override public var canBecomeKeyView: Bool {
+        canBecomeKey
+    }
 
     override public var intrinsicContentSize: NSSize {
         NSSize(width: minimumWidth, height: bezeledHeight)
@@ -127,10 +129,14 @@ public class BaseShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, NS
     // MARK: - Subclass hooks
 
     /// Event types the recording monitor observes.
-    class var monitoredEvents: NSEvent.EventTypeMask { [] }
+    class var monitoredEvents: NSEvent.EventTypeMask {
+        []
+    }
 
     /// The committed shortcut to render, or nil when cleared.
-    var displayedShortcut: (any ShortcutFieldDisplayable)? { nil }
+    var displayedShortcut: (any ShortcutFieldDisplayable)? {
+        nil
+    }
 
     /// Add subclass-specific subviews during `setup()`.
     func configureAccessories() {}
@@ -149,7 +155,9 @@ public class BaseShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, NS
     func clearCommittedShortcut() {}
 
     /// Inspect an event during recording. Return nil to consume it.
-    func handleEvent(_ event: NSEvent) -> NSEvent? { event }
+    func handleEvent(_ event: NSEvent) -> NSEvent? {
+        event
+    }
 
     /// End the session from a first-responder change, committing if appropriate.
     func endRecordingOnResign() {
@@ -235,7 +243,9 @@ public class BaseShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, NS
     }
 
     /// Font used to size inline symbol attachments; falls back to the system font.
-    var displayFont: NSFont { font ?? .systemFont(ofSize: NSFont.systemFontSize) }
+    var displayFont: NSFont {
+        font ?? .systemFont(ofSize: NSFont.systemFontSize)
+    }
 
     /// Stamp the field's `alignment` onto an attributed value. Unlike `stringValue`,
     /// an attributed string carries its own paragraph style and ignores the control's

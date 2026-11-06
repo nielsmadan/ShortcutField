@@ -7,7 +7,9 @@ enum TextInputFocus {
     static var responderOverride: (() -> NSResponder?)?
 
     static var isEditingText: Bool {
-        if let responderOverride { return isTextEditing(responderOverride()) }
+        if let responderOverride {
+            return isTextEditing(responderOverride())
+        }
         return isTextEditing(NSApp?.keyWindow?.firstResponder)
     }
 

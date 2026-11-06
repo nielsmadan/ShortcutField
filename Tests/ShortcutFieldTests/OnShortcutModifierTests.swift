@@ -91,7 +91,9 @@ struct OnShortcutModifierTests {
     private func pump(timeout: TimeInterval = 2.0, until condition: () -> Bool) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
-            if condition() { return true }
+            if condition() {
+                return true
+            }
             RunLoop.current.run(until: Date().addingTimeInterval(0.02))
         }
         return condition()

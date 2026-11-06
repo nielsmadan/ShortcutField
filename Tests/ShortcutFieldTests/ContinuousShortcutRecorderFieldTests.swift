@@ -3,9 +3,9 @@ import Carbon.HIToolbox
 @testable import ShortcutField
 import Testing
 
-// NSSearchField instantiation can crash when run in parallel in headless CI.
-// `@MainActor` at struct level also serializes against other @MainActor suites
-// that touch CGEvent / NSSearchField / global ShortcutRecordingState.
+/// NSSearchField instantiation can crash when run in parallel in headless CI.
+/// `@MainActor` at struct level also serializes against other @MainActor suites
+/// that touch CGEvent / NSSearchField / global ShortcutRecordingState.
 @MainActor
 @Suite(.serialized) struct ContinuousShortcutRecorderFieldTests {
     @MainActor
@@ -70,7 +70,9 @@ import Testing
         attributed.enumerateAttribute(
             .attachment, in: NSRange(location: 0, length: attributed.length)
         ) { value, _, stop in
-            if value != nil { hasAttachment = true; stop.pointee = true }
+            if value != nil {
+                hasAttachment = true; stop.pointee = true
+            }
         }
         #expect(hasAttachment)
         #expect(field.toolTip == "Rotate CW")
@@ -112,7 +114,7 @@ import Testing
     }
 
     @MainActor
-    @Test func recorderField_compactStyle_cancelledRecordingRestoresTooltip() {
+    @Test func recorderField_compactStyle_cancelledRecordingRestoresTooltip() throws {
         let field = ContinuousShortcutRecorderField()
         field.labelStyle = .compact
         field.shortcut = ContinuousShortcut(kind: .rotateClockwise, modifiers: [])
@@ -121,10 +123,10 @@ import Testing
         field.startRecording()
         #expect(field.toolTip == nil)
 
-        let escape = CGEvent(
+        let escape = try #require(CGEvent(
             keyboardEventSource: nil, virtualKey: UInt16(kVK_Escape), keyDown: true
-        )!
-        _ = field.handleEvent(NSEvent(cgEvent: escape)!)
+        ))
+        _ = try field.handleEvent(#require(NSEvent(cgEvent: escape)))
 
         #expect(!field.isRecording)
         #expect(field.shortcut != nil)

@@ -136,10 +136,10 @@ struct FocusGateTests {
     }
 
     @Test("a mouse-button shortcut fires over a focused text field")
-    func mouseButtonStepFires() {
-        let click = NSEvent.mouseEvent(with: .leftMouseDown, location: .zero, modifierFlags: [],
-                                       timestamp: 0, windowNumber: 0, context: nil,
-                                       eventNumber: 0, clickCount: 1, pressure: 1)!
+    func mouseButtonStepFires() throws {
+        let click = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: .zero, modifierFlags: [],
+                                                    timestamp: 0, windowNumber: 0, context: nil,
+                                                    eventNumber: 0, clickCount: 1, pressure: 1))
         #expect(withTextFieldFocus {
             result(for: DiscreteShortcut(kind: .mouseButton(number: 0), modifiers: []), [click]) == .fired
         })

@@ -4,7 +4,7 @@ import Carbon.HIToolbox
 import Testing
 
 @MainActor
-@Suite struct DiscreteShortcutSymbolTests {
+struct DiscreteShortcutSymbolTests {
     // MARK: - symbolName
 
     @Test func symbolName_gestures() {
@@ -158,7 +158,9 @@ import Testing
         attributed.enumerateAttribute(
             .attachment, in: NSRange(location: 0, length: attributed.length)
         ) { value, _, stop in
-            if let found = value as? NSTextAttachment { attachment = found; stop.pointee = true }
+            if let found = value as? NSTextAttachment {
+                attachment = found; stop.pointee = true
+            }
         }
         let found = attachment
         #expect(found?.image != nil)

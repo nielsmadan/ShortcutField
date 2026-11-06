@@ -64,7 +64,9 @@ public struct ContinuousShortcut: Sendable, Equatable, Hashable {
 
 extension Double {
     /// The `0.0...1.0` range every sensitivity value is held to.
-    var clampedToUnitInterval: Double { min(1.0, max(0.0, self)) }
+    var clampedToUnitInterval: Double {
+        min(1.0, max(0.0, self))
+    }
 }
 
 // MARK: - Codable
@@ -106,8 +108,8 @@ extension ContinuousShortcut: Codable {
 
 // MARK: - Hashable
 
-// `NSEvent.ModifierFlags` is an `OptionSet` but does not conform to `Hashable`,
-// so we hash its raw value alongside the kind and sensitivity.
+/// `NSEvent.ModifierFlags` is an `OptionSet` but does not conform to `Hashable`,
+/// so we hash its raw value alongside the kind and sensitivity.
 public extension ContinuousShortcut {
     func hash(into hasher: inout Hasher) {
         hasher.combine(kind)

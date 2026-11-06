@@ -124,10 +124,18 @@ public extension DiscreteShortcut.Step {
 
     private static func eventModifiersToNSModifiers(_ modifiers: SwiftUI.EventModifiers) -> NSEvent.ModifierFlags {
         var flags = NSEvent.ModifierFlags()
-        if modifiers.contains(.command) { flags.insert(.command) }
-        if modifiers.contains(.option) { flags.insert(.option) }
-        if modifiers.contains(.control) { flags.insert(.control) }
-        if modifiers.contains(.shift) { flags.insert(.shift) }
+        if modifiers.contains(.command) {
+            flags.insert(.command)
+        }
+        if modifiers.contains(.option) {
+            flags.insert(.option)
+        }
+        if modifiers.contains(.control) {
+            flags.insert(.control)
+        }
+        if modifiers.contains(.shift) {
+            flags.insert(.shift)
+        }
         return flags
     }
 }

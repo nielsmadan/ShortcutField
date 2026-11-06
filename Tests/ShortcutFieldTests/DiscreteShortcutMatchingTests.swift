@@ -3,9 +3,9 @@ import Carbon.HIToolbox
 @testable import ShortcutField
 import Testing
 
-// CGEvent is not thread-safe — run these serially to avoid crashes in CI.
-// `@MainActor` at struct level also serializes against other @MainActor suites
-// that touch CGEvent / NSSearchField / global ShortcutRecordingState.
+/// CGEvent is not thread-safe — run these serially to avoid crashes in CI.
+/// `@MainActor` at struct level also serializes against other @MainActor suites
+/// that touch CGEvent / NSSearchField / global ShortcutRecordingState.
 @MainActor
 @Suite(.serialized) struct DiscreteShortcutMatchingTests {
     // MARK: - Keyboard

@@ -48,10 +48,7 @@ struct ShortcutASCIITests {
 
     @Test("umbrella resolves key/multistep to discrete")
     func umbrellaDiscreteResolution() throws {
-        guard case .discrete = try Shortcut(ascii: "cmd+s") else {
-            Issue.record("expected .discrete"); return
-        }
-        guard case .discrete = try Shortcut(ascii: "cmd+k cmd+c") else {
+        guard case .discrete = try Shortcut(ascii: "cmd+s"), case .discrete = try Shortcut(ascii: "cmd+k cmd+c") else {
             Issue.record("expected .discrete"); return
         }
     }

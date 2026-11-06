@@ -3,7 +3,7 @@ import Carbon.HIToolbox
 @testable import ShortcutField
 import Testing
 
-@Suite struct DiscreteShortcutTests {
+struct DiscreteShortcutTests {
     // MARK: - Step init
 
     @Test func step_storesKindAndModifiers() {

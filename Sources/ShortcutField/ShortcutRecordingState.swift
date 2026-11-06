@@ -55,5 +55,7 @@ enum ShortcutRecordingState {
 /// continuous — is currently capturing input. Useful for hosts that need to
 /// suppress their own keyboard handling while a shortcut is being recorded.
 public enum ShortcutRecording {
-    @MainActor public static var isActive: Bool { ShortcutRecordingState.isAnyRecording }
+    @MainActor public static var isActive: Bool {
+        ShortcutRecordingState.isAnyRecording
+    }
 }

@@ -6,9 +6,9 @@ import Testing
 /// Above ``DiscreteShortcut/scrollRecordingThreshold``.
 private let scrollDeltaAboveThreshold: Int32 = 10
 
-// NSSearchField instantiation can crash when run in parallel in headless CI.
-// `@MainActor` at struct level also serializes against other @MainActor suites
-// that touch CGEvent / NSSearchField / global ShortcutRecordingState.
+/// NSSearchField instantiation can crash when run in parallel in headless CI.
+/// `@MainActor` at struct level also serializes against other @MainActor suites
+/// that touch CGEvent / NSSearchField / global ShortcutRecordingState.
 @MainActor
 @Suite(.serialized) struct ShortcutRecorderFieldTests {
     // MARK: - Default state
@@ -70,7 +70,9 @@ private let scrollDeltaAboveThreshold: Int32 = 10
             location: 0,
             length: attributed.length
         )) { value, _, stop in
-            if value != nil { hasAttachment = true; stop.pointee = true }
+            if value != nil {
+                hasAttachment = true; stop.pointee = true
+            }
         }
         #expect(hasAttachment)
         #expect(field.toolTip == "Rotate CW")
@@ -191,16 +193,16 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     // MARK: - Live recording — single step
 
     @MainActor
-    @Test func recorderField_finalizeAfterSingleKey_setsShortcut() {
+    @Test func recorderField_finalizeAfterSingleKey_setsShortcut() throws {
         let field = ShortcutRecorderField()
         field.startRecording()
 
-        let event = NSEvent.keyEvent(
+        let event = try #require(NSEvent.keyEvent(
             with: .keyDown, location: .zero, modifierFlags: .command,
             timestamp: 0, windowNumber: 0, context: nil,
             characters: "k", charactersIgnoringModifiers: "k",
             isARepeat: false, keyCode: UInt16(kVK_ANSI_K)
-        )!
+        ))
         _ = field.handleEvent(event)
 
         var receivedShortcut: DiscreteShortcut?
@@ -287,18 +289,18 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     // MARK: - Right-click capture
 
     @MainActor
-    @Test func recorderField_rightMouseDown_capturesAsMouseButton1Step() {
+    @Test func recorderField_rightMouseDown_capturesAsMouseButton1Step() throws {
         let field = ShortcutRecorderField()
         field.startRecording()
 
         _ = field.handleEvent(keyDown(kVK_ANSI_A))
 
-        let cg = CGEvent(mouseEventSource: nil,
-                         mouseType: .rightMouseDown,
-                         mouseCursorPosition: .zero,
-                         mouseButton: .right)!
+        let cg = try #require(CGEvent(mouseEventSource: nil,
+                                      mouseType: .rightMouseDown,
+                                      mouseCursorPosition: .zero,
+                                      mouseButton: .right))
         cg.flags = []
-        let rmDown = NSEvent(cgEvent: cg)!
+        let rmDown = try #require(NSEvent(cgEvent: cg))
         _ = field.handleEvent(rmDown)
         field.finalizeRecording()
 
@@ -364,8 +366,16 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         matcherQ.configure(shortcut: shortcutQ)
 
         let idT = UUID(); let idQ = UUID()
-        dispatcher.register(id: idT) { let r = matcherT.handle($0); if r == .fired { tCount += 1 }; return r }
-        dispatcher.register(id: idQ) { let r = matcherQ.handle($0); if r == .fired { qCount += 1 }; return r }
+        dispatcher.register(id: idT) {
+            let r = matcherT.handle($0); if r == .fired {
+                tCount += 1
+            }; return r
+        }
+        dispatcher.register(id: idQ) {
+            let r = matcherQ.handle($0); if r == .fired {
+                qCount += 1
+            }; return r
+        }
         defer {
             dispatcher.unregister(id: idT)
             dispatcher.unregister(id: idQ)
@@ -403,8 +413,16 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         matcherQ.configure(shortcut: shortcutQ)
 
         let idT = UUID(); let idQ = UUID()
-        dispatcher.register(id: idT) { let r = matcherT.handle($0); if r == .fired { tCount += 1 }; return r }
-        dispatcher.register(id: idQ) { let r = matcherQ.handle($0); if r == .fired { qCount += 1 }; return r }
+        dispatcher.register(id: idT) {
+            let r = matcherT.handle($0); if r == .fired {
+                tCount += 1
+            }; return r
+        }
+        dispatcher.register(id: idQ) {
+            let r = matcherQ.handle($0); if r == .fired {
+                qCount += 1
+            }; return r
+        }
         defer {
             dispatcher.unregister(id: idT)
             dispatcher.unregister(id: idQ)
@@ -439,7 +457,11 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         var fireCount = 0
         matcher.configure(shortcut: shortcut)
         let listenerID = UUID()
-        dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
+        dispatcher.register(id: listenerID) {
+            let r = matcher.handle($0); if r == .fired {
+                fireCount += 1
+            }; return r
+        }
         defer { dispatcher.unregister(id: listenerID) }
 
         ShortcutRecordingState.beginTestRecording(for: token)
@@ -460,7 +482,11 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         let shortcut = DiscreteShortcut(kind: .scroll(direction: .up), modifiers: [])
         var fireCount = 0
         matcher.configure(shortcut: shortcut)
-        dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
+        dispatcher.register(id: listenerID) {
+            let r = matcher.handle($0); if r == .fired {
+                fireCount += 1
+            }; return r
+        }
         defer { dispatcher.unregister(id: listenerID) }
 
         _ = dispatcher.handleEvent(scrollEvent(deltaY: scrollDeltaAboveThreshold))
@@ -480,7 +506,11 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         ])
         var fireCount = 0
         matcher.configure(shortcut: shortcut)
-        dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
+        dispatcher.register(id: listenerID) {
+            let r = matcher.handle($0); if r == .fired {
+                fireCount += 1
+            }; return r
+        }
         defer { dispatcher.unregister(id: listenerID) }
 
         _ = dispatcher.handleEvent(keyDown(kVK_ANSI_A))
@@ -500,7 +530,11 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         ])
         var fireCount = 0
         matcher.configure(shortcut: shortcut)
-        dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
+        dispatcher.register(id: listenerID) {
+            let r = matcher.handle($0); if r == .fired {
+                fireCount += 1
+            }; return r
+        }
         defer { dispatcher.unregister(id: listenerID) }
 
         _ = dispatcher.handleEvent(scrollEvent(deltaY: scrollDeltaAboveThreshold))
@@ -521,7 +555,11 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         ])
         var fireCount = 0
         matcher.configure(shortcut: shortcut)
-        dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
+        dispatcher.register(id: listenerID) {
+            let r = matcher.handle($0); if r == .fired {
+                fireCount += 1
+            }; return r
+        }
         defer { dispatcher.unregister(id: listenerID) }
 
         _ = dispatcher.handleEvent(scrollEvent(deltaY: -scrollDeltaAboveThreshold))
@@ -531,7 +569,7 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     }
 
     @MainActor
-    @Test func dispatcher_keyThenRightClick_fires() {
+    @Test func dispatcher_keyThenRightClick_fires() throws {
         let dispatcher = ShortcutEventDispatcher()
         let listenerID = UUID()
         let matcher = SequenceMatcher()
@@ -541,17 +579,21 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         ])
         var fireCount = 0
         matcher.configure(shortcut: shortcut)
-        dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
+        dispatcher.register(id: listenerID) {
+            let r = matcher.handle($0); if r == .fired {
+                fireCount += 1
+            }; return r
+        }
         defer { dispatcher.unregister(id: listenerID) }
 
         _ = dispatcher.handleEvent(keyDown(kVK_ANSI_A))
 
-        let cg = CGEvent(mouseEventSource: nil,
-                         mouseType: .rightMouseDown,
-                         mouseCursorPosition: .zero,
-                         mouseButton: .right)!
+        let cg = try #require(CGEvent(mouseEventSource: nil,
+                                      mouseType: .rightMouseDown,
+                                      mouseCursorPosition: .zero,
+                                      mouseButton: .right))
         cg.flags = []
-        let rmDown = NSEvent(cgEvent: cg)!
+        let rmDown = try #require(NSEvent(cgEvent: cg))
         _ = dispatcher.handleEvent(rmDown)
 
         #expect(fireCount == 1, "expected sequence [A, RightClick] to fire once")
@@ -570,7 +612,11 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         _ = dispatcher.handleEvent(keyDown(kVK_ANSI_A))
         #expect(fireCount == 0)
 
-        dispatcher.register(id: listenerID) { let r = matcher.handle($0); if r == .fired { fireCount += 1 }; return r }
+        dispatcher.register(id: listenerID) {
+            let r = matcher.handle($0); if r == .fired {
+                fireCount += 1
+            }; return r
+        }
         _ = dispatcher.handleEvent(keyDown(kVK_ANSI_A))
         #expect(fireCount == 1)
 

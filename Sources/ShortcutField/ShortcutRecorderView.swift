@@ -62,7 +62,9 @@ private struct FieldRepresentable: NSViewRepresentable {
         field.recordingPlaceholder = recordingPlaceholderText
         field.fieldTextColor = textColorValue
         field.labelStyle = labelStyleValue
-        if let minimumWidthValue { field.minimumWidth = minimumWidthValue }
+        if let minimumWidthValue {
+            field.minimumWidth = minimumWidthValue
+        }
         field.isEnabled = context.environment.isEnabled
         field.onShortcutChange = { newShortcut in
             DispatchQueue.main.async {
@@ -72,7 +74,7 @@ private struct FieldRepresentable: NSViewRepresentable {
         return field
     }
 
-    public func updateNSView(_ nsView: ShortcutRecorderField, context: Context) {
+    func updateNSView(_ nsView: ShortcutRecorderField, context: Context) {
         // Don't update while recording — the async binding update from onShortcutChange
         // can set stringValue on the field editor, triggering controlTextDidEndEditing
         // and prematurely stopping the recording session.
@@ -82,7 +84,9 @@ private struct FieldRepresentable: NSViewRepresentable {
         nsView.recordingPlaceholder = recordingPlaceholderText
         nsView.fieldTextColor = textColorValue
         nsView.labelStyle = labelStyleValue
-        if let minimumWidthValue { nsView.minimumWidth = minimumWidthValue }
+        if let minimumWidthValue {
+            nsView.minimumWidth = minimumWidthValue
+        }
         nsView.isEnabled = context.environment.isEnabled
     }
 }

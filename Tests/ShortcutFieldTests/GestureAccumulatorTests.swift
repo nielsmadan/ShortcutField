@@ -96,9 +96,9 @@ import Testing
 
 // MARK: - scrollDirectionAboveRecordingThreshold
 
-// CGEvent is not thread-safe. `@MainActor` at struct level serializes this suite
-// against the other @MainActor suites that touch CGEvent / TIS / NSSearchField —
-// `.serialized` alone only serializes tests within the suite, not across suites.
+/// CGEvent is not thread-safe. `@MainActor` at struct level serializes this suite
+/// against the other @MainActor suites that touch CGEvent / TIS / NSSearchField —
+/// `.serialized` alone only serializes tests within the suite, not across suites.
 @MainActor
 @Suite(.serialized) struct ScrollDirectionThresholdTests {
     @Test func scrollDirectionAboveRecordingThreshold_belowThreshold_returnsNil() {

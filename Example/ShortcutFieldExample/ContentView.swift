@@ -275,7 +275,9 @@ struct WorkbenchTab: View {
         var view = ShortcutRecorderView(shortcut)
             .placeholder(placeholder)
             .shortcutLabelStyle(labelStyle)
-        if let textColor { view = view.textColor(textColor) }
+        if let textColor {
+            view = view.textColor(textColor)
+        }
         return view
     }
 
@@ -292,7 +294,9 @@ struct WorkbenchTab: View {
             .sensitivityMode(sensitivityMode)
             .sensitivityPosition(sensitivityPosition)
             .shortcutLabelStyle(labelStyle)
-        if let textColor { view = view.textColor(textColor) }
+        if let textColor {
+            view = view.textColor(textColor)
+        }
         return view
     }
 
@@ -386,7 +390,9 @@ struct WorkbenchTab: View {
 enum NamedWidth: String, CaseIterable, Identifiable {
     case small, medium, large
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var label: String {
         switch self {
@@ -410,7 +416,9 @@ enum NamedWidth: String, CaseIterable, Identifiable {
 enum NamedColor: String, CaseIterable, Identifiable {
     case `default`, teal, orange, indigo, white
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var label: String {
         switch self {
@@ -465,7 +473,6 @@ struct GalleryTab: View {
         }
     }
 
-    @ViewBuilder
     private func column(
         _ title: String,
         @ViewBuilder content: () -> some View
@@ -502,7 +509,9 @@ struct GalleryCard: View {
 
     private var cardRecorder: some View {
         var view = ShortcutRecorderView($shortcut)
-        if let textColor = item.textColor { view = view.textColor(textColor) }
+        if let textColor = item.textColor {
+            view = view.textColor(textColor)
+        }
         return view
             .disabled(item.disabled)
             .frame(width: item.width ?? 160)
@@ -562,7 +571,9 @@ struct ContinuousGalleryCard: View {
         var view = ContinuousShortcutRecorderView($shortcut)
             .sensitivityMode(item.sensitivityMode)
             .sensitivityPosition(item.sensitivityPosition)
-        if let textColor = item.textColor { view = view.textColor(textColor) }
+        if let textColor = item.textColor {
+            view = view.textColor(textColor)
+        }
         return view
             .disabled(item.disabled)
             .frame(width: item.width ?? (item.sensitivityPosition == .below ? 160 : 260))

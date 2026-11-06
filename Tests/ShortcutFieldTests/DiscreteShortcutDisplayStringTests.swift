@@ -3,9 +3,9 @@ import Carbon.HIToolbox
 @testable import ShortcutField
 import Testing
 
-// UCKeyTranslate is not thread-safe; run display-string tests serially.
-// `@MainActor` at struct level also serializes against other @MainActor suites
-// that use UCKeyTranslate via `DiscreteShortcut.Step.displayString`.
+/// UCKeyTranslate is not thread-safe; run display-string tests serially.
+/// `@MainActor` at struct level also serializes against other @MainActor suites
+/// that use UCKeyTranslate via `DiscreteShortcut.Step.displayString`.
 @MainActor
 @Suite(.serialized) struct DiscreteShortcutDisplayStringTests {
     // MARK: - Keyboard

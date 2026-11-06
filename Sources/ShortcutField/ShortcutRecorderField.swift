@@ -47,7 +47,9 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
     /// Called when the user records or clears a shortcut.
     public var onShortcutChange: ((DiscreteShortcut?) -> Void)?
 
-    override var displayedShortcut: (any ShortcutFieldDisplayable)? { shortcut }
+    override var displayedShortcut: (any ShortcutFieldDisplayable)? {
+        shortcut
+    }
 
     override class var monitoredEvents: NSEvent.EventTypeMask {
         [
@@ -138,8 +140,7 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
     // MARK: - Event Handling
 
     func handleCommand(_ commandSelector: Selector, event: NSEvent?) -> Bool {
-        guard isRecording else { return false }
-        guard shouldHandleCommand(commandSelector) else { return false }
+        guard isRecording, shouldHandleCommand(commandSelector) else { return false }
         guard let event, event.type == .keyDown else { return true }
         _ = handleEvent(event)
         return true
@@ -246,13 +247,17 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
     }
 
     private func handleScrollEvent(_ event: NSEvent) -> NSEvent? {
-        if event.momentumPhase != [] { return nil }
+        if event.momentumPhase != [] {
+            return nil
+        }
 
         // Fresh scroll burst (trackpad finger touch-down) clears any prior capture flag.
         if event.phase == .began {
             capturedBurstTypes.remove(.scrollWheel)
         }
-        if capturedBurstTypes.contains(.scrollWheel) { return nil }
+        if capturedBurstTypes.contains(.scrollWheel) {
+            return nil
+        }
 
         guard let direction = DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: event) else {
             return nil

@@ -32,16 +32,20 @@ final class SequenceMatcher {
     /// Test hook: the in-flight per-step timeout task, if any. Awaiting its
     /// `value` lets a test observe the timeout-driven reset deterministically,
     /// without racing a wall-clock sleep.
-    var pendingTimeoutTask: Task<Void, Never>? { timeoutTask }
+    var pendingTimeoutTask: Task<Void, Never>? {
+        timeoutTask
+    }
 
     init(stepTimeout: TimeInterval = 1.0) {
         self.stepTimeout = stepTimeout
     }
 
-    // Released only from main-actor code; `reset()` may never be called mid-sequence.
+    /// Released only from main-actor code; `reset()` may never be called mid-sequence.
     deinit {
         MainActor.assumeIsolated {
-            if isTracking { ShortcutTracking.activeCount -= 1 }
+            if isTracking {
+                ShortcutTracking.activeCount -= 1
+            }
         }
     }
 
@@ -53,7 +57,9 @@ final class SequenceMatcher {
     func handle(_ event: NSEvent) -> ShortcutMatchResult {
         guard let shortcut else { return .ignored }
 
-        if let preempt = preempt(event) { return preempt }
+        if let preempt = preempt(event) {
+            return preempt
+        }
 
         let step = shortcut.steps[currentStep]
         guard step.matches(event) else {
@@ -65,20 +71,26 @@ final class SequenceMatcher {
             return .ignored
         }
 
-        if yieldsToTextInput(event: event, step: step) { return .ignored }
+        if yieldsToTextInput(event: event, step: step) {
+            return .ignored
+        }
 
         let suppressType = suppressionTypeIfContinuous(event: event, step: step)
         let isLast = currentStep == shortcut.steps.count - 1
         if isLast {
             reset()
-            if let suppressType { inProgressContinuousEventTypes.insert(suppressType) }
+            if let suppressType {
+                inProgressContinuousEventTypes.insert(suppressType)
+            }
             return .fired
         }
 
         currentStep += 1
         beginTracking()
         restartTimeout()
-        if let suppressType { inProgressContinuousEventTypes.insert(suppressType) }
+        if let suppressType {
+            inProgressContinuousEventTypes.insert(suppressType)
+        }
 
         // `event.keyCode` is only valid for keyboard events; calling it on a
         // mouse, scroll, or gesture event throws.
@@ -134,9 +146,11 @@ final class SequenceMatcher {
     /// multi-step shortcut commits to the sequence, so later steps — which are
     /// often bare keys — always fire.
     private func yieldsToTextInput(event: NSEvent, step: DiscreteShortcut.Step) -> Bool {
-        guard currentStep == 0, event.type == .keyDown else { return false }
-        guard case let .key(keyCode) = step.kind, !Self.producesNoText(keyCode: keyCode) else { return false }
-        guard step.modifiers.isDisjoint(with: [.command, .control]) else { return false }
+        guard currentStep == 0, event.type == .keyDown, case let .key(keyCode) = step.kind,
+              !Self.producesNoText(keyCode: keyCode), step.modifiers.isDisjoint(with: [
+                  .command,
+                  .control,
+              ]) else { return false }
         return TextInputFocus.isEditingText
     }
 

@@ -53,7 +53,7 @@ struct ShortcutMatcherTests {
         #expect(matcher.handle(keyDown(kVK_ANSI_C, .command)) == .ignored)
     }
 
-    // Guards the fix for hosts that build a matcher directly instead of via `.onShortcut`.
+    /// Guards the fix for hosts that build a matcher directly instead of via `.onShortcut`.
     @Test("direct ShortcutMatcher participates in ShortcutTracking.isActive")
     func directMatcherDrivesShortcutTracking() {
         let baseline = ShortcutTracking.isActive
@@ -67,7 +67,7 @@ struct ShortcutMatcherTests {
         #expect(ShortcutTracking.isActive == baseline)
     }
 
-    // Guards the deinit decrement: a matcher dropped mid-sequence must not leak the counter.
+    /// Guards the deinit decrement: a matcher dropped mid-sequence must not leak the counter.
     @Test("dropping a matcher mid-sequence decrements ShortcutTracking.activeCount")
     func dropMidSequenceDecrementsTracking() {
         let baseline = ShortcutTracking.isActive
@@ -83,8 +83,8 @@ struct ShortcutMatcherTests {
         #expect(ShortcutTracking.isActive == baseline)
     }
 
-    // A mismatch on the second step ends tracking, so the beep is not suppressed
-    // for the offending key.
+    /// A mismatch on the second step ends tracking, so the beep is not suppressed
+    /// for the offending key.
     @Test("mid-sequence mismatch resets ShortcutTracking.isActive to baseline")
     func midSequenceMismatchResetsTracking() {
         let baseline = ShortcutTracking.isActive
@@ -98,8 +98,8 @@ struct ShortcutMatcherTests {
         #expect(ShortcutTracking.isActive == baseline)
     }
 
-    // A key that matches no step never raises tracking, so the beep plays
-    // immediately for unrelated keys.
+    /// A key that matches no step never raises tracking, so the beep plays
+    /// immediately for unrelated keys.
     @Test("an unrelated key never raises ShortcutTracking.isActive")
     func unrelatedKeyDoesNotRaiseTracking() {
         let baseline = ShortcutTracking.isActive
@@ -111,9 +111,9 @@ struct ShortcutMatcherTests {
         #expect(ShortcutTracking.isActive == baseline)
     }
 
-    // Two matchers both see every event, mirroring how the dispatcher fans one
-    // event to all handlers. When a key resets one matcher and advances another,
-    // the global flag must stay raised so the beep is never momentarily allowed.
+    /// Two matchers both see every event, mirroring how the dispatcher fans one
+    /// event to all handlers. When a key resets one matcher and advances another,
+    /// the global flag must stay raised so the beep is never momentarily allowed.
     @Test("handing off to another shortcut's first step keeps ShortcutTracking.isActive raised")
     func handoffToAnotherShortcutKeepsTrackingRaised() {
         let baseline = ShortcutTracking.isActive
@@ -136,7 +136,7 @@ struct ShortcutMatcherTests {
         #expect(ShortcutTracking.isActive == baseline)
     }
 
-    // Continuous shortcuts have no intermediate steps, so they never raise tracking.
+    /// Continuous shortcuts have no intermediate steps, so they never raise tracking.
     @Test("a continuous matcher never raises ShortcutTracking.isActive")
     func continuousMatcherDoesNotRaiseTracking() {
         let baseline = ShortcutTracking.isActive

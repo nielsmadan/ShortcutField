@@ -112,10 +112,18 @@ extension NSEvent.ModifierFlags {
     /// Symbolic representation of modifier flags, e.g. "⌃⌥⇧⌘".
     var symbolicRepresentation: String {
         var result = ""
-        if contains(.control) { result += "⌃" }
-        if contains(.option) { result += "⌥" }
-        if contains(.shift) { result += "⇧" }
-        if contains(.command) { result += "⌘" }
+        if contains(.control) {
+            result += "⌃"
+        }
+        if contains(.option) {
+            result += "⌥"
+        }
+        if contains(.shift) {
+            result += "⇧"
+        }
+        if contains(.command) {
+            result += "⌘"
+        }
         return result
     }
 }

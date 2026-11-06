@@ -3,10 +3,10 @@ import Carbon.HIToolbox
 @testable import ShortcutField
 import Testing
 
-// `displayString` on a `.key` shortcut falls through to `keyToCharacter`, which
-// uses the TIS / UCKeyTranslate keyboard-layout APIs — not thread-safe.
-// `@MainActor` at struct level serializes this suite against the other
-// @MainActor suites that touch CGEvent / TIS / NSSearchField.
+/// `displayString` on a `.key` shortcut falls through to `keyToCharacter`, which
+/// uses the TIS / UCKeyTranslate keyboard-layout APIs — not thread-safe.
+/// `@MainActor` at struct level serializes this suite against the other
+/// @MainActor suites that touch CGEvent / TIS / NSSearchField.
 @MainActor
 @Suite("Shortcut umbrella enum", .serialized)
 struct ShortcutTests {

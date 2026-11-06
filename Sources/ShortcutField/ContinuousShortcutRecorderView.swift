@@ -32,7 +32,6 @@ public struct ContinuousShortcutRecorderView: View {
         _sensitivity = State(initialValue: shortcut.wrappedValue?.sensitivity ?? 0.0)
     }
 
-    @ViewBuilder
     public var body: some View {
         // NSSearchField's native disabled state is barely visible — apply an
         // explicit opacity dim so disabled fields are clearly distinguishable.
@@ -152,7 +151,9 @@ private struct FieldRepresentable: NSViewRepresentable {
         field.recordingPlaceholder = recordingPlaceholderText
         field.fieldTextColor = textColorValue
         field.labelStyle = labelStyleValue
-        if let minimumWidthValue { field.minimumWidth = minimumWidthValue }
+        if let minimumWidthValue {
+            field.minimumWidth = minimumWidthValue
+        }
         field.isEnabled = context.environment.isEnabled
         field.onShortcutChange = { newValue in
             DispatchQueue.main.async {
@@ -172,7 +173,9 @@ private struct FieldRepresentable: NSViewRepresentable {
         nsView.recordingPlaceholder = recordingPlaceholderText
         nsView.fieldTextColor = textColorValue
         nsView.labelStyle = labelStyleValue
-        if let minimumWidthValue { nsView.minimumWidth = minimumWidthValue }
+        if let minimumWidthValue {
+            nsView.minimumWidth = minimumWidthValue
+        }
         nsView.isEnabled = context.environment.isEnabled
     }
 }

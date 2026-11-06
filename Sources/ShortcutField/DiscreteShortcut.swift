@@ -237,8 +237,8 @@ extension DiscreteShortcut.Step: Codable {
     }
 }
 
-// `NSEvent.ModifierFlags` is an `OptionSet` but does not conform to `Hashable`,
-// so we hash its raw value alongside the kind.
+/// `NSEvent.ModifierFlags` is an `OptionSet` but does not conform to `Hashable`,
+/// so we hash its raw value alongside the kind.
 public extension DiscreteShortcut.Step {
     func hash(into hasher: inout Hasher) {
         hasher.combine(kind)

@@ -3,10 +3,10 @@ import Carbon.HIToolbox
 @testable import ShortcutField
 import Testing
 
-// Each test uses an isolated `ShortcutEventDispatcher()` rather than `.shared`:
-// the internal `init()` exists precisely so tests don't mutate app-wide state.
-// `register` installs a real `NSEvent` monitor, so every test still unregisters
-// (via `defer`) to tear that monitor down.
+/// Each test uses an isolated `ShortcutEventDispatcher()` rather than `.shared`:
+/// the internal `init()` exists precisely so tests don't mutate app-wide state.
+/// `register` installs a real `NSEvent` monitor, so every test still unregisters
+/// (via `defer`) to tear that monitor down.
 @MainActor
 @Suite("ShortcutEventDispatcher")
 struct ShortcutEventDispatcherTests {

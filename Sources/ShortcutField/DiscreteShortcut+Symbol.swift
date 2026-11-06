@@ -119,34 +119,34 @@ public extension Shortcut {
 
 // MARK: - AppKit attributed rendering
 
+@MainActor
 public extension DiscreteShortcut.Step {
     /// Attributed representation for AppKit text views. Icon elements become inline
     /// SF Symbol image attachments; text and abbreviations become text runs.
-    @MainActor
     func attributedDisplayString(style: ShortcutLabelStyle, font: NSFont, color: NSColor?) -> NSAttributedString {
         shortcutAttributedString(from: displayElements(style: style), font: font, color: color)
     }
 }
 
+@MainActor
 public extension DiscreteShortcut {
     /// Attributed representation of the full shortcut for AppKit text views.
-    @MainActor
     func attributedDisplayString(style: ShortcutLabelStyle, font: NSFont, color: NSColor?) -> NSAttributedString {
         shortcutAttributedString(from: displayElements(style: style), font: font, color: color)
     }
 }
 
+@MainActor
 public extension ContinuousShortcut {
     /// Attributed representation for AppKit text views.
-    @MainActor
     func attributedDisplayString(style: ShortcutLabelStyle, font: NSFont, color: NSColor?) -> NSAttributedString {
         shortcutAttributedString(from: displayElements(style: style), font: font, color: color)
     }
 }
 
+@MainActor
 public extension Shortcut {
     /// Attributed representation for AppKit text views.
-    @MainActor
     func attributedDisplayString(style: ShortcutLabelStyle, font: NSFont, color: NSColor?) -> NSAttributedString {
         shortcutAttributedString(from: displayElements(style: style), font: font, color: color)
     }
@@ -186,7 +186,7 @@ private func symbolAttachmentString(name: String, label: String, font: NSFont, c
         .applying(NSImage.SymbolConfiguration(hierarchicalColor: color))
     guard
         let image = NSImage(systemSymbolName: name, accessibilityDescription: label)?
-        .withSymbolConfiguration(configuration)
+            .withSymbolConfiguration(configuration)
     else {
         return nil
     }

@@ -247,14 +247,18 @@ public extension Shortcut {
         // suffix value — otherwise the error reported depends on whether the
         // number happens to parse (`malformedSensitivity` vs `sensitivityOnDiscrete`).
         guard tokens.count == 1 else {
-            if sensitivitySuffix != nil { throw ShortcutParsingError.sensitivityOnDiscrete }
+            if sensitivitySuffix != nil {
+                throw ShortcutParsingError.sensitivityOnDiscrete
+            }
             self = try .discrete(DiscreteShortcut(ascii: body))
             return
         }
 
         let step = try DiscreteShortcut.Step.parse(ascii: tokens[0])
         guard let continuousKind = ContinuousShortcut.Kind(step.kind) else {
-            if sensitivitySuffix != nil { throw ShortcutParsingError.sensitivityOnDiscrete }
+            if sensitivitySuffix != nil {
+                throw ShortcutParsingError.sensitivityOnDiscrete
+            }
             self = .discrete(DiscreteShortcut(steps: [step]))
             return
         }
