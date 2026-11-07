@@ -14,7 +14,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Test release tooling
         run: python3 -B -m unittest discover -s scripts -p 'test_release*.py'
@@ -28,7 +28,7 @@ jobs:
   lint:
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install SwiftLint
         run: brew install swiftlint
@@ -40,7 +40,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install just
         run: brew install just
