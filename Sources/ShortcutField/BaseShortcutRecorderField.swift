@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 
 /// A committed shortcut that a recorder field can render.
 protocol ShortcutFieldDisplayable {
@@ -56,6 +57,16 @@ public class BaseShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, NS
         }
     }
 
+    /// Disabling the field (AppKit `isEnabled` or SwiftUI `.disabled`) ends a recording
+    /// session without committing it.
+    override public var isEnabled: Bool {
+        didSet {
+            guard !isEnabled, isRecording else { return }
+            forceEndRecordingSession()
+            blur()
+        }
+    }
+
     /// Whether this field is currently recording.
     public internal(set) var isRecording = false
 
@@ -73,6 +84,8 @@ public class BaseShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, NS
 
     var bezeledHeight: CGFloat = 0
     nonisolated(unsafe) var eventMonitor: Any?
+    /// End the session when the field's window resigns key or closes.
+    private nonisolated(unsafe) var windowObservers: [NSObjectProtocol] = []
     var cancelButton: NSButtonCell?
     var canBecomeKey = false
     var isStartingRecording = false
@@ -106,6 +119,7 @@ public class BaseShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, NS
         if let eventMonitor {
             NSEvent.removeMonitor(eventMonitor)
         }
+        windowObservers.forEach(NotificationCenter.default.removeObserver)
     }
 
     private func setup() {
@@ -183,9 +197,39 @@ public class BaseShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, NS
 
         eventMonitor = NSEvent.addLocalMonitorForEvents(matching: Self.monitoredEvents) { [weak self] event in
             guard let self, isRecording else { return event }
-            return handleEvent(event)
+            return handleMonitoredEvent(event)
         }
+        observeWindow()
         isStartingRecording = false
+    }
+
+    /// The monitor sees every event in the app; only events sent to this field's window
+    /// are recorded, and the rest pass through.
+    func handleMonitoredEvent(_ event: NSEvent) -> NSEvent? {
+        guard event.window === window else { return event }
+        return handleEvent(event)
+    }
+
+    private func observeWindow() {
+        guard let window else { return }
+        let center = NotificationCenter.default
+        let resign = NSWindow.didResignKeyNotification
+        let close = NSWindow.willCloseNotification
+        windowObservers = [
+            center.addObserver(forName: resign, object: window, queue: nil) { [weak self] _ in
+                MainActor.assumeIsolated { self?.windowDidResignKey() }
+            },
+            center.addObserver(forName: close, object: window, queue: nil) { [weak self] _ in
+                MainActor.assumeIsolated { self?.forceEndRecordingSession() }
+            },
+        ]
+    }
+
+    /// Keystrokes now go to another window: keep what was captured and stop recording.
+    private func windowDidResignKey() {
+        commitInProgressCapture()
+        endRecording()
+        blur()
     }
 
     func endRecording() {
@@ -197,6 +241,8 @@ public class BaseShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, NS
             NSEvent.removeMonitor(eventMonitor)
             self.eventMonitor = nil
         }
+        windowObservers.forEach(NotificationCenter.default.removeObserver)
+        windowObservers = []
         placeholderString = defaultPlaceholder
         updateDisplay()
     }
@@ -299,9 +345,37 @@ public class BaseShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, NS
     /// margin) — distinguishes clicks targeting the recorder from clicks
     /// elsewhere in the window.
     func isInsideField(_ event: NSEvent) -> Bool {
+        guard event.window === window else { return false }
         let clickMargin: CGFloat = 3.0
         let point = convert(event.locationInWindow, from: nil)
         return bounds.insetBy(dx: -clickMargin, dy: -clickMargin).contains(point)
+    }
+
+    /// Whether `event` is a bare left-down on the clear (x) button, which shows while recording
+    /// a field that holds a shortcut.
+    func isClearButtonClick(_ event: NSEvent) -> Bool {
+        guard event.type == .leftMouseDown, event.window === window, showsCancelButton,
+              DiscreteShortcut.canonicalModifiers(event.modifierFlags).isEmpty,
+              let cell = cell as? NSSearchFieldCell else { return false }
+        return cell.cancelButtonRect(forBounds: bounds).contains(convert(event.locationInWindow, from: nil))
+    }
+
+    /// The recording monitor consumes clicks on the clear button, so the button's own action
+    /// never runs mid-recording: clear here, dropping whatever the session captured.
+    func clearFromButtonWhileRecording() {
+        forceEndRecordingSession()
+        clearCommittedShortcut()
+        blur()
+    }
+
+    /// Whether `event` is a Tab or Shift-Tab. Before a session has captured anything, a recorder
+    /// ends the session, keeping the shortcut, and passes the event on, so tabbing through a form
+    /// never records it: the field editor then moves focus to the next or previous key view. The
+    /// field must still hold focus then, since blurring it leaves the window as first responder
+    /// and the Tab moves nothing.
+    func isFocusTab(_ event: NSEvent) -> Bool {
+        event.type == .keyDown && event.keyCode == UInt16(kVK_Tab)
+            && DiscreteShortcut.canonicalModifiers(event.modifierFlags).isSubset(of: .shift)
     }
 
     override public func becomeFirstResponder() -> Bool {

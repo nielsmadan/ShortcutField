@@ -7,7 +7,8 @@ import Carbon.HIToolbox
 ///
 /// Subclasses `NSSearchField`. Click to start recording, then perform a
 /// scroll, pinch, or rotate (or pick from the chevron menu). The first
-/// matching gesture finalizes the recording.
+/// matching gesture finalizes the recording. Tab or Shift-Tab moves focus on
+/// and keeps the existing shortcut.
 ///
 /// Discrete inputs (keys, mouse buttons, smart magnify) are not capturable
 /// by this recorder — use ``ShortcutRecorderField`` for those.
@@ -124,6 +125,10 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField {
     }
 
     private func handleKeyEvent(_ event: NSEvent) -> NSEvent? {
+        if isFocusTab(event) {
+            forceEndRecordingSession()
+            return event
+        }
         let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
 
         if modifiers.isEmpty, event.keyCode == UInt16(kVK_Escape) {
@@ -150,6 +155,10 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField {
         // doesn't capture mouse buttons, and inside left-click is reserved for UI focus).
         if event.type == .leftMouseDown {
             let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
+            if isClearButtonClick(event) {
+                clearFromButtonWhileRecording()
+                return nil
+            }
             if !isInsideField(event), modifiers.isEmpty {
                 endRecording()
                 blur()

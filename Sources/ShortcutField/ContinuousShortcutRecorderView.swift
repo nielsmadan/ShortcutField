@@ -43,20 +43,11 @@ public struct ContinuousShortcutRecorderView: View {
             }
     }
 
-    /// Take on an externally-set shortcut's sensitivity, snapped to what the current
-    /// mode can represent, and write the snapped value back so the stored shortcut
-    /// matches what the slider shows. Re-entry terminates once both already agree.
+    /// Take on an externally-set shortcut's sensitivity as-is; the slider snaps it for display,
+    /// and only moving the slider writes to the binding.
     private func adoptSensitivity(from newValue: ContinuousShortcut?) {
-        guard let newValue else { return }
-        let snapped = sensitivityModeValue.snap(newValue.sensitivity)
-        if abs(snapped - sensitivity) > 0.001 {
-            sensitivity = snapped
-        }
-        if abs(snapped - newValue.sensitivity) > 0.001 {
-            shortcut = ContinuousShortcut(
-                kind: newValue.kind, modifiers: newValue.modifiers, sensitivity: snapped
-            )
-        }
+        guard let newValue, abs(newValue.sensitivity - sensitivity) > 0.001 else { return }
+        sensitivity = newValue.sensitivity
     }
 
     @ViewBuilder
@@ -81,9 +72,11 @@ public struct ContinuousShortcutRecorderView: View {
     }
 
     private var fieldView: some View {
+        // The field gets the value the slider shows, so a fresh recording (or chevron-menu pick)
+        // uses the user's last-set sensitivity.
         FieldRepresentable(
             shortcut: $shortcut,
-            sensitivity: sensitivity,
+            sensitivity: sensitivityModeValue.snap(sensitivity),
             placeholderText: placeholderText,
             recordingPlaceholderText: recordingPlaceholderText,
             textColorValue: textColorValue,

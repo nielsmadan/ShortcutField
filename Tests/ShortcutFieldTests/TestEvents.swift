@@ -20,6 +20,18 @@ func keyDown(_ keyCode: Int, _ modifiers: NSEvent.ModifierFlags = [], in window:
     )!
 }
 
+/// Synthesize a mouse `NSEvent` of `type` at `point` (window coordinates) in `window`.
+@MainActor
+func mouseEvent(
+    _ type: NSEvent.EventType, at point: NSPoint, in window: NSWindow,
+    _ modifiers: NSEvent.ModifierFlags = []
+) -> NSEvent {
+    NSEvent.mouseEvent(
+        with: type, location: point, modifierFlags: modifiers, timestamp: 0,
+        windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1
+    )!
+}
+
 /// Synthesize a scroll-wheel `NSEvent`: a mouse-wheel notch by default, or one event of a
 /// trackpad burst in `phase`, or of its momentum coast in `momentum`.
 func scrollEvent(

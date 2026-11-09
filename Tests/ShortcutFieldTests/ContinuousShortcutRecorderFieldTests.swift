@@ -114,7 +114,7 @@ import Testing
     }
 
     @MainActor
-    @Test func recorderField_compactStyle_cancelledRecordingRestoresTooltip() throws {
+    @Test func recorderField_compactStyle_cancelledRecordingRestoresTooltip() {
         let field = ContinuousShortcutRecorderField()
         field.labelStyle = .compact
         field.shortcut = ContinuousShortcut(kind: .rotateClockwise, modifiers: [])
@@ -123,14 +123,71 @@ import Testing
         field.startRecording()
         #expect(field.toolTip == nil)
 
-        let escape = try #require(CGEvent(
-            keyboardEventSource: nil, virtualKey: UInt16(kVK_Escape), keyDown: true
-        ))
-        _ = try field.handleEvent(#require(NSEvent(cgEvent: escape)))
+        _ = field.handleEvent(keyDown(kVK_Escape))
 
         #expect(!field.isRecording)
         #expect(field.shortcut != nil)
         #expect(field.toolTip == "Rotate CW")
+    }
+
+    @MainActor
+    @Test(arguments: [NSEvent.ModifierFlags(), .shift])
+    func recorderField_tab_endsRecordingAndPassesTheTabOn(modifiers: NSEvent.ModifierFlags) {
+        let baseline = ShortcutRecording.isActive
+        let original = ContinuousShortcut(kind: .pinchIn, modifiers: .command, sensitivity: 0.5)
+        let field = ContinuousShortcutRecorderField()
+        field.shortcut = original
+        var changes: [ContinuousShortcut?] = []
+        field.onShortcutChange = { changes.append($0) }
+        field.startRecording()
+
+        #expect(field.handleEvent(keyDown(kVK_Tab, modifiers)) != nil)
+        #expect(!field.isRecording)
+        #expect(field.shortcut == original)
+        #expect(changes.isEmpty)
+        #expect(ShortcutRecording.isActive == baseline)
+    }
+
+    @MainActor
+    @Test(arguments: [false, true])
+    func recorderField_tabThroughTheApp_movesFocusToTheAdjacentField(backward: Bool) {
+        let field = ContinuousShortcutRecorderField()
+        let form = TabForm(field)
+        defer { form.close() }
+        // A set shortcut hides the chevron, which would otherwise be the next key view.
+        field.shortcut = ContinuousShortcut(kind: .pinchIn, modifiers: [])
+        #expect(form.window.makeFirstResponder(field))
+        #expect(field.isRecording)
+
+        NSApplication.shared.sendEvent(tabKey(backward: backward, in: form.window))
+
+        #expect(!field.isRecording)
+        #expect((backward ? form.previous : form.next).currentEditor() != nil)
+    }
+
+    @MainActor
+    @Test func recorderField_clearButtonClickWhileRecording_clearsTheShortcut() throws {
+        let field = ContinuousShortcutRecorderField()
+        let (window, _) = hostWindow(field)
+        defer { field.removeFromSuperview() }
+        field.shortcut = ContinuousShortcut(kind: .pinchIn, modifiers: [])
+        field.startRecording()
+
+        #expect(try field.handleEvent(clearButtonClick(field, in: window)) == nil)
+        #expect(!field.isRecording)
+        #expect(field.shortcut == nil)
+    }
+
+    @MainActor
+    @Test func recorderField_bareLeftDownOutsideTheField_endsRecordingAndPassesThrough() {
+        let field = ContinuousShortcutRecorderField()
+        let (window, _) = hostWindow(field)
+        defer { field.removeFromSuperview() }
+        field.startRecording()
+
+        let outside = mouseEvent(.leftMouseDown, at: NSPoint(x: 5, y: 5), in: window)
+        #expect(field.handleEvent(outside) != nil)
+        #expect(!field.isRecording)
     }
 
     @MainActor

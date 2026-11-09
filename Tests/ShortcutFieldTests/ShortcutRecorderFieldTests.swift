@@ -249,41 +249,52 @@ private let scrollDeltaAboveThreshold: Int32 = 10
     @MainActor
     @Test func recorderField_resigningFirstResponderFinalizesRecordedSteps() {
         let field = ShortcutRecorderField()
-        field.startRecording()
-        _ = field.handleEvent(keyDown(kVK_Tab))
-        _ = field.handleEvent(keyDown(kVK_ANSI_T))
+        let (window, other) = hostWindow(field)
+        defer { field.removeFromSuperview() }
+        #expect(window.makeFirstResponder(field))
+        #expect(field.isRecording)
+        _ = field.handleEvent(keyDown(kVK_ANSI_T, in: window))
+        _ = field.handleEvent(keyDown(kVK_Tab, in: window))
 
-        field.finalizeRecording()
+        #expect(window.makeFirstResponder(other))
 
         let expected = DiscreteShortcut(steps: [
-            .init(keyCode: UInt16(kVK_Tab), modifiers: []),
             .init(keyCode: UInt16(kVK_ANSI_T), modifiers: []),
+            .init(keyCode: UInt16(kVK_Tab), modifiers: []),
         ])
         #expect(field.shortcut == expected)
         #expect(!field.isRecording)
     }
 
     @MainActor
-    @Test func recorderField_insertTabCommand_recordsTabSteps() {
+    @Test func recorderField_insertTabCommand_recordsTabStepsAfterTheFirst() {
         let field = ShortcutRecorderField()
         field.startRecording()
 
+        _ = field.handleEvent(keyDown(kVK_ANSI_T))
         #expect(field.handleCommand(#selector(NSResponder.insertTab(_:)),
                                     event: keyDown(kVK_Tab)))
         #expect(field.handleCommand(#selector(NSResponder.insertTab(_:)),
                                     event: keyDown(kVK_Tab)))
         #expect(field.handleCommand(#selector(NSResponder.insertText(_:)),
                                     event: keyDown(kVK_ANSI_T)) == false)
-
-        _ = field.handleEvent(keyDown(kVK_ANSI_T))
         field.finalizeRecording()
 
         let expected = DiscreteShortcut(steps: [
-            .init(keyCode: UInt16(kVK_Tab), modifiers: []),
-            .init(keyCode: UInt16(kVK_Tab), modifiers: []),
             .init(keyCode: UInt16(kVK_ANSI_T), modifiers: []),
+            .init(keyCode: UInt16(kVK_Tab), modifiers: []),
+            .init(keyCode: UInt16(kVK_Tab), modifiers: []),
         ])
         #expect(field.shortcut == expected)
+    }
+
+    @MainActor
+    @Test func recorderField_insertTabCommandBeforeAnyStep_leavesTheTabToMoveFocus() {
+        let field = ShortcutRecorderField()
+        field.startRecording()
+
+        #expect(!field.handleCommand(#selector(NSResponder.insertTab(_:)), event: keyDown(kVK_Tab)))
+        #expect(!field.isRecording)
     }
 
     // MARK: - Right-click capture
@@ -335,6 +346,257 @@ private let scrollDeltaAboveThreshold: Int32 = 10
 
         #expect(!first.isRecording)
         #expect(second.isRecording)
+    }
+
+    // MARK: - Tab
+
+    @MainActor
+    @Test(arguments: [NSEvent.ModifierFlags(), .shift])
+    func recorderField_tabBeforeAnyStep_endsRecordingAndPassesTheTabOn(modifiers: NSEvent.ModifierFlags) {
+        let baseline = ShortcutRecording.isActive
+        let original = DiscreteShortcut(keyCode: UInt16(kVK_ANSI_K), modifiers: .command)
+        let field = ShortcutRecorderField()
+        field.shortcut = original
+        var changes: [DiscreteShortcut?] = []
+        field.onShortcutChange = { changes.append($0) }
+        field.startRecording()
+
+        #expect(field.handleEvent(keyDown(kVK_Tab, modifiers)) != nil)
+        #expect(!field.isRecording)
+        #expect(field.shortcut == original)
+        #expect(changes.isEmpty)
+        #expect(ShortcutRecording.isActive == baseline)
+    }
+
+    @MainActor
+    @Test func recorderField_tabAfterAStep_isRecorded() {
+        let field = ShortcutRecorderField()
+        field.startRecording()
+        defer { field.endRecording() }
+
+        #expect(field.handleEvent(keyDown(kVK_ANSI_K, .command)) == nil)
+        #expect(field.handleEvent(keyDown(kVK_Tab)) == nil)
+        field.finalizeRecording()
+
+        #expect(field.shortcut == DiscreteShortcut(steps: [
+            .init(keyCode: UInt16(kVK_ANSI_K), modifiers: .command),
+            .init(keyCode: UInt16(kVK_Tab), modifiers: []),
+        ]))
+    }
+
+    @MainActor
+    @Test func recorderField_modifiedTabBeforeAnyStep_isRecorded() {
+        let field = ShortcutRecorderField()
+        field.startRecording()
+        defer { field.endRecording() }
+
+        #expect(field.handleEvent(keyDown(kVK_Tab, .control)) == nil)
+        field.finalizeRecording()
+
+        #expect(field.shortcut == DiscreteShortcut(keyCode: UInt16(kVK_Tab), modifiers: .control))
+    }
+
+    @MainActor
+    @Test(arguments: [false, true])
+    func recorderField_tabThroughTheApp_movesFocusToTheAdjacentField(backward: Bool) {
+        let field = ShortcutRecorderField()
+        let form = TabForm(field)
+        defer { form.close() }
+        field.shortcut = DiscreteShortcut(keyCode: UInt16(kVK_ANSI_K), modifiers: .command)
+        #expect(form.window.makeFirstResponder(field))
+        #expect(field.isRecording)
+
+        NSApplication.shared.sendEvent(tabKey(backward: backward, in: form.window))
+
+        #expect(!field.isRecording)
+        #expect((backward ? form.previous : form.next).currentEditor() != nil)
+        #expect(field.shortcut == DiscreteShortcut(keyCode: UInt16(kVK_ANSI_K), modifiers: .command))
+    }
+
+    // MARK: - Held keys, disabling and the clear button
+
+    @MainActor
+    @Test func recorderField_heldKeyRepeats_recordOneStep() {
+        let field = ShortcutRecorderField()
+        field.startRecording()
+        defer { field.endRecording() }
+
+        #expect(field.handleEvent(keyDown(kVK_ANSI_K, .command)) == nil)
+        #expect(field.handleEvent(keyDown(kVK_ANSI_K, .command, isRepeat: true)) == nil)
+        #expect(field.handleEvent(keyDown(kVK_ANSI_K, .command, isRepeat: true)) == nil)
+        field.finalizeRecording()
+
+        #expect(field.shortcut == DiscreteShortcut(keyCode: UInt16(kVK_ANSI_K), modifiers: .command))
+    }
+
+    @MainActor
+    @Test func recorderField_heldKeyRepeat_keepsRecordingPastTheIdleTimeout() async {
+        let field = ShortcutRecorderField()
+        field.recordingTimeout = 2
+        field.startRecording()
+        defer { field.endRecording() }
+        _ = field.handleEvent(keyDown(kVK_ANSI_W, .command))
+        let armedByThePress = field.timeoutTask
+
+        _ = field.handleEvent(keyDown(kVK_ANSI_W, .command, isRepeat: true))
+        // Waiting with a registered recording would pause every other suite's dispatcher.
+        ShortcutRecordingState.end(for: field)
+        await armedByThePress?.value
+
+        #expect(field.isRecording)
+    }
+
+    @MainActor
+    @Test func recorderField_disablingTheField_endsRecordingWithoutCommitting() {
+        let baseline = ShortcutRecording.isActive
+        let field = ShortcutRecorderField()
+        let (window, _) = hostWindow(field)
+        defer { field.removeFromSuperview() }
+        #expect(window.makeFirstResponder(field))
+        _ = field.handleEvent(keyDown(kVK_ANSI_K, .command, in: window))
+
+        field.isEnabled = false
+
+        #expect(!field.isRecording)
+        #expect(field.shortcut == nil)
+        #expect(ShortcutRecording.isActive == baseline)
+    }
+
+    @MainActor
+    @Test func recorderField_clearButtonClickWhileRecording_clearsTheShortcut() throws {
+        let field = ShortcutRecorderField()
+        let (window, _) = hostWindow(field)
+        defer { field.removeFromSuperview() }
+        field.shortcut = DiscreteShortcut(keyCode: UInt16(kVK_ANSI_K), modifiers: .command)
+        var changes: [DiscreteShortcut?] = []
+        field.onShortcutChange = { changes.append($0) }
+        field.startRecording()
+
+        #expect(try field.handleEvent(clearButtonClick(field, in: window)) == nil)
+        #expect(!field.isRecording)
+        #expect(field.shortcut == nil)
+        #expect(changes == [nil])
+    }
+
+    @MainActor
+    @Test func recorderField_modifiedClickOnClearButton_recordsAStep() throws {
+        let field = ShortcutRecorderField()
+        let (window, _) = hostWindow(field)
+        defer { field.removeFromSuperview() }
+        field.shortcut = DiscreteShortcut(keyCode: UInt16(kVK_ANSI_K), modifiers: .command)
+        field.startRecording()
+        defer { field.endRecording() }
+
+        #expect(try field.handleEvent(clearButtonClick(field, in: window, .control)) == nil)
+        #expect(field.isRecording)
+        field.finalizeRecording()
+        #expect(field.shortcut == DiscreteShortcut(kind: .mouseButton(number: 0), modifiers: .control))
+    }
+
+    @MainActor
+    @Test func recorderField_clickWhereTheClearButtonWouldBe_withNoShortcut_keepsRecording() throws {
+        let field = ShortcutRecorderField()
+        let (window, _) = hostWindow(field)
+        defer { field.removeFromSuperview() }
+        var changes: [DiscreteShortcut?] = []
+        field.onShortcutChange = { changes.append($0) }
+        field.startRecording()
+        defer { field.endRecording() }
+
+        #expect(try field.handleEvent(clearButtonClick(field, in: window)) == nil)
+        #expect(field.isRecording)
+        #expect(changes.isEmpty)
+    }
+
+    // MARK: - The field's window
+
+    @MainActor
+    @Test func recorderField_windowResigningKey_commitsCapturedStepsAndEndsSession() {
+        let baseline = ShortcutRecording.isActive
+        let field = ShortcutRecorderField()
+        let (window, _) = hostWindow(field)
+        defer { field.removeFromSuperview() }
+        #expect(window.makeFirstResponder(field))
+        _ = field.handleEvent(keyDown(kVK_ANSI_K, .command, in: window))
+
+        NotificationCenter.default.post(name: NSWindow.didResignKeyNotification, object: window)
+
+        #expect(!field.isRecording)
+        #expect(field.shortcut == DiscreteShortcut(keyCode: UInt16(kVK_ANSI_K), modifiers: .command))
+        #expect(ShortcutRecording.isActive == baseline)
+        #expect(window.firstResponder === window)
+    }
+
+    @MainActor
+    @Test func recorderField_windowResigningKeyAfterRecordingEnded_keepsFocus() {
+        let field = ShortcutRecorderField()
+        let (window, other) = hostWindow(field)
+        defer { field.removeFromSuperview() }
+        field.startRecording()
+        field.endRecording()
+        #expect(window.makeFirstResponder(other))
+        let focused = window.firstResponder
+
+        NotificationCenter.default.post(name: NSWindow.didResignKeyNotification, object: window)
+
+        #expect(window.firstResponder === focused)
+    }
+
+    @MainActor
+    @Test func recorderField_windowClosing_endsSessionWithoutCommitting() {
+        let baseline = ShortcutRecording.isActive
+        let field = ShortcutRecorderField()
+        let (window, _) = hostWindow(field)
+        defer { field.removeFromSuperview() }
+        field.startRecording()
+        _ = field.handleEvent(keyDown(kVK_ANSI_K, .command, in: window))
+
+        NotificationCenter.default.post(name: NSWindow.willCloseNotification, object: window)
+
+        #expect(!field.isRecording)
+        #expect(field.shortcut == nil)
+        #expect(ShortcutRecording.isActive == baseline)
+    }
+
+    @MainActor
+    @Test func recorderField_eventsForAnotherWindow_passThroughUnrecorded() {
+        let field = ShortcutRecorderField()
+        let (window, _) = hostWindow(field)
+        let (otherWindow, _) = hostWindow(ShortcutRecorderField())
+        defer { field.removeFromSuperview() }
+        field.startRecording()
+        defer { field.endRecording() }
+
+        #expect(field.handleMonitoredEvent(keyDown(kVK_ANSI_X, in: otherWindow)) != nil)
+        #expect(field.handleMonitoredEvent(keyDown(kVK_ANSI_K, .command, in: window)) == nil)
+        field.finalizeRecording()
+        #expect(field.shortcut == DiscreteShortcut(keyCode: UInt16(kVK_ANSI_K), modifiers: .command))
+    }
+
+    @MainActor
+    @Test func recorderField_clickAtTheFieldsPositionInAnotherWindow_isNotInsideTheField() {
+        let field = ShortcutRecorderField()
+        let (window, _) = hostWindow(field)
+        let (otherWindow, _) = hostWindow(ShortcutRecorderField())
+        defer { field.removeFromSuperview() }
+        let center = field.convert(NSPoint(x: field.bounds.midX, y: field.bounds.midY), to: nil)
+
+        #expect(field.isInsideField(mouseEvent(.leftMouseDown, at: center, in: window)))
+        #expect(!field.isInsideField(mouseEvent(.leftMouseDown, at: center, in: otherWindow)))
+    }
+
+    @MainActor
+    @Test func recorderField_bareLeftDownOutsideTheField_commitsAndEndsRecording() {
+        let field = ShortcutRecorderField()
+        let (window, _) = hostWindow(field)
+        defer { field.removeFromSuperview() }
+        field.startRecording()
+        _ = field.handleEvent(keyDown(kVK_ANSI_K, .command, in: window))
+
+        let outside = mouseEvent(.leftMouseDown, at: NSPoint(x: 5, y: 5), in: window)
+        #expect(field.handleEvent(outside) != nil)
+        #expect(!field.isRecording)
+        #expect(field.shortcut == DiscreteShortcut(keyCode: UInt16(kVK_ANSI_K), modifiers: .command))
     }
 
     // MARK: - Trackpad bursts

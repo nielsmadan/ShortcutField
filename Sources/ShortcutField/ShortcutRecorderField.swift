@@ -9,11 +9,13 @@ import Carbon.HIToolbox
 /// Subclasses `NSSearchField` to provide a familiar text-field appearance.
 /// Click to start recording, then perform any combination of inputs. Each
 /// captured input becomes one step. Recording finalizes after a 1-second
-/// pause OR when the user makes a bare left-click anywhere (no modifiers) —
-/// the unambiguous "I'm done" gesture.
+/// pause OR when the user makes a bare left-click anywhere in the field's
+/// window (no modifiers) — the unambiguous "I'm done" gesture.
 ///
 /// Press Escape to cancel without saving. Press Delete (only before any
-/// step is captured) to clear the existing shortcut.
+/// step is captured) to clear the existing shortcut. Tab or Shift-Tab before
+/// any step is captured moves focus on and keeps the existing shortcut; after
+/// that, Tab is recorded like any other key.
 ///
 /// **Left-click is uniquely special**: a bare left-click (no modifiers) is
 /// not capturable as a step — it's reserved for UI interactions and serves
@@ -141,8 +143,7 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
     func handleCommand(_ commandSelector: Selector, event: NSEvent?) -> Bool {
         guard isRecording, shouldHandleCommand(commandSelector) else { return false }
         guard let event, event.type == .keyDown else { return true }
-        _ = handleEvent(event)
-        return true
+        return handleEvent(event) == nil
     }
 
     private func shouldHandleCommand(_ commandSelector: Selector) -> Bool {
@@ -199,6 +200,18 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
     }
 
     private func handleKeyEvent(_ event: NSEvent) -> NSEvent? {
+        // A held key is one press: its auto-repeats are swallowed, not recorded as steps. They
+        // keep the idle timeout from finalizing mid-hold, which would let the rest reach the app.
+        if event.isARepeat {
+            if !recordedSteps.isEmpty {
+                resetTimeout()
+            }
+            return nil
+        }
+        if recordedSteps.isEmpty, isFocusTab(event) {
+            forceEndRecordingSession()
+            return event
+        }
         let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
 
         if modifiers.isEmpty, event.keyCode == UInt16(kVK_Escape) {
@@ -229,10 +242,17 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
         let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
 
         if event.type == .leftMouseDown {
-            // Bare left-click is reserved for UI / finalize — pass outside clicks
-            // through so the target sees both down and up; mouseUp handler commits.
+            if isClearButtonClick(event) {
+                clearFromButtonWhileRecording()
+                return nil
+            }
+            // Bare left-click is reserved for UI / finalize. Outside the field it finalizes
+            // on the down, since a control with its own tracking loop may swallow the up,
+            // and passes through so the target still gets the click. Inside, the up commits.
             if modifiers.isEmpty {
-                return isInsideField(event) ? nil : event
+                guard !isInsideField(event) else { return nil }
+                finalizeRecording()
+                return event
             }
 
             let step = DiscreteShortcut.Step(kind: .mouseButton(number: event.buttonNumber), modifiers: modifiers)

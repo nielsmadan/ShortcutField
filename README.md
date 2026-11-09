@@ -11,7 +11,7 @@ A unified in-app shortcut recorder for macOS apps.
 - **`.discrete(DiscreteShortcut)`**: fire-once shortcuts. One step (e.g. `⌘K`, `Right Click`, `Pinch In`) or a multi-step sequence (e.g. `⌘K ⌘C`, `A → Right Click`). The matcher fires the bound action exactly once when the user completes the full sequence.
 - **`.continuous(ContinuousShortcut)`**: sensitivity-bearing throttled continuous fire. A single scroll / pinch / rotate gesture with a user-tunable `sensitivity` controlling the throttle rate (e.g. scroll-to-zoom).
 
-Special keys like Tab that SwiftUI's focus system normally intercepts work in both.
+Special keys like Tab that SwiftUI's focus system normally intercepts can be recorded and matched. A recorder takes a bare Tab only after the first step; before it, Tab moves focus on.
 
 ![Screenshot](screenshot.png)
 
@@ -60,7 +60,7 @@ struct SettingsView: View {
 }
 ```
 
-The recorder accepts whatever the user performs: a single keystroke, a (modified) mouse click, a scroll, a trackpad gesture, or a multi-step sequence. Recording finalizes after a 1-second idle pause OR on a bare left-click anywhere (no modifiers), the unambiguous "I'm done" gesture.
+The recorder accepts whatever the user performs: a single keystroke, a (modified) mouse click, a scroll, a trackpad gesture, or a multi-step sequence. Recording finalizes after a 1-second idle pause OR on a bare left-click anywhere in the field's window (no modifiers), the unambiguous "I'm done" gesture.
 
 ### Recording continuous (sensitivity-bearing) shortcuts
 
@@ -389,12 +389,14 @@ The same modifier limited to a `ShortcutScope`. `.app` responds to every window,
 
 Both `ShortcutRecorderField` and `ContinuousShortcutRecorderField` share these behaviors:
 
-- **Click** the field to start recording
+- **Click** or tab into the field to start recording
+- **Tab** or **Shift-Tab** stops recording, keeps the current shortcut and moves focus on, so tabbing through a form leaves it alone (`ShortcutRecorderField`: only before the first step)
 - **Escape** cancels recording without saving
-- **Delete** clears the current shortcut (multi-step recorder: only when no steps have been recorded yet)
+- **Delete** clears the current shortcut (multi-step recorder: only when no steps have been recorded yet); so does the clear (x) button
 - Only one recorder can be active at a time. Focusing a new recorder ends the previous one.
+- Recording ends, keeping what was captured, when the field's window stops being key; closing the window, or disabling the field, discards it. Input sent to other windows is never recorded.
 
-`ShortcutRecorderField` finalizes after a 1-second pause between captured steps OR on a bare left-click anywhere (no modifiers). Each captured step resets the idle timer. **Bare left-click can't be a step**: it's reserved for UI interaction (focusing controls, dismissing the recorder) and serves as the "finalize" gesture. Modified left clicks (e.g. `⌃Left Click`) are capturable. All other inputs, including right click and other mouse buttons, can be captured anywhere with no modifiers required.
+`ShortcutRecorderField` finalizes after a 1-second pause between captured steps OR on a bare left-click anywhere in its window (no modifiers). Each captured step resets the idle timer. After the first step, Tab is recorded like any other key, and a held key records once, not once per auto-repeat. **Bare left-click can't be a step**: it's reserved for UI interaction (focusing controls, dismissing the recorder) and serves as the "finalize" gesture. Modified left clicks (e.g. `⌃Left Click`) are capturable. All other inputs, including right click and other mouse buttons, can be captured anywhere in the field's window with no modifiers required.
 
 `ContinuousShortcutRecorderField` finalizes on the first matching gesture event (after threshold accumulation for pinch / rotate). It only accepts continuous kinds; keys, mouse buttons, and smart-magnify are ignored during recording. A chevron menu provides click-only entry for picking gesture kinds without performing them.
 
