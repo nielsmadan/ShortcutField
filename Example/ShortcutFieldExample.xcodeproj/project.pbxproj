@@ -101,7 +101,7 @@
 			mainGroup = 19C3BD822F6F045D00C1C505;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				19080BBA2F6F05AB00E4087A /* XCLocalSwiftPackageReference "../../ShortcutField" */,
+				19080BBA2F6F05AB00E4087A /* XCLocalSwiftPackageReference ".." */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 19C3BD8C2F6F045D00C1C505 /* Products */;
@@ -342,9 +342,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		19080BBA2F6F05AB00E4087A /* XCLocalSwiftPackageReference "../../ShortcutField" */ = {
+		19080BBA2F6F05AB00E4087A /* XCLocalSwiftPackageReference ".." */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = ../../ShortcutField;
+			relativePath = ..;
 		};
 /* End XCLocalSwiftPackageReference section */
 

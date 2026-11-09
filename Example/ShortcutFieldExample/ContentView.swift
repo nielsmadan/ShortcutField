@@ -234,7 +234,7 @@ struct WorkbenchTab: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text(title)
                 .font(.title3)
-                .foregroundColor(.white)
+                .foregroundStyle(.primary)
             counterB
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }

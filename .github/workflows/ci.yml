@@ -47,3 +47,18 @@ jobs:
 
       - name: Build documentation
         run: just build-docs
+
+  example:
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install just
+        run: brew install just
+
+      - name: Print tool versions
+        run: xcodebuild -version
+
+      - name: Build the example app
+        run: just build-example CODE_SIGNING_ALLOWED=NO

@@ -77,10 +77,15 @@ build-docs:
     fi
     echo "DocC: no diagnostics."
 
-example:
+# Build the example app; extra arguments go to xcodebuild (CI passes CODE_SIGNING_ALLOWED=NO).
+[positional-arguments]
+build-example *settings:
     @xcodebuild -project Example/ShortcutFieldExample.xcodeproj \
         -scheme ShortcutFieldExample -configuration Debug \
-        -derivedDataPath .build/Example build
+        -derivedDataPath .build/Example "$@" build
+
+# Build and launch the example app.
+example: build-example
     @.build/Example/Build/Products/Debug/ShortcutFieldExample.app/Contents/MacOS/ShortcutFieldExample
 
 clean:

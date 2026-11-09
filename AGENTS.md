@@ -21,6 +21,7 @@ just format   # Run SwiftFormat
 just build-docs # Build DocC docs, fail on any diagnostic (unresolved links, etc.)
 just lint-fix  # Auto-fix SwiftLint violations
 just example   # Build & run the example app from Example/
+just build-example # Build the example app without launching it
 just clean     # Remove build directory
 just release          # Propose, check, confirm or override, and publish a version (via curtains)
 just release minor    # Propose a minor bump through the same confirmation flow
