@@ -39,7 +39,7 @@ ShortcutField splits two concerns into distinct types:
 **Source structure:**
 - `Shortcut.swift` — `Shortcut` umbrella enum: `.discrete(DiscreteShortcut)` / `.continuous(ContinuousShortcut)`, with a `kind` discriminator and forwarded `displayString`. Codable, Hashable, Sendable.
 - `DiscreteShortcut.swift` — Fire-once type: one or more `DiscreteShortcut.Step`s (kind + modifiers). Kind covers `.key`, `.mouseButton`, `.scroll`, `.pinchIn/Out`, `.rotateClockwise/CounterClockwise`, `.smartMagnify`. Codable, Equatable, Hashable, Sendable.
-- `DiscreteShortcut+Matching.swift` — `DiscreteShortcut.Step.matches(NSEvent)`, `matches(KeyPress)`, `GestureEventShape` test seam.
+- `DiscreteShortcut+Matching.swift` — `DiscreteShortcut.Step.matches(NSEvent)`, `matches(KeyPress)`, and the internal `matches(ShortcutEventShape)` that scroll and gesture matching runs through.
 - `DiscreteShortcut+DisplayString.swift` — Human-readable display strings (`⌘K`, `Tab`, `Left Click`, `Scroll Up`, `⌘Pinch In`, …); `displayString` joins steps.
 - `DiscreteShortcut+KeyMapping.swift` — UCKeyTranslate, special-key names, `NSEvent.ModifierFlags.symbolicRepresentation`.
 - `DiscreteShortcut+Symbol.swift` — SF Symbol name mapping for `DiscreteShortcut.Kind` (gesture/scroll icons; `nil` for keys and mouse buttons).
@@ -50,6 +50,10 @@ ShortcutField splits two concerns into distinct types:
 - `Matching/ContinuousMatcher.swift` — Single continuous-shortcut matcher applying the sensitivity throttle.
 - `Matching/ShortcutEventDispatcher.swift` — Shared `NSEvent` local-monitor fan-out used by `.onShortcut`.
 - `Matching/ShortcutMatchResult.swift` — Matcher result enum (`.fired`, `.continuousFired`, `.advanced`, `.ignored`).
+- `Matching/GestureBurstTracker.swift` — Internal: the phased trackpad bursts (`.mayBegin`/`.began` to `.ended`/`.cancelled`) a matcher or the fire-once recorder has claimed, per event type.
+- `Matching/ScrollCoast.swift` — Internal: consumes the scroll momentum after a burst a matcher consumed. Shared by `SequenceMatcher` and `ContinuousMatcher`.
+- `Matching/NSEvent+Gesture.swift` — Internal: `NSEvent.Phase.startsGesture` / `endsGesture`, `NSEvent.EventType.isContinuousGesture` and `NSEvent.isMomentumScroll`.
+- `Matching/ShortcutEventShape.swift` — Internal: value snapshot of the `NSEvent` fields scroll and gesture matching reads; tests build one directly to feed exact deltas and phases.
 - `Matching/TextInputFocus.swift` — Internal: focused-responder check behind the text-input gate; `responderOverride` test seam.
 - `Matching/ShortcutTracking.swift` — Public `ShortcutTracking.isActive` flag for in-progress multi-step matches; bumped automatically by `SequenceMatcher`.
 - `BaseShortcutRecorderField.swift` — Shared `NSSearchField` base for the two recorder fields (cell class, sizing, key-view eligibility, event-monitor storage, click hit-test).

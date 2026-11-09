@@ -201,4 +201,110 @@ struct SequenceMatcherTests {
         #expect(matcher.handle(keyDown(kVK_ANSI_K, .command, isRepeat: true)) == .advanced(consumeEvent: false))
         #expect(matcher.handle(keyDown(kVK_ANSI_K, .command)) == .fired)
     }
+
+    // MARK: - Trackpad bursts
+
+    @Test("a scroll step fires once per trackpad burst and consumes the rest of it and its momentum")
+    func phasedScrollBurstFiresOnce() {
+        let matcher = SequenceMatcher()
+        matcher.configure(shortcut: DiscreteShortcut(kind: .scroll(direction: .up), modifiers: []))
+        let consumed = ShortcutMatchResult.advanced(consumeEvent: true)
+
+        #expect(matcher.handle(scrollEvent(deltaY: 10, phase: .began)) == .fired)
+        #expect(matcher.handle(scrollEvent(deltaY: 10, phase: .changed)) == consumed)
+        #expect(matcher.handle(scrollEvent(deltaY: -3, phase: .changed)) == consumed)
+        #expect(matcher.handle(scrollEvent(phase: .ended)) == .ignored)
+        #expect(matcher.handle(scrollEvent(deltaY: 10, momentum: .began)) == consumed)
+        #expect(matcher.handle(scrollEvent(deltaY: 4, momentum: .changed)) == consumed)
+        #expect(matcher.handle(scrollEvent(momentum: .ended)) == consumed)
+        #expect(matcher.handle(scrollEvent(deltaY: 10, momentum: .began)) == .ignored)
+        #expect(matcher.handle(scrollEvent(deltaY: 10, phase: .began)) == .fired)
+    }
+
+    @Test("a trackpad burst that matches no step passes through with its momentum")
+    func unmatchedScrollBurstPassesThrough() {
+        let matcher = SequenceMatcher()
+        matcher.configure(shortcut: DiscreteShortcut(kind: .scroll(direction: .up), modifiers: []))
+
+        #expect(matcher.handle(scrollEvent(deltaY: -10, phase: .began)) == .ignored)
+        #expect(matcher.handle(scrollEvent(phase: .ended)) == .ignored)
+        #expect(matcher.handle(scrollEvent(deltaY: -10, momentum: .began)) == .ignored)
+        #expect(matcher.handle(scrollEvent(momentum: .ended)) == .ignored)
+    }
+
+    @Test("a pinch burst and a rotate burst in progress together each keep their own claim")
+    func overlappingBurstsKeepTheirOwnClaims() {
+        let matcher = SequenceMatcher()
+        matcher.configure(shortcut: DiscreteShortcut(steps: [
+            .init(kind: .pinchIn, modifiers: []),
+            .init(kind: .rotateClockwise, modifiers: []),
+        ]))
+
+        #expect(matcher.handle(gestureEvent(.magnify, 0, phase: .began)) == .ignored)
+        #expect(matcher.handle(gestureEvent(.magnify, -0.2)) == .advanced(consumeEvent: false))
+        #expect(matcher.handle(gestureEvent(.rotate, 0, phase: .began)) == .ignored)
+        #expect(matcher.handle(gestureEvent(.rotate, -10)) == .fired)
+        #expect(matcher.handle(gestureEvent(.magnify, -0.2)) == .ignored)
+        #expect(matcher.handle(gestureEvent(.rotate, -10)) == .advanced(consumeEvent: true))
+    }
+
+    @Test("two scroll steps need two trackpad bursts")
+    func twoScrollStepsNeedTwoBursts() {
+        let matcher = SequenceMatcher()
+        let up = DiscreteShortcut.Step(kind: .scroll(direction: .up), modifiers: [])
+        matcher.configure(shortcut: DiscreteShortcut(steps: [up, up]))
+
+        // The step's own event reaches the view beneath, so the rest of the burst does too.
+        #expect(matcher.handle(scrollEvent(deltaY: 10, phase: .began)) == .advanced(consumeEvent: false))
+        #expect(matcher.handle(scrollEvent(deltaY: 10, phase: .changed)) == .ignored)
+        #expect(matcher.handle(scrollEvent(phase: .ended)) == .ignored)
+        #expect(matcher.handle(scrollEvent(deltaY: 10, momentum: .began)) == .ignored)
+        #expect(matcher.handle(scrollEvent(deltaY: 10, phase: .began)) == .fired)
+    }
+
+    @Test("a fired burst whose end never arrives doesn't swallow the next burst or a wheel notch")
+    func burstWithoutEndDoesNotStick() {
+        let matcher = SequenceMatcher()
+        matcher.configure(shortcut: DiscreteShortcut(kind: .scroll(direction: .up), modifiers: []))
+
+        #expect(matcher.handle(scrollEvent(deltaY: 10, phase: .began)) == .fired)
+        #expect(matcher.handle(scrollEvent(deltaY: 10)) == .fired)
+        #expect(matcher.handle(scrollEvent(deltaY: -10, phase: .began)) == .ignored)
+        #expect(matcher.handle(scrollEvent(deltaY: -10, phase: .changed)) == .ignored)
+    }
+
+    @Test("a new burst ends the coast of an earlier fired one, even if its own end never arrives")
+    func newBurstStopsCoast() {
+        let matcher = SequenceMatcher()
+        matcher.configure(shortcut: DiscreteShortcut(kind: .scroll(direction: .up), modifiers: []))
+
+        #expect(matcher.handle(scrollEvent(deltaY: 10, phase: .began)) == .fired)
+        #expect(matcher.handle(scrollEvent(phase: .ended)) == .ignored)
+        #expect(matcher.handle(scrollEvent(deltaY: 10, momentum: .began)) == .advanced(consumeEvent: true))
+        #expect(matcher.handle(scrollEvent(deltaY: -10, phase: .began)) == .ignored)
+        #expect(matcher.handle(scrollEvent(deltaY: -10, momentum: .began)) == .ignored)
+    }
+
+    @Test("reset ends a coast")
+    func resetStopsCoast() {
+        let matcher = SequenceMatcher()
+        matcher.configure(shortcut: DiscreteShortcut(kind: .scroll(direction: .up), modifiers: []))
+        _ = matcher.handle(scrollEvent(deltaY: 10, phase: .began))
+        _ = matcher.handle(scrollEvent(phase: .ended))
+        matcher.reset()
+        #expect(matcher.handle(scrollEvent(deltaY: 10, momentum: .began)) == .ignored)
+    }
+
+    @Test("the rest of a burst can't start the sequence again after a later step fires")
+    func burstOutlivesTheSequenceItStarted() {
+        let matcher = SequenceMatcher()
+        matcher.configure(shortcut: DiscreteShortcut(steps: [
+            .init(kind: .scroll(direction: .up), modifiers: []),
+            .init(keyCode: UInt16(kVK_ANSI_C), modifiers: .command),
+        ]))
+        #expect(matcher.handle(scrollEvent(deltaY: 10, phase: .began)) == .advanced(consumeEvent: false))
+        #expect(matcher.handle(keyDown(kVK_ANSI_C, .command)) == .fired)
+        #expect(matcher.handle(scrollEvent(deltaY: 10, phase: .changed)) == .ignored)
+        #expect(!matcher.isTracking)
+    }
 }

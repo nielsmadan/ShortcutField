@@ -6,16 +6,13 @@ final class SequenceMatcher {
     private var shortcut: DiscreteShortcut?
     private var timeoutTask: Task<Void, Never>?
 
-    /// Event types of continuous gestures (`.magnify`, `.rotate`, `.scrollWheel`) that
-    /// have already advanced the matcher past a step within the current physical burst.
-    /// Subsequent events of the same type are suppressed so a single trackpad burst
-    /// doesn't re-fire the matcher. Entries are cleared on the gesture's end-phase
-    /// event so the next physical burst can advance the matcher again.
-    ///
-    /// A Set (rather than a single optional) supports overlapping bursts — e.g. a
-    /// shortcut `[PinchIn, RotateClockwise]` where the rotate-step's matching event
-    /// arrives while the pinch's end-phase hasn't fired yet.
-    private var inProgressContinuousEventTypes: Set<NSEvent.EventType> = []
+    /// Trackpad bursts that advanced or fired the matcher, so a single burst doesn't match
+    /// twice. A fired burst consumes its rest so it doesn't also reach the view beneath.
+    /// Claims survive sequence resets, so a burst can't start the sequence again, and are per
+    /// type, so a `[PinchIn, RotateClockwise]` rotate can match while the pinch is still going.
+    private var bursts = GestureBurstTracker()
+
+    private var scrollCoast = ScrollCoast()
 
     private(set) var currentStep = 0
     private(set) var isTracking = false {
@@ -69,7 +66,7 @@ final class SequenceMatcher {
         guard step.matches(event) else {
             // Continuous-gesture bursts emit many sub-threshold or wrong-direction
             // events; treat those as non-resetting.
-            if Self.isContinuousEventType(event.type) || currentStep == 0 {
+            if event.type.isContinuousGesture || currentStep == 0 {
                 return .ignored
             }
             return restart(with: event)
@@ -79,22 +76,17 @@ final class SequenceMatcher {
             return .ignored
         }
 
-        let suppressType = suppressionTypeIfContinuous(event: event, step: step)
         let isLast = currentStep == shortcut.steps.count - 1
         if isLast {
-            reset()
-            if let suppressType {
-                inProgressContinuousEventTypes.insert(suppressType)
-            }
+            resetSequence()
+            claimBurst(of: event, matching: step, .consumesRest)
             return .fired
         }
 
         currentStep += 1
         beginTracking()
         restartTimeout()
-        if let suppressType {
-            inProgressContinuousEventTypes.insert(suppressType)
-        }
+        claimBurst(of: event, matching: step, .ignoresRest)
 
         // `event.keyCode` is only valid for keyboard events; calling it on a
         // mouse, scroll, or gesture event throws.
@@ -111,7 +103,7 @@ final class SequenceMatcher {
         timeoutTask = nil
         let result = handle(event)
         if result == .ignored {
-            reset()
+            resetSequence()
         }
         return result
     }
@@ -120,47 +112,50 @@ final class SequenceMatcher {
     /// just matched, and never counts as the next step.
     private func handleRepeat(_ event: NSEvent, previousStep: DiscreteShortcut.Step) -> ShortcutMatchResult {
         guard previousStep.matches(event) else {
-            reset()
+            resetSequence()
             return .ignored
         }
         restartTimeout()
         return .advanced(consumeEvent: Self.isInterceptedByFocusSystem(keyCode: event.keyCode))
     }
 
-    /// Events that must not reach the step matcher.
+    /// Events that must not reach the step matcher: scroll momentum, and the rest of a
+    /// trackpad burst that already advanced or fired it. A burst that fired the shortcut is
+    /// consumed with its momentum, except its end, which reaches the view beneath so that
+    /// view can close the gesture.
     private func preempt(_ event: NSEvent) -> ShortcutMatchResult? {
-        if Self.isContinuousEventType(event.type),
-           event.phase == .ended || event.phase == .cancelled
-        {
-            inProgressContinuousEventTypes.remove(event.type)
-            return .ignored
+        // `event.phase` throws on key and mouse events.
+        guard event.type.isContinuousGesture else { return nil }
+        if event.isMomentumScroll {
+            return scrollCoast.consumeMomentum(event.momentumPhase) ? .advanced(consumeEvent: true) : .ignored
         }
-        if event.type == .scrollWheel, event.momentumPhase != [] {
-            return .ignored
+        let position = bursts.track(ShortcutEventShape(event))
+        if event.type == .scrollWheel {
+            scrollCoast.follow(position)
         }
-        if inProgressContinuousEventTypes.contains(event.type) {
+        switch position {
+        case .start:
+            return nil
+        case .end:
             return .ignored
+        case .middle(.consumesRest):
+            return .advanced(consumeEvent: true)
+        case .middle(.ignoresRest):
+            return .ignored
+        case .unphased, .middle(nil):
+            return nil
         }
-        return nil
     }
 
-    /// If the matching event is a phased continuous gesture for a continuous-kind
-    /// step, return the event type to insert into the suppression set so subsequent
-    /// events of the same physical burst don't re-fire the matcher. Mouse-wheel
-    /// notches have empty phase and intentionally never suppress.
-    ///
-    /// `event.phase` is only valid for gesture / scroll-wheel events; calling it
-    /// on a key or mouse event throws. Guard via `isContinuousEventType`.
-    private func suppressionTypeIfContinuous(event: NSEvent, step: DiscreteShortcut.Step) -> NSEvent.EventType? {
-        guard DiscreteShortcut.isContinuous(step.kind),
-              Self.isContinuousEventType(event.type),
-              event.phase != []
-        else { return nil }
-        return event.type
-    }
-
-    private static func isContinuousEventType(_ type: NSEvent.EventType) -> Bool {
-        type == .magnify || type == .rotate || type == .scrollWheel
+    /// Claims the trackpad burst of an event that matched a continuous-kind step, so the rest of
+    /// the burst can't match again.
+    private func claimBurst(
+        of event: NSEvent,
+        matching step: DiscreteShortcut.Step,
+        _ claim: GestureBurstTracker.Claim
+    ) {
+        guard DiscreteShortcut.isContinuous(step.kind) else { return }
+        bursts.claim(ShortcutEventShape(event), claim)
     }
 
     /// Whether a matching keystroke must be surrendered to a focused text editor.
@@ -201,9 +196,16 @@ final class SequenceMatcher {
     }
 
     func reset() {
+        resetSequence()
+        bursts.reset()
+        scrollCoast.stop()
+    }
+
+    /// Back to the first step, still remembering bursts in progress so their remaining
+    /// events can't start the sequence again.
+    private func resetSequence() {
         currentStep = 0
         isTracking = false
-        inProgressContinuousEventTypes.removeAll()
         timeoutTask?.cancel()
         timeoutTask = nil
     }
@@ -218,7 +220,7 @@ final class SequenceMatcher {
             do {
                 guard let self else { return }
                 try await Task.sleep(for: .seconds(stepTimeout))
-                reset()
+                resetSequence()
             } catch {}
         }
     }

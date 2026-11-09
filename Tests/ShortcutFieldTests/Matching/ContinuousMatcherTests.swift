@@ -115,4 +115,88 @@ struct ContinuousMatcherTests {
         _ = matcher.handle(shape: endShape)
         #expect(matcher.handle(shape: matchingShape) == .continuousFired(magnitude: -2.0))
     }
+
+    // MARK: - Trackpad bursts
+
+    @Test("a scroll burst at sensitivity 0 fires once, consumes the rest and its momentum, and fires again next burst")
+    func phasedScrollBurstAtSensitivityZero() {
+        let matcher = ContinuousMatcher(
+            ContinuousShortcut(kind: .scroll(direction: .up), modifiers: [], sensitivity: 0.0)
+        )
+        let consumed = ShortcutMatchResult.advanced(consumeEvent: true)
+        #expect(matcher.handle(scrollEvent(deltaY: 10, phase: .began)) == .continuousFired(magnitude: 10))
+        #expect(matcher.handle(scrollEvent(deltaY: 10, phase: .changed)) == consumed)
+        #expect(matcher.handle(scrollEvent(phase: .ended)) == .ignored)
+        #expect(matcher.handle(scrollEvent(deltaY: 10, momentum: .began)) == consumed)
+        #expect(matcher.handle(scrollEvent(momentum: .ended)) == consumed)
+        #expect(matcher.handle(scrollEvent(deltaY: 10, momentum: .began)) == .ignored)
+        #expect(matcher.handle(scrollEvent(deltaY: 10, phase: .began)) == .continuousFired(magnitude: 10))
+    }
+
+    @Test("a scroll burst that never matches passes through with its momentum")
+    func unmatchedScrollBurstPassesThrough() {
+        let matcher = ContinuousMatcher(
+            ContinuousShortcut(kind: .scroll(direction: .up), modifiers: [], sensitivity: 0.0)
+        )
+        #expect(matcher.handle(scrollEvent(deltaY: -10, phase: .began)) == .ignored)
+        #expect(matcher.handle(scrollEvent(phase: .ended)) == .ignored)
+        #expect(matcher.handle(scrollEvent(deltaY: -10, momentum: .began)) == .ignored)
+    }
+
+    @Test("a new burst ends the coast of an earlier matched one, even if its own end never arrives")
+    func newBurstStopsCoast() {
+        let matcher = ContinuousMatcher(
+            ContinuousShortcut(kind: .scroll(direction: .up), modifiers: [], sensitivity: 0.0)
+        )
+        #expect(matcher.handle(scrollEvent(deltaY: 10, phase: .began)) == .continuousFired(magnitude: 10))
+        #expect(matcher.handle(scrollEvent(phase: .ended)) == .ignored)
+        #expect(matcher.handle(scrollEvent(deltaY: 10, momentum: .began)) == .advanced(consumeEvent: true))
+        #expect(matcher.handle(scrollEvent(deltaY: -10, phase: .began)) == .ignored)
+        #expect(matcher.handle(scrollEvent(deltaY: -10, momentum: .began)) == .ignored)
+    }
+
+    @Test("a mid sensitivity fires, then consumes events inside its cooldown")
+    func midSensitivityCoolsDown() {
+        let matcher = ContinuousMatcher(
+            ContinuousShortcut(kind: .scroll(direction: .up), modifiers: [], sensitivity: 0.5)
+        )
+        #expect(matcher.handle(scrollEvent(deltaY: 10, phase: .began)) == .continuousFired(magnitude: 10))
+        #expect(matcher.handle(scrollEvent(deltaY: 10, phase: .changed)) == .advanced(consumeEvent: true))
+    }
+
+    // MARK: - A claimed burst
+
+    @Test("the rest of a burst that matched is consumed even where it stops matching")
+    func claimedBurstConsumesItsRest() {
+        let matcher = ContinuousMatcher(
+            ContinuousShortcut(kind: .scroll(direction: .up), modifiers: .command, sensitivity: 1.0)
+        )
+        let up = ShortcutEventShape(type: .scrollWheel, modifierFlags: .command, scrollDeltaY: 5, phase: .began)
+        #expect(matcher.handle(shape: up) == .continuousFired(magnitude: 5))
+
+        for rest in [
+            ShortcutEventShape(type: .scrollWheel, modifierFlags: .command, scrollDeltaY: -5, phase: .changed),
+            ShortcutEventShape(type: .scrollWheel, modifierFlags: .command, scrollDeltaY: 0, phase: .changed),
+            ShortcutEventShape(type: .scrollWheel, scrollDeltaY: 5, phase: .changed),
+        ] {
+            #expect(matcher.handle(shape: rest) == .advanced(consumeEvent: true))
+        }
+        // Other gesture types and mouse-wheel notches belong to no claimed scroll burst.
+        let pinch = ShortcutEventShape(type: .magnify, magnification: 0.1, phase: .changed)
+        #expect(matcher.handle(shape: pinch) == .ignored)
+        #expect(matcher.handle(shape: ShortcutEventShape(type: .scrollWheel, scrollDeltaY: -5)) == .ignored)
+        #expect(matcher.handle(shape: ShortcutEventShape(type: .scrollWheel, phase: .ended)) == .ignored)
+    }
+
+    @Test("a burst that never matched passes through")
+    func unclaimedBurstPassesThrough() {
+        let matcher = ContinuousMatcher(
+            ContinuousShortcut(kind: .scroll(direction: .up), modifiers: .command, sensitivity: 1.0)
+        )
+        let down = ShortcutEventShape(type: .scrollWheel, modifierFlags: .command, scrollDeltaY: -5, phase: .began)
+
+        #expect(matcher.handle(shape: down) == .ignored)
+        #expect(matcher
+            .handle(shape: ShortcutEventShape(type: .scrollWheel, scrollDeltaY: 5, phase: .changed)) == .ignored)
+    }
 }

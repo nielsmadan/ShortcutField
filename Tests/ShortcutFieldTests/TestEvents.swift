@@ -10,12 +10,14 @@ func keyDown(_ keyCode: Int, _ modifiers: NSEvent.ModifierFlags = [], isRepeat: 
     return NSEvent(cgEvent: cg)!
 }
 
-/// Synthesize a scroll-wheel `NSEvent` with no phase information (mouse-wheel-style).
-///
-/// `CGEvent` doesn't expose `phase`, `magnification`, or `rotation`, so trackpad-burst
-/// scroll suppression and gesture sequences (`.magnify` / `.rotate`) cannot be driven
-/// through the matcher in tests.
-func scrollEvent(deltaY: Int32 = 0, deltaX: Int32 = 0) -> NSEvent {
+/// Synthesize a scroll-wheel `NSEvent`: a mouse-wheel notch by default, or one event of a
+/// trackpad burst in `phase`, or of its momentum coast in `momentum`.
+func scrollEvent(
+    deltaY: Int32 = 0,
+    deltaX: Int32 = 0,
+    phase: NSEvent.Phase = [],
+    momentum: NSEvent.Phase = []
+) -> NSEvent {
     let cg = CGEvent(scrollWheelEvent2Source: nil,
                      units: .pixel,
                      wheelCount: 2,
@@ -24,5 +26,58 @@ func scrollEvent(deltaY: Int32 = 0, deltaX: Int32 = 0) -> NSEvent {
                      wheel3: 0)!
     // A nil-source CGEvent inherits the live modifier-key state; pin it empty.
     cg.flags = []
+    cg.setIntegerValueField(.scrollWheelEventScrollPhase, value: Int64(cgScrollPhase(phase)))
+    cg.setIntegerValueField(.scrollWheelEventMomentumPhase, value: Int64(cgMomentumPhase(momentum)))
     return NSEvent(cgEvent: cg)!
+}
+
+/// Synthesize a trackpad `.magnify`, `.rotate` or `.smartMagnify` `NSEvent` in `phase`; `value`
+/// is the magnification, or the rotation in degrees.
+///
+/// Built from `CGEvent`'s undocumented gesture event type 29 and fields: 110 is the HID gesture
+/// type, 113 the magnification, 114 the rotation and 132 the phase, which uses the scroll-phase
+/// encoding.
+func gestureEvent(
+    _ type: NSEvent.EventType,
+    _ value: Double = 0,
+    phase: NSEvent.Phase = .changed,
+    _ modifiers: NSEvent.ModifierFlags = []
+) -> NSEvent {
+    let (hidType, valueField): (Int64, UInt32) = switch type {
+    case .magnify: (8, 113)
+    case .rotate: (5, 114)
+    case .smartMagnify: (22, 113)
+    default: preconditionFailure("No gesture event of type \(type)")
+    }
+    let cg = CGEvent(source: nil)!
+    cg.type = CGEventType(rawValue: 29)!
+    cg.flags = CGEventFlags(rawValue: UInt64(modifiers.rawValue))
+    cg.setIntegerValueField(CGEventField(rawValue: 110)!, value: hidType)
+    cg.setDoubleValueField(CGEventField(rawValue: valueField)!, value: value)
+    if type != .smartMagnify {
+        cg.setIntegerValueField(CGEventField(rawValue: 132)!, value: Int64(cgScrollPhase(phase)))
+    }
+    return NSEvent(cgEvent: cg)!
+}
+
+private func cgScrollPhase(_ phase: NSEvent.Phase) -> UInt32 {
+    switch phase {
+    case .began: CGScrollPhase.began.rawValue
+    case .changed: CGScrollPhase.changed.rawValue
+    case .ended: CGScrollPhase.ended.rawValue
+    case .cancelled: CGScrollPhase.cancelled.rawValue
+    case .mayBegin: CGScrollPhase.mayBegin.rawValue
+    case []: 0
+    default: preconditionFailure("CGEvent has no scroll phase for \(phase)")
+    }
+}
+
+private func cgMomentumPhase(_ phase: NSEvent.Phase) -> UInt32 {
+    switch phase {
+    case .began: CGMomentumScrollPhase.begin.rawValue
+    case .changed: CGMomentumScrollPhase.continuous.rawValue
+    case .ended: CGMomentumScrollPhase.end.rawValue
+    case []: 0
+    default: preconditionFailure("CGEvent has no momentum phase for \(phase)")
+    }
 }

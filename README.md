@@ -302,7 +302,7 @@ public enum Kind: Sendable, Equatable, Hashable {
 | `reset()` | Discard in-progress sequence / throttle state |
 | `trackingStateDidChange: ((Bool) -> Void)?` | Notified when a multi-step match starts/stops tracking |
 
-`ShortcutMatchResult` is `.ignored`, `.advanced(consumeEvent:)` (matched but did not complete a fire; consume per the flag), `.fired` (a discrete shortcut completed), or `.continuousFired(magnitude:)` (a throttled continuous fire, with the event's signed delta).
+`ShortcutMatchResult` is `.ignored`, `.advanced(consumeEvent:)` (no fire, but consume per the flag: an intermediate step, a held key's repeat, a throttled continuous event, or the rest of a burst that fired), `.fired` (a discrete shortcut completed), or `.continuousFired(magnitude:)` (a throttled continuous fire, with the event's signed delta).
 
 ### `ShortcutEventDispatcher`
 
@@ -352,7 +352,7 @@ SwiftUI recorder for sensitivity-bearing continuous shortcuts. Binds a `Continuo
 
 View modifier that fires an action when a `Shortcut` is performed. Takes the umbrella `Shortcut?`.
 
-For `.discrete` shortcuts the action fires once on completion: immediately for 1-step, after the full sequence for multi-step (intermediate events propagate normally; only focus-intercepted keys like Tab/Escape are consumed mid-sequence). For `.continuous` shortcuts it fires on each throttled gesture event. Multiple shortcuts that share a common prefix (e.g. `A B` and `A T`) work correctly: each tracks independently and the shared dispatcher delivers every event to all active matchers. Matching is automatically disabled while any recorder field is active. Bare-key and ⇧/⌥-only shortcuts are suppressed while a text-editing responder has focus (Escape and F1–F20 are exempt) (see [Typing takes precedence](#typing-takes-precedence)).
+For `.discrete` shortcuts the action fires once on completion: immediately for 1-step, after the full sequence for multi-step (intermediate events propagate normally; only focus-intercepted keys like Tab/Escape are consumed mid-sequence). For `.continuous` shortcuts it fires on each throttled gesture event. Once a trackpad gesture or scroll fires a discrete shortcut or matches a continuous one, the rest of that gesture and its momentum are consumed too, apart from its end event. Multiple shortcuts that share a common prefix (e.g. `A B` and `A T`) work correctly: each tracks independently and the shared dispatcher delivers every event to all active matchers. Matching is automatically disabled while any recorder field is active. Bare-key and ⇧/⌥-only shortcuts are suppressed while a text-editing responder has focus (Escape and F1–F20 are exempt) (see [Typing takes precedence](#typing-takes-precedence)).
 
 ### `ShortcutTracking`
 

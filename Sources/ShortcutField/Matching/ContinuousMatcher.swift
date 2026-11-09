@@ -7,6 +7,9 @@ import AppKit
 final class ContinuousMatcher {
     private let shortcut: ContinuousShortcut
     private let throttle = ThrottleState()
+    /// The burst that matched the shortcut: its rest, and its scroll momentum, are consumed.
+    private var bursts = GestureBurstTracker()
+    private var scrollCoast = ScrollCoast()
 
     init(_ shortcut: ContinuousShortcut) {
         self.shortcut = shortcut
@@ -15,27 +18,36 @@ final class ContinuousMatcher {
 
     func reset() {
         throttle.reset()
+        bursts.reset()
+        scrollCoast.stop()
     }
 
     func handle(_ event: NSEvent) -> ShortcutMatchResult {
-        if event.type == .scrollWheel, event.momentumPhase != [] {
-            return .ignored
+        if event.isMomentumScroll {
+            return scrollCoast.consumeMomentum(event.momentumPhase) ? .advanced(consumeEvent: true) : .ignored
         }
         return handle(shape: ShortcutEventShape(event))
     }
 
     func handle(shape: ShortcutEventShape) -> ShortcutMatchResult {
-        // Phase-end: reset throttle so the next physical gesture starts fresh.
-        let isContinuousType = shape.type == .magnify || shape.type == .rotate
-            || shape.type == .scrollWheel
-        if isContinuousType, shape.phase == .ended || shape.phase == .cancelled {
-            if Self.eventTypeMatchesKind(shape.type, shortcut.kind) {
-                throttle.reset()
-            }
+        // Bursts of other event types are never this shortcut's.
+        let position = Self.eventTypeMatchesKind(shape.type, shortcut.kind) ? bursts.track(shape) : nil
+        if shape.type == .scrollWheel, let position {
+            scrollCoast.follow(position)
+        }
+        if case .end = position {
+            // Reset the throttle so the next physical gesture starts fresh. The end itself
+            // reaches the view beneath so that view can close the gesture.
+            throttle.reset()
             return .ignored
         }
 
-        guard shortcut.asDiscreteStep.matches(shape) else { return .ignored }
+        guard shortcut.asDiscreteStep.matches(shape) else {
+            // The rest of a burst this shortcut claimed stays with it, even where a delta
+            // reverses or a modifier is released.
+            return position == .middle(.consumesRest) ? .advanced(consumeEvent: true) : .ignored
+        }
+        bursts.claim(shape, .consumesRest)
 
         var fired = false
         throttle.handleEvent { fired = true }

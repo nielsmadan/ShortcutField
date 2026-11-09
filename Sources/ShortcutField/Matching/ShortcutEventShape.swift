@@ -1,8 +1,8 @@
 import AppKit
 
-/// Test seam: a value-typed snapshot of the `NSEvent` fields that scroll and
-/// gesture matching reads. Gesture `NSEvent`s cannot be synthesized in tests, so
-/// both matchers run their thresholds against this shape.
+/// A value-typed snapshot of the `NSEvent` fields that scroll and gesture matching reads.
+/// `DiscreteShortcut.Step.matches(_:)` and the continuous matcher evaluate events through it,
+/// and tests build one directly to feed exact deltas and phases.
 struct ShortcutEventShape: Equatable {
     var type: NSEvent.EventType
     var modifierFlags: NSEvent.ModifierFlags
@@ -37,7 +37,6 @@ struct ShortcutEventShape: Equatable {
         rotation = (event.type == .rotate) ? Double(event.rotation) : 0
         scrollDeltaX = (event.type == .scrollWheel) ? Double(event.scrollingDeltaX) : 0
         scrollDeltaY = (event.type == .scrollWheel) ? Double(event.scrollingDeltaY) : 0
-        phase = (event.type == .magnify || event.type == .rotate || event.type == .scrollWheel)
-            ? event.phase : []
+        phase = event.type.isContinuousGesture ? event.phase : []
     }
 }

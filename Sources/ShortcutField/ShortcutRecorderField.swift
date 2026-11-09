@@ -28,10 +28,9 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
     /// Internal (not `private`) so tests can observe whether the idle timeout
     /// is armed.
     var timeoutTask: Task<Void, Never>?
-    /// Event types whose current burst has already produced a step. Cleared on the
-    /// gesture's `.ended`/`.cancelled` phase or when a different event type arrives,
-    /// so the next physical burst can record a fresh step.
-    private var capturedBurstTypes: Set<NSEvent.EventType> = []
+    /// Trackpad bursts that already produced a step. A claim ends with its burst, or when an
+    /// event of another type arrives, so the next physical burst can record a fresh step.
+    private var bursts = GestureBurstTracker()
 
     /// Idle interval after the last captured step before recording finalizes.
     /// Internal (not `private`) so tests can shrink it.
@@ -89,7 +88,7 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
 
     private func resetGestureAccumulators() {
         gestures.resetAll()
-        capturedBurstTypes.removeAll()
+        bursts.reset()
     }
 
     func finalizeRecording() {
@@ -158,7 +157,7 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
         guard isRecording else { return event }
 
         // A different event type ends any in-progress gesture burst.
-        capturedBurstTypes.formIntersection([event.type])
+        bursts.keepOnly(event.type)
 
         switch event.type {
         case .leftMouseUp, .rightMouseUp:
@@ -247,28 +246,19 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
     }
 
     private func handleScrollEvent(_ event: NSEvent) -> NSEvent? {
-        if event.momentumPhase != [] {
+        guard !event.isMomentumScroll else { return nil }
+
+        if case .end = bursts.track(ShortcutEventShape(event)) {
+            return nil
+        }
+        guard !bursts.isClaimed(.scrollWheel),
+              let direction = DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: event)
+        else {
             return nil
         }
 
-        // Fresh scroll burst (trackpad finger touch-down) clears any prior capture flag.
-        if event.phase == .began {
-            capturedBurstTypes.remove(.scrollWheel)
-        }
-        if capturedBurstTypes.contains(.scrollWheel) {
-            return nil
-        }
-
-        guard let direction = DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: event) else {
-            return nil
-        }
-
-        // Suppress further events only for trackpad bursts (which have phase info).
-        // Mouse-wheel notches have no phase — each is a distinct user action and
-        // should be capturable as its own step.
-        if event.phase != [] {
-            capturedBurstTypes.insert(.scrollWheel)
-        }
+        // A trackpad burst records one step; a mouse-wheel notch has no phase, so each records its own.
+        bursts.claim(ShortcutEventShape(event))
 
         let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
         let step = DiscreteShortcut.Step(kind: .scroll(direction: direction), modifiers: modifiers)
@@ -279,33 +269,31 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
     private func handleGestureEvent(_ event: NSEvent) -> NSEvent? {
         let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
 
-        // Reset accumulators / captured flags when a continuous gesture ends, so the
-        // next physical gesture starts fresh.
-        let isContinuousType = event.type == .magnify || event.type == .rotate
-        if isContinuousType, event.phase == .ended || event.phase == .cancelled {
-            gestures.resetAll()
-            capturedBurstTypes.subtract([.magnify, .rotate])
-            return nil
-        }
-
-        // Fresh gesture burst clears any prior capture flag — defensive against
-        // missed `.ended` events from the OS.
-        if event.type == .magnify, event.phase == .began {
-            capturedBurstTypes.remove(.magnify)
-            gestures.resetPinch()
-        }
-        if event.type == .rotate, event.phase == .began {
-            capturedBurstTypes.remove(.rotate)
-            gestures.resetRotate()
+        // A burst's end resets the accumulators, and a new burst resets its own, so a dropped
+        // `.ended` can't leave residue that trips the threshold in the wrong direction.
+        if event.type == .magnify || event.type == .rotate {
+            switch bursts.track(ShortcutEventShape(event)) {
+            case .end:
+                gestures.resetAll()
+                return nil
+            case .start:
+                if event.type == .magnify {
+                    gestures.resetPinch()
+                } else {
+                    gestures.resetRotate()
+                }
+            case .unphased, .middle:
+                break
+            }
         }
 
         switch event.type {
         case .magnify:
-            return captureBurstStep(.magnify, modifiers: modifiers) {
+            return captureBurstStep(event, modifiers: modifiers) {
                 gestures.consumeMagnify(Double(event.magnification))
             }
         case .rotate:
-            return captureBurstStep(.rotate, modifiers: modifiers) {
+            return captureBurstStep(event, modifiers: modifiers) {
                 gestures.consumeRotate(Double(event.rotation))
             }
         case .smartMagnify:
@@ -320,14 +308,14 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
     /// Append one step per physical burst: ignores the event once this burst has
     /// already produced a step, and only consumes the accumulator until it does.
     private func captureBurstStep(
-        _ type: NSEvent.EventType,
+        _ event: NSEvent,
         modifiers: NSEvent.ModifierFlags,
         consume: () -> DiscreteShortcut.Kind?
     ) -> NSEvent? {
-        guard !capturedBurstTypes.contains(type) else { return nil }
+        guard !bursts.isClaimed(event.type) else { return nil }
         if let kind = consume() {
             appendStep(DiscreteShortcut.Step(kind: kind, modifiers: modifiers))
-            capturedBurstTypes.insert(type)
+            bursts.claim(ShortcutEventShape(event))
         }
         return nil
     }

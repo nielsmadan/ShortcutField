@@ -160,11 +160,9 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField {
     }
 
     private func handleScrollEvent(_ event: NSEvent) -> NSEvent? {
-        guard !scrollCaptured else { return nil }
-        if event.momentumPhase != [] {
-            return nil
-        }
-        guard let direction = DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: event) else {
+        guard !scrollCaptured, !event.isMomentumScroll,
+              let direction = DiscreteShortcut.scrollDirectionAboveRecordingThreshold(from: event)
+        else {
             return nil
         }
 
@@ -178,15 +176,15 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField {
         let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
 
         // Reset accumulators when a continuous gesture ends so the next gesture starts fresh.
-        if event.phase == .ended || event.phase == .cancelled {
+        if event.phase.endsGesture {
             gestures.resetAll()
             return nil
         }
 
-        // Defensive reset on .began — if the OS dropped the prior gesture's .ended,
+        // Defensive reset on a burst's start — if the OS dropped the prior gesture's .ended,
         // residual accumulator could otherwise immediately satisfy the threshold and
         // record the wrong direction.
-        if event.phase == .began {
+        if event.phase.startsGesture {
             if event.type == .magnify {
                 gestures.resetPinch()
             }

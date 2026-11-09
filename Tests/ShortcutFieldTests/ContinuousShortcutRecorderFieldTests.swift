@@ -132,6 +132,19 @@ import Testing
         #expect(field.shortcut != nil)
         #expect(field.toolTip == "Rotate CW")
     }
+
+    @MainActor
+    @Test func recorderField_burstStartingWithMayBegin_dropsTheLeftoverPinch() {
+        let field = ContinuousShortcutRecorderField()
+        field.startRecording()
+        defer { field.endRecording() }
+
+        _ = field.handleEvent(gestureEvent(.magnify, 0.04))
+        _ = field.handleEvent(gestureEvent(.magnify, 0, phase: .mayBegin))
+        _ = field.handleEvent(gestureEvent(.magnify, 0.02))
+
+        #expect(field.isRecording)
+    }
 }
 
 // MARK: - Menu

@@ -37,7 +37,8 @@ public final class ShortcutMatcher {
         }
     }
 
-    /// Feed an `NSEvent`. Returns whether it advanced or completed a match.
+    /// Feed an `NSEvent`. Returns whether it completed a match, and whether the event
+    /// should be consumed (see ``ShortcutMatchResult``).
     ///
     /// A discrete shortcut whose first step is a bare key or a ⇧/⌥-only
     /// combination returns `.ignored` while an editable text responder has focus,

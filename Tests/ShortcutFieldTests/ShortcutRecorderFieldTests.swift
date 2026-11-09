@@ -336,6 +336,96 @@ private let scrollDeltaAboveThreshold: Int32 = 10
         #expect(!first.isRecording)
         #expect(second.isRecording)
     }
+
+    // MARK: - Trackpad bursts
+
+    private static func step(_ kind: DiscreteShortcut.Kind) -> DiscreteShortcut.Step {
+        DiscreteShortcut.Step(kind: kind, modifiers: [])
+    }
+
+    /// Records `events` into a fresh field, finalizes, and returns what it committed.
+    private func recorded(_ events: [NSEvent]) -> DiscreteShortcut? {
+        let field = ShortcutRecorderField()
+        field.startRecording()
+        defer { field.endRecording() }
+        for event in events {
+            _ = field.handleEvent(event)
+        }
+        field.finalizeRecording()
+        return field.shortcut
+    }
+
+    @MainActor
+    @Test func recorderField_trackpadScrollBurst_recordsOneStep() {
+        let events = [
+            scrollEvent(deltaY: -10, phase: .began),
+            scrollEvent(deltaY: -10, phase: .changed),
+            scrollEvent(deltaY: -10, momentum: .began),
+        ]
+
+        #expect(recorded(events) == DiscreteShortcut(steps: [Self.step(.scroll(direction: .down))]))
+    }
+
+    @MainActor
+    @Test func recorderField_wheelNotches_recordAStepEach() {
+        #expect(recorded([scrollEvent(deltaY: 10), scrollEvent(deltaY: 10)]) == DiscreteShortcut(steps: [
+            Self.step(.scroll(direction: .up)), Self.step(.scroll(direction: .up)),
+        ]))
+    }
+
+    @MainActor
+    @Test func recorderField_trackpadScrollBurstStartingWithMayBegin_recordsAFreshStep() {
+        let events = [
+            scrollEvent(deltaY: -10, phase: .began),
+            scrollEvent(deltaY: -10, phase: .changed),
+            scrollEvent(phase: .mayBegin),
+            scrollEvent(deltaY: -10, phase: .changed),
+        ]
+
+        #expect(recorded(events) == DiscreteShortcut(steps: [
+            Self.step(.scroll(direction: .down)), Self.step(.scroll(direction: .down)),
+        ]))
+    }
+
+    @MainActor
+    @Test func recorderField_wheelNotchAfterAnEndedTrackpadScrollBurst_recordsAStep() {
+        let events = [
+            scrollEvent(deltaY: -10, phase: .began),
+            scrollEvent(deltaY: -10, phase: .changed),
+            scrollEvent(phase: .ended),
+            scrollEvent(deltaY: 10),
+        ]
+
+        #expect(recorded(events) == DiscreteShortcut(steps: [
+            Self.step(.scroll(direction: .down)), Self.step(.scroll(direction: .up)),
+        ]))
+    }
+
+    @MainActor
+    @Test func recorderField_pinchBurstStartingWithMayBegin_recordsAFreshStep() {
+        let events = [
+            gestureEvent(.magnify, 0.06),
+            gestureEvent(.magnify, 0, phase: .mayBegin),
+            gestureEvent(.magnify, 0.06),
+        ]
+
+        #expect(recorded(events) == DiscreteShortcut(steps: [Self.step(.pinchOut), Self.step(.pinchOut)]))
+    }
+
+    @MainActor
+    @Test func recorderField_eventOfAnotherType_endsThePinchBurst() {
+        let events = [
+            gestureEvent(.magnify, 0.06),
+            keyDown(kVK_ANSI_K, .command),
+            gestureEvent(.magnify, 0.06),
+        ]
+
+        #expect(recorded(events) == DiscreteShortcut(steps: [
+            Self.step(.pinchOut),
+            .init(keyCode: UInt16(kVK_ANSI_K), modifiers: .command),
+            Self.step(.pinchOut),
+        ]))
+    }
 }
 
 // MARK: - Dispatcher / matcher behavior
