@@ -114,7 +114,7 @@ MyView()
 
 // Continuous shortcuts fire repeatedly during the gesture, throttled by sensitivity.
 MyView()
-    .onShortcut(.continuous(zoomShortcut)) {
+    .onShortcut(zoomShortcut.map(Shortcut.continuous)) {
         zoomLevel += 0.05
     }
 ```
@@ -152,12 +152,16 @@ Multi-step shortcuts are gated on their **first** step only. Once the user has p
 For manual matching, drive a `ShortcutMatcher` yourself or use the `matches()` primitives directly:
 
 ```swift
-// ShortcutMatcher: feed it NSEvents, inspect the ShortcutMatchResult.
+// ShortcutMatcher: feed it NSEvents from a local monitor and inspect the ShortcutMatchResult.
+// Returning nil consumes the event, so it doesn't also reach the focused view.
 let matcher = ShortcutMatcher(.discrete(shortcut))
-switch matcher.handle(event) {
-case .fired:                       runAction()
-case .continuousFired(let delta):  runAction(scaledBy: delta)
-case .advanced, .ignored:          break
+NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .scrollWheel, .magnify]) { event in
+    switch matcher.handle(event) {
+    case .fired:                       runAction(); return nil
+    case .continuousFired(let delta):  runAction(scaledBy: delta); return nil
+    case .advanced(let consume):       return consume ? nil : event
+    case .ignored:                     return event
+    }
 }
 
 // Or match a single Step / ContinuousShortcut against an NSEvent directly.

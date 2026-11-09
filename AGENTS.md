@@ -57,9 +57,11 @@ ShortcutField splits two concerns into distinct types:
 - `Matching/ShortcutEventShape.swift` — Internal: value snapshot of the `NSEvent` fields scroll and gesture matching reads; tests build one directly to feed exact deltas and phases.
 - `Matching/TextInputFocus.swift` — Internal: focused-responder check behind the text-input gate; `responderOverride` test seam.
 - `Matching/ShortcutTracking.swift` — Public `ShortcutTracking.isActive` flag for in-progress multi-step matches; bumped automatically by `SequenceMatcher`.
-- `BaseShortcutRecorderField.swift` — Shared `NSSearchField` base for the two recorder fields (cell class, sizing, key-view eligibility, event-monitor storage, click hit-test).
+- `BaseShortcutRecorderField.swift` — Shared `NSSearchField` base for the two recorder fields (cell class, sizing, key-view eligibility, event-monitor storage, click hit-test, recording-session lifecycle: the field's window, disabling, the clear button, Tab and VoiceOver).
+- `CenteredSearchFieldCell.swift` — Internal `NSSearchFieldCell` subclass that vertically centers text when the bezel is off; the base field's cell class, and the element VoiceOver reads, so it supplies the shortcut as text.
+- `ShortcutRecordingState.swift` — Public `ShortcutRecording.isActive` flag (any recorder field capturing), plus the internal `ActiveShortcutRecorder` protocol and `ShortcutRecordingState` registry that ends a previous recorder's session when another begins.
 - `ShortcutRecorderView.swift` — SwiftUI recorder (NSViewRepresentable) for `DiscreteShortcut`.
-- `ShortcutRecorderField.swift` — AppKit `NSSearchField` subclass for `DiscreteShortcut`. Multi-step capture with 1-second idle timeout; bare left-click anywhere (no modifiers) finalizes. Also hosts the public `ShortcutRecording` namespace (`isActive` flag) plus the internal `ActiveShortcutRecorder` protocol and `ShortcutRecordingState`.
+- `ShortcutRecorderField.swift` — AppKit `NSSearchField` subclass for `DiscreteShortcut`. Multi-step capture with 1-second idle timeout; a bare left-click (no modifiers) anywhere in its window finalizes.
 - `ContinuousShortcutRecorderView.swift` — SwiftUI recorder with sensitivity slider for `ContinuousShortcut`.
 - `ContinuousShortcutRecorderField.swift` — AppKit recorder for `ContinuousShortcut`.
 - `ContinuousShortcutRecorderField+Menu.swift` — chevron menu picker for continuous kinds (scroll / pinch / rotate).
@@ -77,7 +79,7 @@ ShortcutField splits two concerns into distinct types:
 
 ## Coding Style & Naming Conventions
 
-This package targets Swift 6.2 (strict concurrency — all new types must be `Sendable`-safe) and macOS 13+. Follow the existing style: 4-space indentation and 120-character line width, enforced by SwiftLint and SwiftFormat. Use UpperCamelCase for types (`ShortcutRecorderView`), lowerCamelCase for properties and methods (`displayString`), and keep file names aligned with the primary type or extension they contain.
+This package targets Swift 6.2 (strict concurrency — all new types must be `Sendable`-safe) and macOS 13+. Follow the existing style: 4-space indentation and a 120-character line width. SwiftFormat wraps code to that width (`--maxwidth 120`); SwiftLint's `line_length` rule is disabled. Use UpperCamelCase for types (`ShortcutRecorderView`), lowerCamelCase for properties and methods (`displayString`), and keep file names aligned with the primary type or extension they contain.
 
 ## Comments & Documentation
 
