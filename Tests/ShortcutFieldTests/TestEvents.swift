@@ -10,6 +10,16 @@ func keyDown(_ keyCode: Int, _ modifiers: NSEvent.ModifierFlags = [], isRepeat: 
     return NSEvent(cgEvent: cg)!
 }
 
+/// Synthesize a key-down `NSEvent` addressed to `window`, as AppKit delivers a keystroke there.
+@MainActor
+func keyDown(_ keyCode: Int, _ modifiers: NSEvent.ModifierFlags = [], in window: NSWindow) -> NSEvent {
+    NSEvent.keyEvent(
+        with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0,
+        windowNumber: window.windowNumber, context: nil, characters: "", charactersIgnoringModifiers: "",
+        isARepeat: false, keyCode: UInt16(keyCode)
+    )!
+}
+
 /// Synthesize a scroll-wheel `NSEvent`: a mouse-wheel notch by default, or one event of a
 /// trackpad burst in `phase`, or of its momentum coast in `momentum`.
 func scrollEvent(

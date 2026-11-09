@@ -29,7 +29,7 @@ struct OnShortcutModifierTests {
 
     @MainActor
     final class ActionCounter {
-        var count = 0
+        var fires = 0
     }
 
     /// Records the most recent `tag` an action closure fired with, plus how many
@@ -47,7 +47,7 @@ struct OnShortcutModifierTests {
         var body: some View {
             Text("shortcut-host")
                 .onShortcut(model.shortcut.map(Shortcut.discrete)) {
-                    counter.count += 1
+                    counter.fires += 1
                 }
         }
     }
@@ -121,10 +121,10 @@ struct OnShortcutModifierTests {
         #expect(pump { dispatcher.handlerCount == baseline + 1 })
 
         _ = dispatcher.handleEvent(keyDown(kVK_ANSI_S, .command))
-        #expect(counter.count == 1)
+        #expect(counter.fires == 1)
 
         _ = dispatcher.handleEvent(keyDown(kVK_ANSI_A, .command))
-        #expect(counter.count == 1)
+        #expect(counter.fires == 1)
     }
 
     @Test("the action closure is refreshed when the view re-renders without a shortcut change")
@@ -176,5 +176,247 @@ struct OnShortcutModifierTests {
         window.orderOut(nil)
         window.contentView = nil
         #expect(pump { dispatcher.handlerCount == baseline })
+    }
+
+    // MARK: - Scope
+
+    @MainActor
+    final class ScopeModel: ObservableObject {
+        @Published var scope: ShortcutScope
+        init(_ scope: ShortcutScope) {
+            self.scope = scope
+        }
+    }
+
+    private struct ScopedHarness: View {
+        @ObservedObject var model: ScopeModel
+        let shortcut: Shortcut
+        let counter: ActionCounter
+
+        var body: some View {
+            Text("scoped-host")
+                .onShortcut(shortcut, scope: model.scope) {
+                    counter.fires += 1
+                }
+        }
+    }
+
+    final class BindingModel: ObservableObject {
+        @Published var shortcut: Shortcut = "cmd+s"
+        @Published var scope: ShortcutScope = .app
+    }
+
+    private struct BindingHarness: View {
+        @ObservedObject var model: BindingModel
+        let counter: ActionCounter
+
+        var body: some View {
+            Text("binding-host")
+                .onShortcut(model.shortcut, scope: model.scope) {
+                    counter.fires += 1
+                }
+        }
+    }
+
+    private static func offscreenWindow() -> NSWindow {
+        NSWindow(
+            contentRect: NSRect(x: -10000, y: -10000, width: 80, height: 40),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+    }
+
+    private func mountScoped(
+        _ scope: ShortcutScope,
+        shortcut: Shortcut = "cmd+s"
+    ) -> (counter: ActionCounter, window: NSWindow, model: ScopeModel) {
+        let counter = ActionCounter()
+        let model = ScopeModel(scope)
+        let window = Self.offscreenWindow()
+        window.contentView = NSHostingView(rootView: ScopedHarness(model: model, shortcut: shortcut, counter: counter))
+        window.orderFront(nil)
+        return (counter, window, model)
+    }
+
+    @Test("an app-scoped shortcut fires in every window")
+    func appScopeFiresEverywhere() {
+        let dispatcher = ShortcutEventDispatcher.shared
+        let baseline = dispatcher.handlerCount
+        let first = mountScoped(.app)
+        let second = mountScoped(.app)
+        defer {
+            for window in [first.window, second.window] {
+                window.orderOut(nil)
+                window.contentView = nil
+            }
+            pump { dispatcher.handlerCount == baseline }
+        }
+        #expect(pump { dispatcher.handlerCount == baseline + 2 })
+
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_S, .command, in: first.window))
+        #expect(first.counter.fires == 1)
+        #expect(second.counter.fires == 1)
+    }
+
+    @Test("a window-scoped shortcut fires only for events sent to its own window")
+    func windowScopeFiresOnlyInItsWindow() {
+        let dispatcher = ShortcutEventDispatcher.shared
+        let baseline = dispatcher.handlerCount
+        let first = mountScoped(.window)
+        let second = mountScoped(.window)
+        defer {
+            for window in [first.window, second.window] {
+                window.orderOut(nil)
+                window.contentView = nil
+            }
+            pump { dispatcher.handlerCount == baseline }
+        }
+        #expect(pump { dispatcher.handlerCount == baseline + 2 })
+
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_S, .command, in: first.window))
+        #expect(first.counter.fires == 1)
+        #expect(second.counter.fires == 0)
+
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_S, .command, in: second.window))
+        #expect(first.counter.fires == 1)
+        #expect(second.counter.fires == 1)
+
+        // A keystroke with no window reaches neither.
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_S, .command))
+        #expect(first.counter.fires == 1)
+        #expect(second.counter.fires == 1)
+    }
+
+    @Test("changing the scope takes effect for later events")
+    func scopeChangeTakesEffect() {
+        let dispatcher = ShortcutEventDispatcher.shared
+        let baseline = dispatcher.handlerCount
+        let host = mountScoped(.window)
+        let other = Self.offscreenWindow()
+        other.orderFront(nil)
+        defer {
+            for window in [host.window, other] {
+                window.orderOut(nil)
+                window.contentView = nil
+            }
+            pump { dispatcher.handlerCount == baseline }
+        }
+        #expect(pump { dispatcher.handlerCount == baseline + 1 })
+
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_S, .command, in: other))
+        #expect(host.counter.fires == 0)
+
+        host.model.scope = .app
+        pump(timeout: 0.25) { false }
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_S, .command, in: other))
+        #expect(host.counter.fires == 1)
+
+        host.model.scope = .window
+        pump(timeout: 0.25) { false }
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_S, .command, in: other))
+        #expect(host.counter.fires == 1)
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_S, .command, in: host.window))
+        #expect(host.counter.fires == 2)
+    }
+
+    @Test("a key press in another window ends a window-scoped sequence")
+    func otherWindowPressEndsSequence() {
+        let dispatcher = ShortcutEventDispatcher.shared
+        let baseline = dispatcher.handlerCount
+        let host = mountScoped(.window, shortcut: "cmd+k cmd+c")
+        let other = Self.offscreenWindow()
+        other.orderFront(nil)
+        defer {
+            for window in [host.window, other] {
+                window.orderOut(nil)
+                window.contentView = nil
+            }
+            pump { dispatcher.handlerCount == baseline }
+        }
+        #expect(pump { dispatcher.handlerCount == baseline + 1 })
+
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_K, .command, in: host.window))
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_X, .command, in: other))
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_C, .command, in: host.window))
+        #expect(host.counter.fires == 0)
+
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_K, .command, in: host.window))
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_C, .command, in: host.window))
+        #expect(host.counter.fires == 1)
+    }
+
+    @Test("a window-scoped shortcut whose view is in no window ignores windowless events")
+    func windowScopeWithoutHostWindow() {
+        let dispatcher = ShortcutEventDispatcher.shared
+        let baseline = dispatcher.handlerCount
+        let counter = ActionCounter()
+        let host = NSHostingView(rootView: ScopedHarness(
+            model: ScopeModel(.window),
+            shortcut: "cmd+s",
+            counter: counter
+        ))
+        host.layoutSubtreeIfNeeded()
+        defer {
+            // A windowless host never disappears; mount it briefly so its handler unregisters.
+            let window = Self.offscreenWindow()
+            window.contentView = host
+            pump(timeout: 0.2) { false }
+            window.contentView = nil
+            #expect(pump { dispatcher.handlerCount == baseline })
+        }
+        #expect(pump { dispatcher.handlerCount == baseline + 1 })
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_S, .command))
+        #expect(counter.fires == 0)
+    }
+
+    @Test("a window-scoped shortcut follows its view into another window")
+    func windowScopeFollowsMovedView() {
+        let dispatcher = ShortcutEventDispatcher.shared
+        let baseline = dispatcher.handlerCount
+        let first = mountScoped(.window)
+        let other = Self.offscreenWindow()
+        other.orderFront(nil)
+        defer {
+            for window in [first.window, other] {
+                window.orderOut(nil)
+                window.contentView = nil
+            }
+            pump { dispatcher.handlerCount == baseline }
+        }
+        #expect(pump { dispatcher.handlerCount == baseline + 1 })
+        let host = first.window.contentView
+        first.window.contentView = NSView()
+        other.contentView = host
+        #expect(pump { dispatcher.handlerCount == baseline + 1 })
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_S, .command, in: other))
+        #expect(first.counter.fires == 1)
+    }
+
+    @Test("changing the shortcut and the scope together binds the new pair")
+    func shortcutAndScopeChangeTogether() {
+        let dispatcher = ShortcutEventDispatcher.shared
+        let baseline = dispatcher.handlerCount
+        let model = BindingModel()
+        let counter = ActionCounter()
+        let window = Self.offscreenWindow()
+        window.contentView = NSHostingView(rootView: BindingHarness(model: model, counter: counter))
+        window.orderFront(nil)
+        defer {
+            window.orderOut(nil)
+            window.contentView = nil
+            pump { dispatcher.handlerCount == baseline }
+        }
+        #expect(pump { dispatcher.handlerCount == baseline + 1 })
+
+        model.shortcut = "cmd+d"
+        model.scope = .window
+        pump(timeout: 0.25) { false }
+
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_S, .command, in: window))
+        #expect(counter.fires == 0)
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_D, .command, in: window))
+        #expect(counter.fires == 1)
+        #expect(dispatcher.handlerCount == baseline + 1)
     }
 }

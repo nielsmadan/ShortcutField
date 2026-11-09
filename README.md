@@ -121,6 +121,15 @@ MyView()
 
 For 1-step discrete shortcuts the action fires once on the matching event. For multi-step shortcuts the action fires once when the full sequence completes within the per-step timeout (1 second). For continuous shortcuts it fires on each throttled gesture event.
 
+Every mounted `.onShortcut` fires on a matching event in any window of the app. In an app with several windows, pass `scope: .window` so a binding fires only for events sent to the window containing its view. A binding declared inside a sheet, panel or popover acts on that window; events sent to any other window pass through:
+
+```swift
+DocumentView()
+    .onShortcut("cmd+shift+e", scope: .window) {
+        export(document)
+    }
+```
+
 ### Typing takes precedence
 
 While a text-editing responder has focus, shortcuts the user could plausibly have *typed* stay out of the way. The rule is derived from the shortcut's shape — there is nothing to configure:
@@ -353,6 +362,10 @@ SwiftUI recorder for sensitivity-bearing continuous shortcuts. Binds a `Continuo
 View modifier that fires an action when a `Shortcut` is performed. Takes the umbrella `Shortcut?`.
 
 For `.discrete` shortcuts the action fires once on completion: immediately for 1-step, after the full sequence for multi-step (intermediate events propagate normally; only focus-intercepted keys like Tab/Escape are consumed mid-sequence). For `.continuous` shortcuts it fires on each throttled gesture event. Once a trackpad gesture or scroll fires a discrete shortcut or matches a continuous one, the rest of that gesture and its momentum are consumed too, apart from its end event. Multiple shortcuts that share a common prefix (e.g. `A B` and `A T`) work correctly: each tracks independently and the shared dispatcher delivers every event to all active matchers. Matching is automatically disabled while any recorder field is active. Bare-key and ⇧/⌥-only shortcuts are suppressed while a text-editing responder has focus (Escape and F1–F20 are exempt) (see [Typing takes precedence](#typing-takes-precedence)).
+
+### `.onShortcut(_:scope:perform:)` and `ShortcutScope`
+
+The same modifier limited to a `ShortcutScope`. `.app` responds to every window, like `.onShortcut(_:perform:)`. `.window` fires only for events sent to the window containing the view (a sheet, panel or popover is a window of its own); it never fires for events sent to no window or before the view is in a window, and a key press or click in another window ends a multi-step sequence in progress.
 
 ### `ShortcutTracking`
 

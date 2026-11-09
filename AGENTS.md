@@ -64,7 +64,8 @@ ShortcutField splits two concerns into distinct types:
 - `ContinuousShortcutRecorderField+Menu.swift` — chevron menu picker for continuous kinds (scroll / pinch / rotate).
 - `ShortcutLabel.swift` — Compact, read-only SwiftUI label for a shortcut (icons + hover tooltips, or verbose text); ideal for a shortcut legend.
 - `ShortcutLabelStyle.swift` — `.text` / `.compact` render style enum for display labels.
-- `OnShortcutModifier.swift` — `.onShortcut()` dispatcher; fires once for discrete shortcuts, throttled-continuous for continuous.
+- `OnShortcutModifier.swift` — `.onShortcut()` dispatcher; fires once for discrete shortcuts, throttled-continuous for continuous. Includes the `.onShortcut(_:scope:perform:)` overload; `.window` compares `event.window` with the host window recorded by a background `NSView`.
+- `ShortcutScope.swift` — `.app` / `.window` scope for `.onShortcut(_:scope:perform:)`.
 - `SuppressShortcutBeep.swift` — `.suppressShortcutBeep()` view modifier and `ShortcutTracking.installBeepSuppression()` (view-free equivalent); installs a `noResponder(for:)` override gated on `ShortcutTracking.isActive`.
 - `ThrottleState.swift` — Internal: shared throttle state for continuous-shortcut firing.
 - `GestureAccumulator.swift` — Internal: per-burst threshold detection for pinch / rotate / scroll, shared between both recorder fields.

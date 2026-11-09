@@ -56,6 +56,8 @@ the [README](https://github.com/nielsmadan/ShortcutField) and the bundled
 ### Matching
 
 - ``SwiftUICore/View/onShortcut(_:perform:)``
+- ``SwiftUICore/View/onShortcut(_:scope:perform:)``
+- ``ShortcutScope``
 - ``ShortcutMatcher``
 - ``ShortcutMatchResult``
 - ``ShortcutEventDispatcher``
