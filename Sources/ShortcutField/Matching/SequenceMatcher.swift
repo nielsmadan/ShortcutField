@@ -61,14 +61,18 @@ final class SequenceMatcher {
             return preempt
         }
 
+        if currentStep > 0, event.type == .keyDown, event.isARepeat {
+            return handleRepeat(event, previousStep: shortcut.steps[currentStep - 1])
+        }
+
         let step = shortcut.steps[currentStep]
         guard step.matches(event) else {
             // Continuous-gesture bursts emit many sub-threshold or wrong-direction
             // events; treat those as non-resetting.
-            if !Self.isContinuousEventType(event.type) {
-                reset()
+            if Self.isContinuousEventType(event.type) || currentStep == 0 {
+                return .ignored
             }
-            return .ignored
+            return restart(with: event)
         }
 
         if yieldsToTextInput(event: event, step: step) {
@@ -97,6 +101,30 @@ final class SequenceMatcher {
         let consumeEvent = (event.type == .keyDown)
             && Self.isInterceptedByFocusSystem(keyCode: event.keyCode)
         return .advanced(consumeEvent: consumeEvent)
+    }
+
+    /// Runs the event that broke the sequence again as its first step (⌘K ⌘K ⌘C), so a restart
+    /// reports one tracking change rather than an end and a fresh start.
+    private func restart(with event: NSEvent) -> ShortcutMatchResult {
+        currentStep = 0
+        timeoutTask?.cancel()
+        timeoutTask = nil
+        let result = handle(event)
+        if result == .ignored {
+            reset()
+        }
+        return result
+    }
+
+    /// A held key's auto-repeat mid-sequence: it keeps the sequence alive while it repeats the step
+    /// just matched, and never counts as the next step.
+    private func handleRepeat(_ event: NSEvent, previousStep: DiscreteShortcut.Step) -> ShortcutMatchResult {
+        guard previousStep.matches(event) else {
+            reset()
+            return .ignored
+        }
+        restartTimeout()
+        return .advanced(consumeEvent: Self.isInterceptedByFocusSystem(keyCode: event.keyCode))
     }
 
     /// Events that must not reach the step matcher.

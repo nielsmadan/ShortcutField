@@ -1,10 +1,12 @@
 import AppKit
 import Carbon.HIToolbox
 
-/// Synthesize a key-down `NSEvent`.
-func keyDown(_ keyCode: Int, _ modifiers: NSEvent.ModifierFlags = []) -> NSEvent {
+/// Synthesize a key-down `NSEvent` carrying exactly `modifiers`, never the live modifier-key state;
+/// `isRepeat` makes it an auto-repeat of a held key.
+func keyDown(_ keyCode: Int, _ modifiers: NSEvent.ModifierFlags = [], isRepeat: Bool = false) -> NSEvent {
     let cg = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(keyCode), keyDown: true)!
     cg.flags = CGEventFlags(rawValue: UInt64(modifiers.rawValue))
+    cg.setIntegerValueField(.keyboardEventAutorepeat, value: isRepeat ? 1 : 0)
     return NSEvent(cgEvent: cg)!
 }
 
