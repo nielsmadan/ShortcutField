@@ -166,6 +166,8 @@ discreteShortcut.steps[0].matches(press)   // SwiftUI KeyPress, .key kinds only
 continuousShortcut.matches(event)
 ```
 
+`matches(press)` never fires on a key-up press. Special keys (Tab, arrows, F1–F20, Forward Delete, Help, keypad Enter and Clear) match by `press.key`. Other keys compare `press.characters` with the character the current keyboard layout produces, so a step holding Shift (`⇧1`) matches either `1` or `!`.
+
 ### Text syntax
 
 `Shortcut` and `DiscreteShortcut` round-trip through a VS Code-style ascii string:
@@ -273,7 +275,7 @@ A single recordable input within a shortcut.
 | `init(kind:modifiers:)` | Build any kind |
 | `init(keyCode:modifiers:)` | Convenience for keyboard steps |
 | `matches(_ event: NSEvent) -> Bool` | Match against an NSEvent (any kind) |
-| `matches(_ press: KeyPress) -> Bool` | Match against a SwiftUI KeyPress (key kinds only; macOS 14+) |
+| `matches(_ press: KeyPress) -> Bool` | Match against a SwiftUI KeyPress (key kinds only, key-up never matches; macOS 14+) |
 
 ### `ContinuousShortcut`
 

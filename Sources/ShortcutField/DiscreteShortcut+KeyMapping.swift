@@ -29,6 +29,12 @@ import Carbon.HIToolbox
 // MARK: - Special Key Names
 
 extension DiscreteShortcut {
+    /// F1 through F20, in order.
+    static let functionKeyCodes = [
+        kVK_F1, kVK_F2, kVK_F3, kVK_F4, kVK_F5, kVK_F6, kVK_F7, kVK_F8, kVK_F9, kVK_F10,
+        kVK_F11, kVK_F12, kVK_F13, kVK_F14, kVK_F15, kVK_F16, kVK_F17, kVK_F18, kVK_F19, kVK_F20,
+    ]
+
     private static let specialKeyNames: [Int: String] = [
         kVK_Return: "↩",
         kVK_Delete: "⌫",
@@ -44,19 +50,15 @@ extension DiscreteShortcut {
         kVK_RightArrow: "→",
         kVK_DownArrow: "↓",
         kVK_LeftArrow: "←",
-        kVK_F1: "F1",
-        kVK_F2: "F2",
-        kVK_F3: "F3",
-        kVK_F4: "F4",
-        kVK_F5: "F5",
-        kVK_F6: "F6",
-        kVK_F7: "F7",
-        kVK_F8: "F8",
-        kVK_F9: "F9",
-        kVK_F10: "F10",
-        kVK_F11: "F11",
-        kVK_F12: "F12",
-    ]
+        kVK_ANSI_KeypadEnter: "⌤",
+        kVK_ANSI_KeypadClear: "⌧",
+        kVK_Help: "Help",
+        kVK_VolumeUp: "Volume Up",
+        kVK_VolumeDown: "Volume Down",
+        kVK_Mute: "Mute",
+        kVK_JIS_Eisu: "英数",
+        kVK_JIS_Kana: "かな",
+    ].merging(zip(functionKeyCodes, 1...).map { ($0, "F\($1)") }) { named, _ in named }
 
     /// Returns a display string for special keys, or nil for regular keys.
     static func specialKeyString(keyCode: UInt16) -> String? {
@@ -67,8 +69,9 @@ extension DiscreteShortcut {
 // MARK: - UCKeyTranslate
 
 extension DiscreteShortcut {
-    /// Converts a virtual key code to the character it produces on the current keyboard layout.
-    static func keyToCharacter(keyCode: UInt16) -> String? {
+    /// Converts a virtual key code to the character it produces on the current keyboard layout,
+    /// with Shift held when `shifted`; `nil` when it produces nothing or only control characters.
+    static func keyToCharacter(keyCode: UInt16, shifted: Bool = false) -> String? {
         guard
             let source = TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue(),
             let layoutDataPointer = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData)
@@ -88,7 +91,7 @@ extension DiscreteShortcut {
                 keyLayout,
                 keyCode,
                 UInt16(kUCKeyActionDisplay),
-                0,
+                shifted ? UInt32(shiftKey >> 8) & 0xFF : 0,
                 UInt32(LMGetKbdType()),
                 OptionBits(kUCKeyTranslateNoDeadKeysBit),
                 &deadKeyState,
@@ -98,11 +101,17 @@ extension DiscreteShortcut {
             )
         }
 
-        guard error == noErr, length > 0 else {
-            return nil
-        }
+        guard error == noErr else { return nil }
+        return displayableString(characters.prefix(length))
+    }
 
-        return String(utf16CodeUnits: characters, count: length)
+    /// The UTF-16 output of a key translation as a string; `nil` when it is empty or holds
+    /// only control characters (F-keys, forward delete, keypad Enter translate to those).
+    static func displayableString(_ units: some Collection<UniChar>) -> String? {
+        let string = String(decoding: units, as: UTF16.self)
+        guard !string.isEmpty, !string.unicodeScalars.allSatisfy({ $0.properties.generalCategory == .control })
+        else { return nil }
+        return string
     }
 }
 

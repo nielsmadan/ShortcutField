@@ -39,9 +39,9 @@ ShortcutField splits two concerns into distinct types:
 **Source structure:**
 - `Shortcut.swift` — `Shortcut` umbrella enum: `.discrete(DiscreteShortcut)` / `.continuous(ContinuousShortcut)`, with a `kind` discriminator and forwarded `displayString`. Codable, Hashable, Sendable.
 - `DiscreteShortcut.swift` — Fire-once type: one or more `DiscreteShortcut.Step`s (kind + modifiers). Kind covers `.key`, `.mouseButton`, `.scroll`, `.pinchIn/Out`, `.rotateClockwise/CounterClockwise`, `.smartMagnify`. Codable, Equatable, Hashable, Sendable.
-- `DiscreteShortcut+Matching.swift` — `DiscreteShortcut.Step.matches(NSEvent)`, `matches(KeyPress)`, and the internal `matches(ShortcutEventShape)` that scroll and gesture matching runs through.
+- `DiscreteShortcut+Matching.swift` — `DiscreteShortcut.Step.matches(NSEvent)`, `matches(KeyPress)`, the internal `matches(ShortcutEventShape)` that scroll and gesture matching runs through, and the internal `matches(key:characters:modifiers:phase:layoutCharacter:)` test seam behind `matches(KeyPress)`.
 - `DiscreteShortcut+DisplayString.swift` — Human-readable display strings (`⌘K`, `Tab`, `Left Click`, `Scroll Up`, `⌘Pinch In`, …); `displayString` joins steps.
-- `DiscreteShortcut+KeyMapping.swift` — UCKeyTranslate, special-key names, `NSEvent.ModifierFlags.symbolicRepresentation`.
+- `DiscreteShortcut+KeyMapping.swift` — Special-key names, `keyToCharacter` (UCKeyTranslate, optionally shifted), `NSEvent.ModifierFlags.symbolicRepresentation`.
 - `DiscreteShortcut+Symbol.swift` — SF Symbol name mapping for `DiscreteShortcut.Kind` (gesture/scroll icons; `nil` for keys and mouse buttons).
 - `ContinuousShortcut.swift` — Sensitivity-bearing single-step type. Nested `ContinuousShortcut.Kind` exposes only continuous cases (scroll / pinch / rotate). Codable, Equatable, Hashable, Sendable.
 - `Syntax/ShortcutASCII.swift` — ASCII text syntax: `Shortcut(ascii:)` parser and `.ascii` serialization; `ExpressibleByStringLiteral`.

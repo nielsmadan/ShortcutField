@@ -48,8 +48,40 @@ import Testing
     #expect(DiscreteShortcut.specialKeyString(keyCode: UInt16(kVK_F12)) == "F12")
 }
 
+@Test func specialKeyString_extendedFunctionKeys() {
+    #expect(DiscreteShortcut.specialKeyString(keyCode: UInt16(kVK_F13)) == "F13")
+    #expect(DiscreteShortcut.specialKeyString(keyCode: UInt16(kVK_F16)) == "F16")
+    #expect(DiscreteShortcut.specialKeyString(keyCode: UInt16(kVK_F19)) == "F19")
+    #expect(DiscreteShortcut.specialKeyString(keyCode: UInt16(kVK_F20)) == "F20")
+}
+
+@Test func specialKeyString_keypadAndSystemKeys() {
+    #expect(DiscreteShortcut.specialKeyString(keyCode: UInt16(kVK_ANSI_KeypadEnter)) == "⌤")
+    #expect(DiscreteShortcut.specialKeyString(keyCode: UInt16(kVK_ANSI_KeypadClear)) == "⌧")
+    #expect(DiscreteShortcut.specialKeyString(keyCode: UInt16(kVK_Help)) == "Help")
+    #expect(DiscreteShortcut.specialKeyString(keyCode: UInt16(kVK_VolumeUp)) == "Volume Up")
+    #expect(DiscreteShortcut.specialKeyString(keyCode: UInt16(kVK_VolumeDown)) == "Volume Down")
+    #expect(DiscreteShortcut.specialKeyString(keyCode: UInt16(kVK_Mute)) == "Mute")
+    #expect(DiscreteShortcut.specialKeyString(keyCode: UInt16(kVK_JIS_Eisu)) == "英数")
+    #expect(DiscreteShortcut.specialKeyString(keyCode: UInt16(kVK_JIS_Kana)) == "かな")
+}
+
 @Test func specialKeyString_unknownKey_returnsNil() {
     #expect(DiscreteShortcut.specialKeyString(keyCode: 0) == nil)
+}
+
+// MARK: - Translation output
+
+@Test func displayableString_controlOnlyOutput_isNil() {
+    #expect(DiscreteShortcut.displayableString([UniChar(0x10)]) == nil)
+    #expect(DiscreteShortcut.displayableString([UniChar(0x7F)]) == nil)
+    #expect(DiscreteShortcut.displayableString([UniChar(0x03), UniChar(0x1B)]) == nil)
+    #expect(DiscreteShortcut.displayableString([UniChar]()) == nil)
+}
+
+@Test func displayableString_printableOutput_isKept() {
+    #expect(DiscreteShortcut.displayableString([UniChar(0x61)]) == "a")
+    #expect(DiscreteShortcut.displayableString([UniChar(0x1B), UniChar(0x61)]) == "\u{1B}a")
 }
 
 // MARK: - Modifier Symbolic Representation

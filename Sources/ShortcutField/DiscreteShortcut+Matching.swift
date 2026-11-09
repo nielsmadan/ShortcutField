@@ -86,40 +86,65 @@ extension DiscreteShortcut {
 public extension DiscreteShortcut.Step {
     /// Match this step against a SwiftUI `KeyPress`.
     ///
-    /// Only valid for `.key` steps; returns `false` for any other kind.
-    /// Handles special keys (Tab, arrows, etc.) where modifiers change `press.characters`,
-    /// falling back to keyboard-layout-aware character comparison for regular keys.
+    /// Only valid for `.key` steps; returns `false` for any other kind, and for key-up
+    /// presses. Special keys (Tab, arrows, F1–F20, Forward Delete, Help, keypad Enter and
+    /// Clear) compare by `press.key`; other keys compare `press.characters` with the
+    /// character the current keyboard layout produces, which for a step holding Shift may
+    /// be the shifted or the unshifted character.
     func matches(_ press: KeyPress) -> Bool {
-        guard case let .key(keyCode) = kind else { return false }
-        let pressModifiers = Self.eventModifiersToNSModifiers(press.modifiers)
-        guard pressModifiers == modifiers else { return false }
-        return matchesKey(press, keyCode: keyCode)
+        matches(key: press.key, characters: press.characters, modifiers: press.modifiers, phase: press.phase)
+    }
+}
+
+@available(macOS 14.0, *)
+extension DiscreteShortcut.Step {
+    /// Test seam for ``matches(_:)-(KeyPress)``: `KeyPress` has no public initializer.
+    /// `layoutCharacter(keyCode, shifted)` gives the character the keyboard layout produces.
+    func matches(
+        key: KeyEquivalent, characters: String, modifiers pressModifiers: SwiftUI.EventModifiers,
+        phase: KeyPress.Phases,
+        layoutCharacter: (UInt16, Bool) -> String? = { DiscreteShortcut.keyToCharacter(keyCode: $0, shifted: $1) }
+    ) -> Bool {
+        guard case let .key(keyCode) = kind, phase != .up,
+              Self.eventModifiersToNSModifiers(pressModifiers) == modifiers else { return false }
+        if let keyEquivalent = Self.specialKeyEquivalent(keyCode: keyCode) {
+            return key == keyEquivalent
+        }
+        let expected = [
+            layoutCharacter(keyCode, false),
+            modifiers.contains(.shift) ? layoutCharacter(keyCode, true) : nil,
+        ]
+        return expected.contains { $0?.lowercased() == characters.lowercased() }
     }
 
-    private func matchesKey(_ press: KeyPress, keyCode: UInt16) -> Bool {
-        if let keyEquivalent = Self.specialKeyEquivalent(keyCode: keyCode) {
-            return press.key == keyEquivalent
+    private static let specialKeyEquivalents: [Int: KeyEquivalent] = {
+        let named: [Int: KeyEquivalent] = [
+            kVK_Tab: .tab,
+            kVK_Return: .return,
+            kVK_Delete: .delete,
+            kVK_Escape: .escape,
+            kVK_Space: .space,
+            kVK_UpArrow: .upArrow,
+            kVK_DownArrow: .downArrow,
+            kVK_LeftArrow: .leftArrow,
+            kVK_RightArrow: .rightArrow,
+            kVK_Home: .home,
+            kVK_End: .end,
+            kVK_PageUp: .pageUp,
+            kVK_PageDown: .pageDown,
+            kVK_ForwardDelete: .deleteForward,
+            kVK_ANSI_KeypadClear: .clear,
+            kVK_ANSI_KeypadEnter: KeyEquivalent("\u{03}"),
+        ]
+        let functionKeys = zip(DiscreteShortcut.functionKeyCodes, NSF1FunctionKey...) + [(kVK_Help, NSHelpFunctionKey)]
+        let functionKeyEquivalents = functionKeys.compactMap { keyCode, unicode in
+            Unicode.Scalar(UInt32(unicode)).map { (keyCode, KeyEquivalent(Character($0))) }
         }
-        return DiscreteShortcut.keyToCharacter(keyCode: keyCode)?.lowercased() == press.characters.lowercased()
-    }
+        return named.merging(functionKeyEquivalents) { named, _ in named }
+    }()
 
     private static func specialKeyEquivalent(keyCode: UInt16) -> KeyEquivalent? {
-        switch Int(keyCode) {
-        case kVK_Tab: .tab
-        case kVK_Return: .return
-        case kVK_Delete: .delete
-        case kVK_Escape: .escape
-        case kVK_Space: .space
-        case kVK_UpArrow: .upArrow
-        case kVK_DownArrow: .downArrow
-        case kVK_LeftArrow: .leftArrow
-        case kVK_RightArrow: .rightArrow
-        case kVK_Home: .home
-        case kVK_End: .end
-        case kVK_PageUp: .pageUp
-        case kVK_PageDown: .pageDown
-        default: nil
-        }
+        specialKeyEquivalents[Int(keyCode)]
     }
 
     private static func eventModifiersToNSModifiers(_ modifiers: SwiftUI.EventModifiers) -> NSEvent.ModifierFlags {

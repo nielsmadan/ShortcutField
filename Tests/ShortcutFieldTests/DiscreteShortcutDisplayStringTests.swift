@@ -20,16 +20,25 @@ import Testing
         #expect(s.displayString == "⌘↩")
     }
 
-    @Test func key_letterOnly() {
+    @Test func key_letterOnly_showsTheLayoutCharacter() throws {
         let s = DiscreteShortcut(keyCode: 1, modifiers: [])
-        #expect(s.displayString == "s")
+        let character = try #require(DiscreteShortcut.keyToCharacter(keyCode: 1))
+        #expect(s.displayString == character)
+        #expect(character == character.lowercased() && character != character.uppercased())
     }
 
-    @Test func key_modifierWithLetter() {
+    @Test func key_untranslatableKey_namesTheKeyCode() {
+        #expect(DiscreteShortcut(keyCode: 200, modifiers: .command).displayString == "⌘Key 200")
+    }
+
+    @Test func key_functionKeyBeyondF12_isNamed() {
+        #expect(DiscreteShortcut(keyCode: UInt16(kVK_F13), modifiers: .command).displayString == "⌘F13")
+    }
+
+    @Test func key_modifierWithLetter() throws {
         let s = DiscreteShortcut(keyCode: 38, modifiers: [.command, .shift])
-        let display = s.displayString
-        #expect(display.contains("⇧"))
-        #expect(display.contains("⌘"))
+        let character = try #require(DiscreteShortcut.keyToCharacter(keyCode: 38))
+        #expect(s.displayString == "⇧⌘" + character)
     }
 
     // MARK: - Mouse buttons
@@ -126,8 +135,12 @@ import Testing
 
     // MARK: - keyToCharacter
 
-    @Test func keyToCharacter_knownKeys() {
-        #expect(DiscreteShortcut.keyToCharacter(keyCode: 0)?.lowercased() == "a")
-        #expect(DiscreteShortcut.keyToCharacter(keyCode: 1)?.lowercased() == "s")
+    @Test func keyToCharacter_letterKeys_produceOnePrintableCharacter() throws {
+        for keyCode: UInt16 in [0, 1] {
+            let character = try #require(DiscreteShortcut.keyToCharacter(keyCode: keyCode))
+            #expect(character.count == 1)
+            #expect(character.unicodeScalars.allSatisfy { $0.properties.generalCategory != .control })
+            #expect(DiscreteShortcut.keyToCharacter(keyCode: keyCode, shifted: true) == character.uppercased())
+        }
     }
 }

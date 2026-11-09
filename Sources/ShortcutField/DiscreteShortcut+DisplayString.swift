@@ -43,7 +43,7 @@ extension DiscreteShortcut.Kind {
         if let char = DiscreteShortcut.keyToCharacter(keyCode: keyCode) {
             return char
         }
-        return "?"
+        return "Key \(keyCode)"
     }
 
     private static func mouseButtonDisplayString(number: Int) -> String {
