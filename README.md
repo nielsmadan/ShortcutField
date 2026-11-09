@@ -397,6 +397,7 @@ Both `ShortcutRecorderField` and `ContinuousShortcutRecorderField` share these b
 - **Delete** clears the current shortcut (multi-step recorder: only when no steps have been recorded yet); so does the clear (x) button
 - Only one recorder can be active at a time. Focusing a new recorder ends the previous one.
 - Recording ends, keeping what was captured, when the field's window stops being key; closing the window, or disabling the field, discards it. Input sent to other windows is never recorded.
+- VoiceOver reads the field as "Shortcut" (`setAccessibilityLabel(_:)` replaces it) with the shortcut as text, and announces when recording starts and ends. The continuous recorder's slider reads as "Sensitivity" with a percentage.
 
 `ShortcutRecorderField` finalizes after a 1-second pause between captured steps OR on a bare left-click anywhere in its window (no modifiers). Each captured step resets the idle timer. After the first step, Tab is recorded like any other key, and a held key records once, not once per auto-repeat. **Bare left-click can't be a step**: it's reserved for UI interaction (focusing controls, dismissing the recorder) and serves as the "finalize" gesture. Modified left clicks (e.g. `⌃Left Click`) are capturable. All other inputs, including right click and other mouse buttons, can be captured anywhere in the field's window with no modifiers required.
 

@@ -183,3 +183,28 @@ struct DiscreteShortcutSymbolTests {
         return found
     }
 }
+
+@MainActor
+@Suite("Display element full text") struct DisplayElementFullTextTests {
+    @Test func fullText_foldsIconsAndAbbreviationsToTheirLabels() {
+        let elements: [ShortcutDisplayElement] = [
+            .text("⌘"), .symbol(name: "arrow.up", label: "Scroll Up"), .text(" "),
+            .abbreviation(short: "LMB", label: "Left Click"),
+        ]
+        #expect(elements.fullText == "⌘Scroll Up Left Click")
+    }
+
+    @Test func fullText_ofCompactElements_equalsDisplayString() {
+        let shortcuts = [
+            DiscreteShortcut(kind: .pinchIn, modifiers: .command),
+            DiscreteShortcut(kind: .scroll(direction: .left), modifiers: [.control, .option]),
+            DiscreteShortcut(steps: [
+                .init(kind: .mouseButton(number: 1), modifiers: .shift),
+                .init(keyCode: UInt16(kVK_Tab), modifiers: .command),
+            ]),
+        ]
+        for shortcut in shortcuts {
+            #expect(shortcut.displayElements(style: .compact).fullText == shortcut.displayString)
+        }
+    }
+}

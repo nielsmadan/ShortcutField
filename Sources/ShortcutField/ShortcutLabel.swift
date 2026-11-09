@@ -40,19 +40,7 @@ public struct ShortcutLabel: View {
         }
         // Announce the label as one unit, not modifier/icon/abbreviation nodes.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(verbatim: accessibilityText))
-    }
-
-    /// The full text meaning of the label, folding icon/abbreviation elements back to
-    /// their `label`. Equals the shortcut's `displayString`.
-    private var accessibilityText: String {
-        elements.map { element in
-            switch element {
-            case let .text(string): string
-            case let .symbol(_, label): label
-            case let .abbreviation(_, label): label
-            }
-        }.joined()
+        .accessibilityLabel(Text(verbatim: elements.fullText))
     }
 
     @ViewBuilder

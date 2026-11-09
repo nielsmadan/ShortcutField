@@ -87,9 +87,34 @@ public class BaseShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, NS
     /// End the session when the field's window resigns key or closes.
     private nonisolated(unsafe) var windowObservers: [NSObjectProtocol] = []
     var cancelButton: NSButtonCell?
+    /// Test seam: asks VoiceOver to speak `message` for `element`.
+    var announcer: (Any, String) -> Void = { element, message in
+        NSAccessibility.post(element: element, notification: .announcementRequested, userInfo: [
+            .announcement: message,
+            .priority: NSAccessibilityPriorityLevel.high.rawValue,
+        ])
+    }
+
     var canBecomeKey = false
     var isStartingRecording = false
     var gestures = GestureAccumulator()
+
+    /// The committed shortcut as text, for VoiceOver: a compact style's symbols would read as
+    /// object-replacement characters.
+    var accessibilityText: String {
+        displayedShortcut?.displayString ?? ""
+    }
+
+    /// Sets the name VoiceOver reads for the field, which defaults to "Shortcut". AppKit exposes
+    /// the field to VoiceOver through its cell, so the name is stored on the cell.
+    override public func setAccessibilityLabel(_ label: String?) {
+        cell?.setAccessibilityLabel(label)
+    }
+
+    /// The name VoiceOver reads for the field, as stored on its cell.
+    override public func accessibilityLabel() -> String? {
+        cell?.accessibilityLabel()
+    }
 
     override public var canBecomeKeyView: Bool {
         canBecomeKey
@@ -134,6 +159,7 @@ public class BaseShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, NS
         setContentHuggingPriority(.defaultLow, for: .horizontal)
 
         cancelButton = (cell as? NSSearchFieldCell)?.cancelButtonCell
+        cell?.setAccessibilityLabel("Shortcut")
         captureBezeledHeight()
         configureAccessories()
         placeholderString = defaultPlaceholder
@@ -201,6 +227,7 @@ public class BaseShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, NS
         }
         observeWindow()
         isStartingRecording = false
+        announcer(cell ?? self, "Recording shortcut")
     }
 
     /// The monitor sees every event in the app; only events sent to this field's window
@@ -245,6 +272,7 @@ public class BaseShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, NS
         windowObservers = []
         placeholderString = defaultPlaceholder
         updateDisplay()
+        announcer(cell ?? self, "Recording ended")
     }
 
     func forceEndRecordingSession() {

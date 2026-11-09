@@ -19,7 +19,17 @@ struct SensitivitySliderRepresentable: NSViewRepresentable {
         slider.tickMarkPosition = .below
         slider.allowsTickMarkValuesOnly = snapToTicks
         slider.controlSize = .small
+        // VoiceOver reads the slider's cell, not the view.
+        slider.cell?.setAccessibilityLabel("Sensitivity")
+        Self.describeValue(of: slider)
         return slider
+    }
+
+    /// VoiceOver reads the value as a percentage rather than the raw 0–1 number.
+    static func describeValue(of slider: NSSlider) {
+        slider.cell?.setAccessibilityValueDescription(
+            slider.doubleValue.formatted(.percent.precision(.fractionLength(0)))
+        )
     }
 
     func updateNSView(_ nsView: NSSlider, context: Context) {
@@ -29,6 +39,7 @@ struct SensitivitySliderRepresentable: NSViewRepresentable {
         let desired = snapToTicks ? SensitivityMode.discrete.snap(value) : value
         if abs(nsView.doubleValue - desired) > 0.001 {
             nsView.doubleValue = desired
+            Self.describeValue(of: nsView)
         }
     }
 
@@ -45,6 +56,7 @@ struct SensitivitySliderRepresentable: NSViewRepresentable {
         }
 
         @objc func changed(_ sender: NSSlider) {
+            SensitivitySliderRepresentable.describeValue(of: sender)
             value.wrappedValue = sender.doubleValue
         }
     }

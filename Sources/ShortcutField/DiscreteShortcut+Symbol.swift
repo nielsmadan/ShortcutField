@@ -72,6 +72,20 @@ public enum ShortcutDisplayElement: Sendable, Equatable, Hashable {
     case abbreviation(short: String, label: String)
 }
 
+extension [ShortcutDisplayElement] {
+    /// The full text meaning, folding icon and abbreviation elements back to their
+    /// `label`. Equals the shortcut's `displayString`.
+    var fullText: String {
+        map { element in
+            switch element {
+            case let .text(string): string
+            case let .symbol(_, label): label
+            case let .abbreviation(_, label): label
+            }
+        }.joined()
+    }
+}
+
 public extension DiscreteShortcut.Step {
     /// Break this step into renderable elements for the given style.
     ///
@@ -204,28 +218,31 @@ private func symbolAttachmentString(name: String, label: String, font: NSFont, c
 public extension DiscreteShortcut.Step {
     /// A `Text` combining icon and text runs. Convenient for read-only display;
     /// for per-icon hover tooltips use ``ShortcutLabel`` (a `Text` cannot carry
-    /// per-run help).
+    /// per-run help). VoiceOver reads the full text, `displayString`, not icon names.
     func displayText(style: ShortcutLabelStyle) -> Text {
         text(from: displayElements(style: style))
     }
 }
 
 public extension DiscreteShortcut {
-    /// A `Text` combining icon and text runs for the full shortcut.
+    /// A `Text` combining icon and text runs for the full shortcut. VoiceOver reads
+    /// the full text, `displayString`, not icon names.
     func displayText(style: ShortcutLabelStyle) -> Text {
         text(from: displayElements(style: style))
     }
 }
 
 public extension ContinuousShortcut {
-    /// A `Text` combining icon and text runs.
+    /// A `Text` combining icon and text runs. VoiceOver reads the full text,
+    /// `displayString`, not icon names.
     func displayText(style: ShortcutLabelStyle) -> Text {
         text(from: displayElements(style: style))
     }
 }
 
 public extension Shortcut {
-    /// A `Text` combining icon and text runs.
+    /// A `Text` combining icon and text runs. VoiceOver reads the full text,
+    /// `displayString`, not icon names.
     func displayText(style: ShortcutLabelStyle) -> Text {
         text(from: displayElements(style: style))
     }
@@ -239,4 +256,5 @@ private func text(from elements: [ShortcutDisplayElement]) -> Text {
         case let .symbol(name, _): partial + Text(Image(systemName: name))
         }
     }
+    .accessibilityLabel(Text(verbatim: elements.fullText))
 }

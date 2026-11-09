@@ -1,8 +1,12 @@
 import AppKit
 
 /// NSSearchFieldCell subclass that vertically centers text when the bezel
-/// is disabled.
+/// is disabled, and gives VoiceOver the recorder's shortcut as text.
 class CenteredSearchFieldCell: NSSearchFieldCell {
+    override func accessibilityValue() -> Any? {
+        (controlView as? BaseShortcutRecorderField)?.accessibilityText ?? stringValue
+    }
+
     override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
         super.drawInterior(withFrame: centeredFrame(cellFrame), in: controlView)
     }

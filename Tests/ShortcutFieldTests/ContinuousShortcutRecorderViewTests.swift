@@ -108,4 +108,30 @@ struct ContinuousShortcutRecorderViewTests {
         #expect(!field.isEnabled)
         #expect(!field.isRecording)
     }
+
+    @Test func sensitivitySlider_isLabelledAndReadsAsAPercentage() throws {
+        let model = Model()
+        model.shortcut = ContinuousShortcut(kind: .pinchIn, modifiers: [], sensitivity: 0.25)
+        let window = mount(model)
+        defer { unmount(window) }
+        let slider = try #require(firstSubview(NSSlider.self, in: window.contentView))
+        // The element VoiceOver reads: AppKit ignores the view and exposes its cell.
+        let element = try #require(NSAccessibility.unignoredDescendant(of: slider) as? NSCell)
+        let percent = { (value: Double) in value.formatted(.percent.precision(.fractionLength(0))) }
+        settle()
+
+        #expect(element.accessibilityLabel() == "Sensitivity")
+        #expect(element.accessibilityValueDescription() == percent(0.25))
+
+        slider.doubleValue = 0.75
+        slider.sendAction(slider.action, to: slider.target)
+        settle()
+
+        #expect(element.accessibilityValueDescription() == percent(0.75))
+
+        model.shortcut = ContinuousShortcut(kind: .pinchIn, modifiers: [], sensitivity: 0.5)
+        settle()
+
+        #expect(element.accessibilityValueDescription() == percent(0.5))
+    }
 }
