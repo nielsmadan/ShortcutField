@@ -8,10 +8,9 @@ public extension View {
     ///
     /// Apply this to a SwiftUI view whose hosting window you don't control —
     /// e.g. a `WindowGroup` scene. It installs a one-time `noResponder(for:)`
-    /// override (an Objective-C runtime swizzle); since only `NSResponder`
-    /// implements that selector, the override lands there and applies
-    /// process-wide. AppKit hosts that own their `NSWindow` subclass should
-    /// override `noResponder(for:)` directly instead.
+    /// override (an Objective-C runtime swizzle) on `NSResponder`, process-wide, as
+    /// soon as the view is created, and also on the hosting window's class when that
+    /// class overrides `noResponder(for:)` itself.
     ///
     /// Prefer ``ShortcutTracking/installBeepSuppression()`` when there is no
     /// view to hang this off.
@@ -42,21 +41,34 @@ public extension ShortcutTracking {
 /// lifecycle.
 struct BeepSuppressor: NSViewRepresentable {
     func makeNSView(context _: Context) -> NSView {
-        let view = NSView()
-        DispatchQueue.main.async {
-            guard let window = view.window else { return }
-            Self.installOverride(on: type(of: window))
-        }
-        return view
+        Self.installOverride(on: NSResponder.self)
+        return WindowPatchingView()
     }
 
     func updateNSView(_: NSView, context _: Context) {}
+
+    /// Patches its window's class too, for a window class whose own `noResponder(for:)`
+    /// override never reaches `NSResponder`'s.
+    private final class WindowPatchingView: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let window {
+                BeepSuppressor.installOverride(on: type(of: window))
+            }
+        }
+    }
 
     /// Methods already patched. `class_getInstanceMethod` resolves
     /// `noResponder(for:)` to whichever class in the hierarchy defines it —
     /// often a superclass shared by several window classes — so dedupe on the
     /// resolved method, not the passed class, to avoid stacking the swizzle.
     @MainActor private static var patchedMethods: Set<OpaquePointer> = []
+
+    /// Test hook: whether the `noResponder(for:)` that `cls` resolves to is patched.
+    @MainActor
+    static func isPatched(_ cls: AnyClass) -> Bool {
+        class_getInstanceMethod(cls, #selector(NSResponder.noResponder(for:))).map(patchedMethods.contains) ?? false
+    }
 
     @MainActor
     static func installOverride(on windowClass: AnyClass) {

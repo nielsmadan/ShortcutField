@@ -25,6 +25,8 @@ final class SequenceMatcher {
 
     let stepTimeout: TimeInterval
     var trackingStateDidChange: ((Bool) -> Void)?
+    /// Test seam: how a matcher dropped mid-sequence ends its count in ``ShortcutTracking``.
+    private let endDroppedTracking: @MainActor @Sendable () -> Void
 
     /// Test hook: the in-flight per-step timeout task, if any. Awaiting its
     /// `value` lets a test observe the timeout-driven reset deterministically,
@@ -33,16 +35,23 @@ final class SequenceMatcher {
         timeoutTask
     }
 
-    init(stepTimeout: TimeInterval = 1.0) {
+    init(
+        stepTimeout: TimeInterval = 1.0,
+        endDroppedTracking: @escaping @MainActor @Sendable () -> Void = { ShortcutTracking.activeCount -= 1 }
+    ) {
         self.stepTimeout = stepTimeout
+        self.endDroppedTracking = endDroppedTracking
     }
 
-    /// Released only from main-actor code; `reset()` may never be called mid-sequence.
+    /// A matcher dropped mid-sequence never reaches `reset()`, so it ends its tracking here.
+    /// `deinit` is nonisolated: off the main thread the decrement hops to the main actor.
     deinit {
-        MainActor.assumeIsolated {
-            if isTracking {
-                ShortcutTracking.activeCount -= 1
-            }
+        guard isTracking else { return }
+        let endDroppedTracking = endDroppedTracking
+        if Thread.isMainThread {
+            MainActor.assumeIsolated { endDroppedTracking() }
+        } else {
+            Task { @MainActor in endDroppedTracking() }
         }
     }
 

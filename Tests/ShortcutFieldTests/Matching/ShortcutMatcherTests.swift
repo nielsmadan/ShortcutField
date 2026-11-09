@@ -83,6 +83,42 @@ struct ShortcutMatcherTests {
         #expect(ShortcutTracking.isActive == baseline)
     }
 
+    @Test("a matcher released off the main thread mid-sequence ends its tracking on the main actor")
+    func releaseOffMainThreadMidSequence() async throws {
+        final class Holder: @unchecked Sendable {
+            var matcher: SequenceMatcher?
+
+            /// Drops the matcher on the calling thread; returns whether that was off main.
+            func release() -> Bool {
+                matcher = nil
+                return !Thread.isMainThread
+            }
+        }
+        @MainActor final class Ends {
+            var calls = 0
+        }
+        let ends = Ends()
+        let holder = Holder()
+        holder.matcher = SequenceMatcher(endDroppedTracking: {
+            ShortcutTracking.activeCount -= 1
+            ends.calls += 1
+        })
+        holder.matcher?.configure(shortcut: DiscreteShortcut(steps: [
+            .init(keyCode: UInt16(kVK_ANSI_K), modifiers: .command),
+            .init(keyCode: UInt16(kVK_ANSI_C), modifiers: .command),
+        ]))
+        _ = holder.matcher?.handle(keyDown(kVK_ANSI_K, .command))
+        #expect(holder.matcher?.isTracking == true)
+        let releasedOffMain = await Task.detached { holder.release() }.value
+        #expect(releasedOffMain)
+
+        // The decrement hops to the main actor; give it up to a second to run.
+        for _ in 0 ..< 100 where ends.calls == 0 {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(ends.calls == 1)
+    }
+
     /// A mismatch on the second step ends tracking, so the beep is not suppressed
     /// for the offending key.
     @Test("mid-sequence mismatch resets ShortcutTracking.isActive to baseline")
