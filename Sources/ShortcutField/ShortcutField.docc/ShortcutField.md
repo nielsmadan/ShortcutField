@@ -17,8 +17,8 @@ Record with the SwiftUI views (``ShortcutRecorderView``,
 ``ContinuousShortcutRecorderView``) or the AppKit fields, match with
 ``SwiftUICore/View/onShortcut(_:perform:)`` or a ``ShortcutMatcher`` you drive yourself, and
 display with `displayString`. Special keys that SwiftUI's focus system normally
-intercepts, such as Tab, can be recorded and matched. A recorder takes a bare Tab only
-after the first step; before it, Tab moves focus on.
+intercepts work too: Tab can be recorded and matched, and Escape can be matched and,
+with a modifier, recorded (bare Escape cancels recording).
 
 For a compact display, opt into ``ShortcutLabelStyle/compact``: pass
 `.shortcutLabelStyle(.compact)` to a recorder view, or drop a read-only ``ShortcutLabel``

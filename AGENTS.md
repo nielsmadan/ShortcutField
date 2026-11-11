@@ -37,6 +37,12 @@ ShortcutField splits two concerns into distinct types:
 - **`DiscreteShortcut`** — fire-once binding: one or more `DiscreteShortcut.Step`s. Single keystrokes, mouse clicks, gestures, and multi-step sequences all collapse into this type. The matcher fires once per full match. The `Shortcut` umbrella enum (`.discrete` / `.continuous`) wraps it alongside `ContinuousShortcut` for code that handles either flavor.
 - **`ContinuousShortcut`** — sensitivity-bearing single-step type for throttled continuous fire (scroll-to-zoom etc.). The `kind: ContinuousShortcut.Kind` nested enum restricts it to continuous gestures (scroll / pinch / rotate) at the type level — discrete kinds are unrepresentable.
 
+**Requirement — Tab is recordable.** `ShortcutRecorderField` must always record bare Tab and Shift-Tab as steps, first step included, like any other key. No change may make Tab move focus, end recording, or otherwise become unrecordable, whatever it fixes (keyboard navigation, accessibility, form behaviour). Work that needs Tab for something else needs a different design.
+
+**Requirement — a click starts recording.** Clicking a recorder must start a recording session that stays open until the user finishes it (idle timeout, a click pressed during the session, Escape, focus leaving). On current macOS the release of the click that focused the field reaches the new event monitor, so that release must never end the session.
+
+Changing which inputs a recorder records, or how a session starts and ends, is a major behaviour change for host apps: it needs the owner's decision first, not a ruling made while fixing something else.
+
 **Source structure:**
 - `Shortcut.swift` — `Shortcut` umbrella enum: `.discrete(DiscreteShortcut)` / `.continuous(ContinuousShortcut)`, with a `kind` discriminator and forwarded `displayString`. Codable, Hashable, Sendable.
 - `DiscreteShortcut.swift` — Fire-once type: one or more `DiscreteShortcut.Step`s (kind + modifiers). Kind covers `.key`, `.mouseButton`, `.scroll`, `.pinchIn/Out`, `.rotateClockwise/CounterClockwise`, `.smartMagnify`. Codable, Equatable, Hashable, Sendable.
@@ -57,7 +63,7 @@ ShortcutField splits two concerns into distinct types:
 - `Matching/ShortcutEventShape.swift` — Internal: value snapshot of the `NSEvent` fields scroll and gesture matching reads; tests build one directly to feed exact deltas and phases.
 - `Matching/TextInputFocus.swift` — Internal: focused-responder check behind the text-input gate; `responderOverride` test seam.
 - `Matching/ShortcutTracking.swift` — Public `ShortcutTracking.isActive` flag for in-progress multi-step matches; bumped automatically by `SequenceMatcher`.
-- `BaseShortcutRecorderField.swift` — Shared `NSSearchField` base for the two recorder fields (cell class, sizing, key-view eligibility, event-monitor storage, click hit-test, recording-session lifecycle: the field's window, disabling, the clear button, Tab and VoiceOver).
+- `BaseShortcutRecorderField.swift` — Shared `NSSearchField` base for the two recorder fields (cell class, sizing, key-view eligibility, event-monitor storage, click hit-test, recording-session lifecycle: the field's window, disabling, the clear button and VoiceOver).
 - `CenteredSearchFieldCell.swift` — Internal `NSSearchFieldCell` subclass that vertically centers text when the bezel is off; the base field's cell class, and the element VoiceOver reads, so it supplies the shortcut as text.
 - `ShortcutRecordingState.swift` — Public `ShortcutRecording.isActive` flag (any recorder field capturing), plus the internal `ActiveShortcutRecorder` protocol and `ShortcutRecordingState` registry that ends a previous recorder's session when another begins.
 - `ShortcutRecorderView.swift` — SwiftUI recorder (NSViewRepresentable) for `DiscreteShortcut`.
@@ -100,6 +106,8 @@ When a symbol seems to need a comment to be understandable, first check whether 
 ## Testing Guidelines
 
 Tests use the Swift Testing framework, not XCTest. Prefer `@Test` and `#expect` and keep one responsibility per test file or suite. Name tests after observable behavior, for example `DiscreteShortcutMatchingTests.swift` or `ShortcutRecorderFieldTests.swift`. Run `just test` locally before opening a PR; add or update tests for every public API or matching/recording behavior change.
+
+Unit tests feed hand-built event sequences, and AppKit's real delivery order can differ from them. After changing recorder or matcher event handling, run `just example` and check with real input before calling the change done: click a recorder and it stays recording; record ⌘K ⌘C; record Tab, Shift-Tab and ⇧⎋ as first steps; Escape cancels and keeps the old shortcut; a bare click elsewhere saves the steps.
 
 ## Commit & Pull Request Guidelines
 

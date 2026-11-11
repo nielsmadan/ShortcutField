@@ -1,5 +1,4 @@
 import AppKit
-import Carbon.HIToolbox
 
 /// A committed shortcut that a recorder field can render.
 protocol ShortcutFieldDisplayable {
@@ -394,16 +393,6 @@ public class BaseShortcutRecorderField: NSSearchField, NSSearchFieldDelegate, NS
         forceEndRecordingSession()
         clearCommittedShortcut()
         blur()
-    }
-
-    /// Whether `event` is a Tab or Shift-Tab. Before a session has captured anything, a recorder
-    /// ends the session, keeping the shortcut, and passes the event on, so tabbing through a form
-    /// never records it: the field editor then moves focus to the next or previous key view. The
-    /// field must still hold focus then, since blurring it leaves the window as first responder
-    /// and the Tab moves nothing.
-    func isFocusTab(_ event: NSEvent) -> Bool {
-        event.type == .keyDown && event.keyCode == UInt16(kVK_Tab)
-            && DiscreteShortcut.canonicalModifiers(event.modifierFlags).isSubset(of: .shift)
     }
 
     override public func becomeFirstResponder() -> Bool {

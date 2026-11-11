@@ -13,9 +13,7 @@ import Carbon.HIToolbox
 /// window (no modifiers) — the unambiguous "I'm done" gesture.
 ///
 /// Press Escape to cancel without saving. Press Delete (only before any
-/// step is captured) to clear the existing shortcut. Tab or Shift-Tab before
-/// any step is captured moves focus on and keeps the existing shortcut; after
-/// that, Tab is recorded like any other key.
+/// step is captured) to clear the existing shortcut.
 ///
 /// **Left-click is uniquely special**: a bare left-click (no modifiers) is
 /// not capturable as a step — it's reserved for UI interactions and serves
@@ -33,6 +31,8 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
     /// Trackpad bursts that already produced a step. A claim ends with its burst, or when an
     /// event of another type arrives, so the next physical burst can record a fresh step.
     private var bursts = GestureBurstTracker()
+    /// Set by a bare left-down inside the field during the session, whose release then finalizes.
+    private var awaitsInsideClickUp = false
 
     /// Idle interval after the last captured step before recording finalizes.
     /// Internal (not `private`) so tests can shrink it.
@@ -69,10 +69,12 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
 
     override func willStartRecording() {
         recordedSteps = []
+        awaitsInsideClickUp = false
         resetGestureAccumulators()
     }
 
     override func willEndRecording() {
+        awaitsInsideClickUp = false
         resetGestureAccumulators()
         timeoutTask?.cancel()
         timeoutTask = nil
@@ -147,6 +149,7 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
     }
 
     private func shouldHandleCommand(_ commandSelector: Selector) -> Bool {
+        // The field editor would move focus with Tab and Shift-Tab; they must stay recordable (AGENTS.md).
         commandSelector == #selector(NSResponder.insertTab(_:)) ||
             commandSelector == #selector(NSResponder.insertBacktab(_:)) ||
             commandSelector == #selector(NSResponder.cancelOperation(_:)) ||
@@ -189,6 +192,9 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
             // Don't treat as finalize.
             return nil
         }
+        // The click that focused the field started this session after its press, and its
+        // release arrives here too: only a click pressed during the session finalizes.
+        guard awaitsInsideClickUp else { return event }
 
         let inside = isInsideField(event)
 
@@ -207,10 +213,6 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
                 resetTimeout()
             }
             return nil
-        }
-        if recordedSteps.isEmpty, isFocusTab(event) {
-            forceEndRecordingSession()
-            return event
         }
         let modifiers = DiscreteShortcut.canonicalModifiers(event.modifierFlags)
 
@@ -250,7 +252,10 @@ public final class ShortcutRecorderField: BaseShortcutRecorderField {
             // on the down, since a control with its own tracking loop may swallow the up,
             // and passes through so the target still gets the click. Inside, the up commits.
             if modifiers.isEmpty {
-                guard !isInsideField(event) else { return nil }
+                guard !isInsideField(event) else {
+                    awaitsInsideClickUp = true
+                    return nil
+                }
                 finalizeRecording()
                 return event
             }

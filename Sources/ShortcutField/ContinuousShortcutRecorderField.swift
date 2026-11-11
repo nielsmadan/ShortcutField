@@ -124,6 +124,15 @@ public final class ContinuousShortcutRecorderField: BaseShortcutRecorderField {
         }
     }
 
+    /// Whether `event` is a Tab or Shift-Tab. The recorder ends the session, keeping the shortcut,
+    /// and passes the event on, so the field editor moves focus to the next or previous key view.
+    /// The field must still hold focus then, since blurring it leaves the window as first
+    /// responder and the Tab moves nothing.
+    private func isFocusTab(_ event: NSEvent) -> Bool {
+        event.type == .keyDown && event.keyCode == UInt16(kVK_Tab)
+            && DiscreteShortcut.canonicalModifiers(event.modifierFlags).isSubset(of: .shift)
+    }
+
     private func handleKeyEvent(_ event: NSEvent) -> NSEvent? {
         if isFocusTab(event) {
             forceEndRecordingSession()
