@@ -7,8 +7,7 @@ import AppKit
 /// dispatcher calls every active handler **newest-first** (reverse registration
 /// order) and consumes the event (returns `nil` from the system monitor) if any
 /// handler returns `.fired`, `.continuousFired`, or `.advanced(consumeEvent: true)`.
-/// Every handler still sees every event — newest-first is an ordering guarantee,
-/// not early termination — so prefix-sharing matchers all advance in parallel.
+/// Handlers advance in parallel unless recording or keyboard ownership interrupts delivery.
 ///
 /// The underlying `NSEvent` local monitor is installed lazily on the first
 /// `register` call and torn down automatically when the last handler is removed.
@@ -28,13 +27,26 @@ public final class ShortcutEventDispatcher {
     init() {}
 
     private var eventMonitor: Any?
-    /// Registered handlers in registration order. Kept ordered (rather than a
-    /// dictionary) so `handleEvent` can consult them newest-first.
-    private var handlers: [(id: UUID, handler: Handler)] = []
-    /// Newest-first snapshot of the handler closures, rebuilt on every
-    /// register/unregister so the per-event hot path neither reverses nor
-    /// allocates per event.
-    private var handlerSnapshot: [Handler] = []
+    private struct Registration {
+        let id: UUID
+        let revision = UUID()
+        let handler: Handler
+        let onInterruption: () -> Void
+    }
+
+    private struct OwnedWindow {
+        weak var window: NSWindow?
+    }
+
+    private var handlers: [Registration] = []
+    private var handlerSnapshot: [Registration] = []
+    private var activeRevisions: Set<UUID> = []
+    private var ownedWindows: [UUID: OwnedWindow] = [:]
+    private var deliveryGeneration: UInt64 = 0
+    private var isInterrupting = false
+    private weak var lastWindow: NSWindow?
+    private var lastWindowID: ObjectIdentifier?
+    private var hasReceivedEvent = false
 
     /// Test hook: the number of currently-registered handlers.
     var handlerCount: Int {
@@ -42,7 +54,8 @@ public final class ShortcutEventDispatcher {
     }
 
     private func rebuildSnapshot() {
-        handlerSnapshot = handlers.reversed().map(\.handler)
+        handlerSnapshot = Array(handlers.reversed())
+        activeRevisions = Set(handlers.map(\.revision))
     }
 
     /// Registers a handler under `id`.
@@ -55,13 +68,58 @@ public final class ShortcutEventDispatcher {
     ///   - id: A caller-supplied `UUID` used to identify the handler for later removal.
     ///   - handler: The closure to invoke for each incoming event.
     public func register(id: UUID, handler: @escaping Handler) {
+        register(id: id, onInterruption: {}, handler: handler)
+    }
+
+    /// The interruption callback runs synchronously on ownership boundaries and event-window changes.
+    /// Interrupt matchers and cancel queued deliveries here, including any batch already being flushed.
+    /// Notifications apply to all registrations, even when only one window acquires ownership.
+    public func register(id: UUID, onInterruption: @escaping () -> Void, handler: @escaping Handler) {
+        let registration = Registration(id: id, handler: handler, onInterruption: onInterruption)
         if let index = handlers.firstIndex(where: { $0.id == id }) {
-            handlers[index].handler = handler
+            handlers[index] = registration
         } else {
-            handlers.append((id: id, handler: handler))
+            handlers.append(registration)
         }
         rebuildSnapshot()
         installMonitorIfNeeded()
+    }
+
+    /// Suppresses dispatcher handlers for this window while native responder input continues unchanged.
+    /// All local shortcut kinds are suppressed. Recorders and independently installed monitors remain independent.
+    /// The token holds the window weakly; retain it until the presentation ends. Sheets and child windows
+    /// need their own tokens. Releasing a token after its window deallocates does not notify consumers.
+    public func acquireKeyboardOwnership(for window: NSWindow) -> ShortcutKeyboardOwnership {
+        let wasOwned = owns(window)
+        let id = UUID()
+        ownedWindows[id] = OwnedWindow(window: window)
+        if wasOwned {
+            deliveryGeneration &+= 1
+        } else {
+            interrupt()
+        }
+        return ShortcutKeyboardOwnership { [weak self] in self?.releaseOwnership(id: id) }
+    }
+
+    private func owns(_ window: NSWindow?) -> Bool {
+        guard let window else { return false }
+        return ownedWindows.values.contains { $0.window === window }
+    }
+
+    private func releaseOwnership(id: UUID) {
+        guard let window = ownedWindows.removeValue(forKey: id)?.window, !owns(window) else { return }
+        interrupt()
+    }
+
+    private func interrupt() {
+        deliveryGeneration &+= 1
+        guard !isInterrupting else { return }
+        isInterrupting = true
+        defer { isInterrupting = false }
+        for registration in handlerSnapshot {
+            guard activeRevisions.contains(registration.revision) else { continue }
+            registration.onInterruption()
+        }
     }
 
     /// Removes the handler registered under `id`.
@@ -75,28 +133,39 @@ public final class ShortcutEventDispatcher {
         rebuildSnapshot()
         if handlers.isEmpty {
             removeMonitor()
+            hasReceivedEvent = false
+            lastWindow = nil
+            lastWindowID = nil
         }
     }
 
     func handleEvent(_ event: NSEvent) -> NSEvent? {
-        if ShortcutRecordingState.isAnyRecording {
-            return event
+        guard !isInterrupting else { return event }
+        let window = event.window
+        let windowID = window.map(ObjectIdentifier.init)
+        let changedWindow = hasReceivedEvent && (windowID != lastWindowID || lastWindow !== window)
+        lastWindow = window
+        lastWindowID = windowID
+        hasReceivedEvent = true
+        if changedWindow {
+            interrupt()
         }
+        guard !ShortcutRecordingState.isAnyRecording, !owns(window) else { return event }
 
+        let generation = deliveryGeneration
         var shouldConsume = false
-        for handler in handlerSnapshot {
-            switch handler(event) {
+        for registration in handlerSnapshot {
+            guard generation == deliveryGeneration, !ShortcutRecordingState.isAnyRecording else { break }
+            guard activeRevisions.contains(registration.revision) else { continue }
+            switch registration.handler(event) {
             case .ignored:
-                continue
+                break
             case let .advanced(consumeEvent):
                 shouldConsume = shouldConsume || consumeEvent
-            case .fired:
-                shouldConsume = true
-            case .continuousFired:
+            case .fired, .continuousFired:
                 shouldConsume = true
             }
         }
-
         return shouldConsume ? nil : event
     }
 

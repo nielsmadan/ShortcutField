@@ -14,6 +14,9 @@ public final class ShortcutMatcher {
     }
 
     private let backing: Backing
+    private weak var lastWindow: NSWindow?
+    private var lastWindowID: ObjectIdentifier?
+    private var hasReceivedEvent = false
 
     /// Forwards the in-progress-sequence signal from the backing discrete
     /// matcher. No-op for continuous shortcuts.
@@ -42,9 +45,18 @@ public final class ShortcutMatcher {
     ///
     /// A discrete shortcut whose first step is a bare key or a ⇧/⌥-only
     /// combination returns `.ignored` while an editable text responder has focus,
-    /// even when the event matches the step.
+    /// even when the event matches the step. Changing the event's window, including to or from
+    /// a windowless event, interrupts pending matching before processing the new event.
     public func handle(_ event: NSEvent) -> ShortcutMatchResult {
-        switch backing {
+        let window = event.window
+        let windowID = window.map(ObjectIdentifier.init)
+        if hasReceivedEvent, windowID != lastWindowID || lastWindow !== window {
+            interrupt()
+        }
+        hasReceivedEvent = true
+        lastWindow = window
+        lastWindowID = windowID
+        return switch backing {
         case let .discrete(sequence): sequence.handle(event)
         case let .continuous(continuous): continuous.handle(event)
         }
@@ -57,9 +69,22 @@ public final class ShortcutMatcher {
         return continuous.handle(shape: shape)
     }
 
-    /// Discard in-progress state: the step-sequence position for discrete
-    /// shortcuts, or the throttle accumulator for continuous ones.
+    /// Cancels pending sequences and throttling without firing again in an already-claimed gesture.
+    /// Claimed gesture tails and scroll momentum keep their consumption rules until the burst ends;
+    /// a new burst starts fresh. Use this in dispatcher interruption callbacks.
+    public func interrupt() {
+        switch backing {
+        case let .discrete(sequence): sequence.interrupt()
+        case let .continuous(continuous): continuous.interrupt()
+        }
+    }
+
+    /// Discards all pending state, including gesture suppression. Use ``interrupt()`` when
+    /// cancelling during an active gesture so its remaining events cannot fire again.
     public func reset() {
+        hasReceivedEvent = false
+        lastWindow = nil
+        lastWindowID = nil
         switch backing {
         case let .discrete(sequence): sequence.reset()
         case let .continuous(continuous): continuous.reset()

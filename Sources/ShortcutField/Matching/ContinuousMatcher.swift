@@ -10,13 +10,20 @@ final class ContinuousMatcher {
     /// The burst that matched the shortcut: its rest, and its scroll momentum, are consumed.
     private var bursts = GestureBurstTracker()
     private var scrollCoast = ScrollCoast()
+    private var isInterrupted = false
 
     init(_ shortcut: ContinuousShortcut) {
         self.shortcut = shortcut
         throttle.sensitivity = shortcut.sensitivity
     }
 
+    func interrupt() {
+        throttle.reset()
+        isInterrupted = bursts.hasClaims
+    }
+
     func reset() {
+        isInterrupted = false
         throttle.reset()
         bursts.reset()
         scrollCoast.stop()
@@ -35,7 +42,14 @@ final class ContinuousMatcher {
         if shape.type == .scrollWheel, let position {
             scrollCoast.follow(position)
         }
+        if case .start = position {
+            isInterrupted = false
+        }
+        if isInterrupted, position == .middle(.consumesRest) {
+            return .advanced(consumeEvent: true)
+        }
         if case .end = position {
+            isInterrupted = false
             // Reset the throttle so the next physical gesture starts fresh. The end itself
             // reaches the view beneath so that view can close the gesture.
             throttle.reset()

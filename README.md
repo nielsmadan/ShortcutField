@@ -172,6 +172,70 @@ continuousShortcut.matches(event)
 
 `matches(press)` never fires on a key-up press. Special keys (Tab, arrows, F1–F20, Forward Delete, Help, keypad Enter and Clear) match by `press.key`. Other keys compare `press.characters` with the character the current keyboard layout produces, so a step holding Shift (`⇧1`) matches either `1` or `!`.
 
+### Keyboard ownership for modal input
+
+A palette or modal editor can pause ordinary shortcuts in its window while AppKit
+continues handling typing, editing commands, dead keys, and IME input:
+
+```swift
+// Store this token on the presentation/session, before focusing its search field.
+let ownership = ShortcutEventDispatcher.shared.acquireKeyboardOwnership(for: window)
+
+// When the presentation ends, including when a reusable panel is hidden:
+ownership.release()
+```
+
+Ownership suppresses all dispatcher shortcut kinds in that concrete window,
+including `.onShortcut` bindings with app scope. Other windows keep receiving
+shortcuts. Sheets and child panels need tokens for their own concrete windows.
+Tokens compose: releasing one leaves other owners effective; repeated
+release is harmless. Tokens do not retain windows. Dropping a token also releases
+it, synchronously on the main thread or via the main actor when dropped elsewhere.
+
+The first owner and last release for a live window synchronously interrupt all registered consumers.
+Releasing tokens after their window deallocates leaves other consumers undisturbed.
+This deliberately clears pending state app-wide because dispatcher registrations
+have no window identity. Moving the event stream between windows (including a
+windowless event) also interrupts consumers. A sequence cannot begin in one window
+and complete in another. `.onShortcut` interrupts its matcher automatically. Pending sequences and throttling are
+cancelled, while an already-claimed gesture keeps its suppression until its end or
+a fresh burst. This prevents one physical gesture from firing again after a brief
+ownership transition. Claimed scroll momentum remains consumed after ownership ends.
+
+Custom consumers use the interruption overload to interrupt their own matchers and
+cancel buffered work. If a delivery batch is already being flushed, invalidate its
+remaining entries too; clearing only the pending queue does not cancel a copied batch.
+An interruption is a cancellation signal, not a synthesized gesture-end event.
+
+```swift
+let matcher = ShortcutMatcher("cmd+k cmd+c")
+let listenerID = UUID()
+ShortcutEventDispatcher.shared.register(
+    id: listenerID,
+    onInterruption: { matcher.interrupt() },
+    handler: { event in matcher.handle(event) }
+)
+// At consumer teardown:
+ShortcutEventDispatcher.shared.unregister(id: listenerID)
+```
+
+Acquiring ownership inside a shortcut callback stops later handlers from seeing
+that opening event, even when the callback immediately releases ownership or opens
+a different window. An event already consumed stays consumed. Interruption callbacks
+may change ownership or registrations; nested interruptions are coalesced, and
+removed/replaced registrations are skipped in an in-flight delivery.
+
+Recorder capture remains independent: a recorder still receives input in an owned
+window, and its existing app-wide matching suppression lasts until recording ends.
+Ownership does not affect independently installed monitors, manually fed matchers,
+or Carbon global hotkeys. There is no automatic dismissal or focus change.
+
+The example app's **Input Ownership** tab provides owner controls, a native text
+field, shortcut counters, and a recorder. Add two owners, type and edit, release
+one, then release the last; counters should resume only after the last release.
+Use **File → New Window** to exercise a second window. Also check native composition,
+recorder Tab/Shift-Tab, and Escape cancellation with ownership active.
+
 ### Text syntax
 
 `Shortcut` and `DiscreteShortcut` round-trip through a VS Code-style ascii string:
@@ -314,7 +378,8 @@ public enum Kind: Sendable, Equatable, Hashable {
 |---|---|
 | `init(_ shortcut: Shortcut)` | Build a matcher for a discrete or continuous shortcut |
 | `handle(_ event: NSEvent) -> ShortcutMatchResult` | Feed one event; see `ShortcutMatchResult` below |
-| `reset()` | Discard in-progress sequence / throttle state |
+| `reset()` | Discard all sequence, throttle, gesture, and window state |
+| `interrupt()` | Cancel pending matching while preserving suppression of already-claimed gesture tails |
 | `trackingStateDidChange: ((Bool) -> Void)?` | Notified when a multi-step match starts/stops tracking |
 
 `ShortcutMatchResult` is `.ignored`, `.advanced(consumeEvent:)` (no fire, but consume per the flag: an intermediate step, a held key's repeat, a throttled continuous event, or the rest of a burst that fired), `.fired` (a discrete shortcut completed), or `.continuousFired(magnitude:)` (a throttled continuous fire, with the event's signed delta).
@@ -327,9 +392,11 @@ public enum Kind: Sendable, Equatable, Hashable {
 |---|---|
 | `ShortcutEventDispatcher.shared` | The shared instance |
 | `register(id: UUID, handler:)` | Register a handler (`(NSEvent) -> ShortcutMatchResult`); the monitor installs lazily on the first registration |
+| `register(id:onInterruption:handler:)` | Register with synchronous cancellation on ownership and event-window boundaries |
+| `acquireKeyboardOwnership(for:)` | Pause dispatcher matching in a window until its ownership tokens release |
 | `unregister(id: UUID)` | Remove a handler; the monitor is torn down when the last one is removed |
 
-Handlers are consulted **newest-first**; the event is consumed if any returns `.fired`, `.continuousFired`, or `.advanced(consumeEvent: true)`. Every handler still sees every event, so prefix-sharing matchers all advance in parallel.
+Handlers are consulted **newest-first**; the event is consumed if any returns `.fired`, `.continuousFired`, or `.advanced(consumeEvent: true)`. Handlers advance in parallel while routing is uninterrupted. Keyboard ownership pauses delivery in the owned window; acquisition during a callback stops later handlers for that event. See [Keyboard ownership](#keyboard-ownership-for-modal-input).
 
 ### `ShortcutParsingError`
 
@@ -367,7 +434,7 @@ SwiftUI recorder for sensitivity-bearing continuous shortcuts. Binds a `Continuo
 
 View modifier that fires an action when a `Shortcut` is performed. Takes the umbrella `Shortcut?`.
 
-For `.discrete` shortcuts the action fires once on completion: immediately for 1-step, after the full sequence for multi-step (intermediate events propagate normally; only focus-intercepted keys like Tab/Escape are consumed mid-sequence). For `.continuous` shortcuts it fires on each throttled gesture event. Once a trackpad gesture or scroll fires a discrete shortcut or matches a continuous one, the rest of that gesture and its momentum are consumed too, apart from its end event. Multiple shortcuts that share a common prefix (e.g. `A B` and `A T`) work correctly: each tracks independently and the shared dispatcher delivers every event to all active matchers. Matching is automatically disabled while any recorder field is active. Bare-key and ⇧/⌥-only shortcuts are suppressed while a text-editing responder has focus (Escape and F1–F20 are exempt) (see [Typing takes precedence](#typing-takes-precedence)).
+For `.discrete` shortcuts the action fires once on completion: immediately for 1-step, after the full sequence for multi-step (intermediate events propagate normally; only focus-intercepted keys like Tab/Escape are consumed mid-sequence). For `.continuous` shortcuts it fires on each throttled gesture event. Once a trackpad gesture or scroll fires a discrete shortcut or matches a continuous one, the rest of that gesture and its momentum are consumed too, apart from its end event. Multiple shortcuts that share a common prefix (e.g. `A B` and `A T`) work correctly: each tracks independently and the shared dispatcher delivers events to active matchers while routing is uninterrupted. Matching is automatically disabled while any recorder field is active. Bare-key and ⇧/⌥-only shortcuts are suppressed while a text-editing responder has focus (Escape and F1–F20 are exempt) (see [Typing takes precedence](#typing-takes-precedence)).
 
 ### `.onShortcut(_:scope:perform:)` and `ShortcutScope`
 

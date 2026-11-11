@@ -64,6 +64,13 @@ the [README](https://github.com/nielsmadan/ShortcutField) and the bundled
 - ``ShortcutEventDispatcher``
 - ``ShortcutTracking``
 
+### Keyboard ownership
+
+- ``ShortcutKeyboardOwnership``
+- ``ShortcutMatcher/interrupt()``
+- ``ShortcutEventDispatcher/acquireKeyboardOwnership(for:)``
+- ``ShortcutEventDispatcher/register(id:onInterruption:handler:)``
+
 ### Suppressing the system beep
 
 - ``SwiftUICore/View/suppressShortcutBeep()``

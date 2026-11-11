@@ -100,12 +100,8 @@ struct OnShortcutModifier: ViewModifier {
         matcher = m
         let box = actionBox
         let hostWindow = hostWindow
-        ShortcutEventDispatcher.shared.register(id: listenerID) { event in
+        ShortcutEventDispatcher.shared.register(id: listenerID, onInterruption: { m.interrupt() }, handler: { event in
             if scope == .window, !hostWindow.owns(event) {
-                // A press in another window breaks a sequence, as unmatched input here would.
-                if event.window != nil, Self.isPress(event) {
-                    m.reset()
-                }
                 return .ignored
             }
             let result = m.handle(event)
@@ -116,11 +112,7 @@ struct OnShortcutModifier: ViewModifier {
                 break
             }
             return result
-        }
-    }
-
-    private static func isPress(_ event: NSEvent) -> Bool {
-        [.keyDown, .leftMouseDown, .rightMouseDown, .otherMouseDown].contains(event.type)
+        })
     }
 
     private func teardown() {
@@ -145,6 +137,9 @@ public extension View {
     /// keystroke goes to the field instead. Steps carrying ⌘ or ⌃, and keys that
     /// produce no text (Escape, F1–F20), always fire. Later steps of a multi-step
     /// shortcut always fire once its first step has matched.
+    ///
+    /// Keyboard ownership pauses delivery in the owned window. Ownership transitions and
+    /// event-window changes reset pending matching state.
     ///
     /// It responds to events in every window of the app; use
     /// ``SwiftUICore/View/onShortcut(_:scope:perform:)`` with ``ShortcutScope/window``

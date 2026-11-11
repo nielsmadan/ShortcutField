@@ -419,4 +419,55 @@ struct OnShortcutModifierTests {
         #expect(counter.fires == 1)
         #expect(dispatcher.handlerCount == baseline + 1)
     }
+
+    @Test("ownership suppresses standalone shortcuts while other windows keep working")
+    func ownershipAllowsOtherWindows() {
+        let dispatcher = ShortcutEventDispatcher.shared
+        let baseline = dispatcher.handlerCount
+        let host = mountScoped(.app, shortcut: "cmd+k cmd+c")
+        let other = Self.offscreenWindow()
+        defer {
+            host.window.orderOut(nil)
+            host.window.contentView = nil
+            pump { dispatcher.handlerCount == baseline }
+        }
+        #expect(pump { dispatcher.handlerCount == baseline + 1 })
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_K, .command, in: host.window))
+        let token = dispatcher.acquireKeyboardOwnership(for: host.window)
+        let completion = keyDown(kVK_ANSI_C, .command, in: host.window)
+        #expect(dispatcher.handleEvent(completion) === completion)
+        #expect(host.counter.fires == 0)
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_K, .command, in: other))
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_C, .command, in: other))
+        #expect(host.counter.fires == 1)
+        token.release()
+        _ = dispatcher.handleEvent(completion)
+        #expect(host.counter.fires == 1)
+        _ = dispatcher.handleEvent(keyDown(kVK_ANSI_K, .command, in: host.window))
+        _ = dispatcher.handleEvent(completion)
+        #expect(host.counter.fires == 2)
+    }
+
+    @Test("ownership discards a standalone sequence without a window change")
+    func ownershipResetsStandaloneMatcherInSameWindow() {
+        let dispatcher = ShortcutEventDispatcher.shared
+        let baseline = dispatcher.handlerCount
+        let host = mountScoped(.app, shortcut: "cmd+k cmd+c")
+        defer {
+            host.window.orderOut(nil)
+            host.window.contentView = nil
+            pump { dispatcher.handlerCount == baseline }
+        }
+        #expect(pump { dispatcher.handlerCount == baseline + 1 })
+        let prefix = keyDown(kVK_ANSI_K, .command, in: host.window)
+        let completion = keyDown(kVK_ANSI_C, .command, in: host.window)
+        _ = dispatcher.handleEvent(prefix)
+        let token = dispatcher.acquireKeyboardOwnership(for: host.window)
+        token.release()
+        _ = dispatcher.handleEvent(completion)
+        #expect(host.counter.fires == 0)
+        _ = dispatcher.handleEvent(prefix)
+        _ = dispatcher.handleEvent(completion)
+        #expect(host.counter.fires == 1)
+    }
 }

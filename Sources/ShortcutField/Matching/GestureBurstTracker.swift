@@ -27,6 +27,10 @@ struct GestureBurstTracker {
 
     private var claims: [NSEvent.EventType: Claim] = [:]
 
+    var hasClaims: Bool {
+        !claims.isEmpty
+    }
+
     /// Places an event within its burst, and drops the claim on its type when the burst starts or
     /// ends.
     mutating func track(_ shape: ShortcutEventShape) -> Position {

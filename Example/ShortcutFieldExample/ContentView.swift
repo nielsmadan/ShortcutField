@@ -8,6 +8,9 @@ struct ContentView: View {
             Tab("Workbench", systemImage: "slider.horizontal.3") {
                 WorkbenchTab()
             }
+            Tab("Input Ownership", systemImage: "keyboard") {
+                KeyboardOwnershipDemo()
+            }
             Tab("Gallery", systemImage: "paintpalette") {
                 GalleryTab()
             }

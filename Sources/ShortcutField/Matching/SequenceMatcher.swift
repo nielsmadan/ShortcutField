@@ -204,6 +204,10 @@ final class SequenceMatcher {
         }
     }
 
+    func interrupt() {
+        resetSequence()
+    }
+
     func reset() {
         resetSequence()
         bursts.reset()
