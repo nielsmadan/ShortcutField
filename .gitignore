@@ -5,3 +5,15 @@ xcuserdata/
 DerivedData/
 .swiftpm/xcode/package.xcworkspacedata
 .claude/*
+/.pi/extensions/pi-permission-system/config.json
+/opencode.json
+/AGENTS.md
+/CLAUDE.md
+/.claude/settings.json
+/.codex/rules/permissions.rules
+/.agents/skills/macos-vm/
+/.claude/skills/macos-vm/
+/.agents/skills/review-swift/
+/.claude/skills/review-swift/
+/.agents/skills/review-swiftui/
+/.claude/skills/review-swiftui/

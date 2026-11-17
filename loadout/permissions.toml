@@ -1,0 +1,15 @@
+[shell]
+allow = ["just build", "just clean", "just docs", "just example", "just format", "just lint", "just lint-fix", "just test", "just build *", "just clean *", "just docs *", "just example *", "just format *", "just lint *", "just lint-fix *", "just test *"]
+ask = []
+deny = ["just tag-release", "just tag-release-major", "just tag-release-minor", "just tag-release-patch"]
+
+[mcp]
+allow = []
+ask = []
+deny = []
+
+[claude.extra]
+allow = []
+deny = []
+
+[opencode.extra]
